@@ -1,0 +1,157 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Super Admin Platform Overview
+     Multi-Tenant metrics, subscriptions, active organizations with Unicons
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="dashboard-page">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Platform Administration</h1>
+      <p class="page-subtitle">Global overview across all organizations, tenants, and active subscriptions.</p>
+    </div>
+    <div class="page-actions">
+      <a href="/admin/tenants/new" class="btn btn-primary" id="btn-create-tenant">
+        <i class="uil uil-plus"></i>
+        <span>Add Organization</span>
+      </a>
+      <a href="/admin/plans" class="btn btn-secondary" id="btn-manage-plans">
+        <i class="uil uil-layers"></i>
+        <span>Subscription Plans</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Cards Grid -->
+  <div class="kpi-grid">
+    <!-- Active Organizations -->
+    <div class="kpi-card kpi-card-indigo">
+      <div class="kpi-icon kpi-icon-indigo">
+        <i class="uil uil-building"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Active Tenants</span>
+        <span class="kpi-value"><%= stats.totalTenants %></span>
+        <span class="kpi-change kpi-change-up">Registered businesses</span>
+      </div>
+    </div>
+
+    <!-- Total Users -->
+    <div class="kpi-card kpi-card-cyan">
+      <div class="kpi-icon kpi-icon-cyan">
+        <i class="uil uil-users-alt"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Platform Users</span>
+        <span class="kpi-value"><%= stats.totalUsers %></span>
+        <span class="kpi-change">Across all workspaces</span>
+      </div>
+    </div>
+
+    <!-- Active Subscriptions -->
+    <div class="kpi-card kpi-card-emerald">
+      <div class="kpi-icon kpi-icon-emerald">
+        <i class="uil uil-check-circle"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Active Subscriptions</span>
+        <span class="kpi-value"><%= stats.activeSubscriptions %></span>
+        <span class="kpi-change kpi-change-up">Paid / Active recurring</span>
+      </div>
+    </div>
+
+    <!-- Total Volume -->
+    <div class="kpi-card kpi-card-amber">
+      <div class="kpi-icon kpi-icon-amber">
+        <i class="uil uil-money-bill"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Total Revenue Settled</span>
+        <span class="kpi-value"><%= stats.formattedRevenue %></span>
+        <span class="kpi-change">M-Pesa & Bank Transactions</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Organizations Table -->
+  <div class="card mt-6">
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-building"></i>
+        </div>
+        <div>
+          <h2 class="card-title">Registered Organizations (Tenants)</h2>
+          <p class="card-subtitle">Global multi-tenant workspaces and active subscription tiers</p>
+        </div>
+      </div>
+      <a href="/admin/tenants" class="card-action-link" id="link-manage-all-tenants">
+        <span>Manage All Tenants</span>
+        <i class="uil uil-arrow-right"></i>
+      </a>
+    </div>
+    <div class="card-body-table">
+      <% if (recentTenants && recentTenants.length > 0) { %>
+        <div class="table-scroll-hint">
+          <i class="uil uil-arrows-h"></i>
+          <span>Swipe to view all</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Organization</th>
+                <th>Slug</th>
+                <th>Email</th>
+                <th>Plan Tier</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentTenants.forEach(function(t) { %>
+                <tr>
+                  <td>
+                    <div class="flex-align-center gap-3">
+                      <div class="avatar-circle">
+                        <%= t.name.charAt(0) %>
+                      </div>
+                      <div>
+                        <strong><%= t.name %></strong>
+                        <% if (t.phone) { %>
+                          <div class="text-xs text-muted"><%= t.phone %></div>
+                        <% } %>
+                      </div>
+                    </div>
+                  </td>
+                  <td><code><%= t.slug %></code></td>
+                  <td><%= t.email %></td>
+                  <td><span class="badge badge-info"><span class="badge-dot"></span><%= t.plan_tier || 'STARTER' %></span></td>
+                  <td>
+                    <% if (t.is_active) { %>
+                      <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
+                    <% } else { %>
+                      <span class="badge badge-subtle">Inactive</span>
+                    <% } %>
+                  </td>
+                  <td><%= new Date(t.created_at).toLocaleDateString() %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+        <div class="card-table-footer">
+          <span>Showing <%= recentTenants.length %> most recent workspaces</span>
+          <a href="/admin/tenants" class="font-medium text-primary">View Full Directory &rarr;</a>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="uil uil-building"></i></div>
+          <p class="empty-state-title">No tenant organizations</p>
+          <p class="empty-state-message">Add your first organization using the Add Organization button above.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+

@@ -1,0 +1,138 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Team Directory View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="team-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Team & Workforce</h1>
+      <p class="page-subtitle">Manage project team members, assign RBAC access roles, and track hourly rates.</p>
+    </div>
+    <div class="page-actions">
+      <a href="/team/new" class="btn btn-primary" id="btn-add-member">
+        <i class="uil uil-plus"></i>
+        <span>Add Member</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card mb-6">
+    <div class="card-header card-header-flex">
+      <div>
+        <h3 class="card-title">Active Team Members</h3>
+        <p class="text-xs text-muted">All registered staff, specialists, and contractors</p>
+      </div>
+      <span class="badge badge-subtle"><%= members ? members.length : 0 %> Members</span>
+    </div>
+    <div class="card-body-table">
+      <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
+      <% if (members && members.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Phone</th>
+                <th>Hourly Rate</th>
+                <th>M-Pesa Disburse</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% members.forEach(function(m) { %>
+                <tr>
+                  <td>
+                    <div class="flex-align-center gap-3">
+                      <div class="avatar-circle">
+                        <%= m.first_name.charAt(0) + m.last_name.charAt(0) %>
+                      </div>
+                      <div>
+                        <strong><%= m.first_name %> <%= m.last_name %></strong>
+                        <% if (m.tenant_name) { %>
+                          <div class="text-xs text-muted"><%= m.tenant_name %></div>
+                        <% } %>
+                      </div>
+                    </div>
+                  </td>
+                  <td><%= m.email %></td>
+                  <td>
+                    <% if (m.role === 'SUPER_ADMIN' || m.role === 'TENANT_OWNER') { %>
+                      <span class="badge badge-primary"><%= m.role.replace(/_/g, ' ') %></span>
+                    <% } else if (m.role === 'PROJECT_MANAGER') { %>
+                      <span class="badge badge-info">Project Manager</span>
+                    <% } else if (m.role === 'ACCOUNTANT') { %>
+                      <span class="badge badge-warning">Accountant</span>
+                    <% } else { %>
+                      <span class="badge badge-subtle"><%= m.role.replace(/_/g, ' ') %></span>
+                    <% } %>
+                  </td>
+                  <td><%= m.phone || '—' %></td>
+                  <td><%= m.hourly_rate ? formatKES(parseFloat(m.hourly_rate)) + '/hr' : '—' %></td>
+                  <td><%= m.mpesa_number || '—' %></td>
+                  <td>
+                    <% if (m.is_active) { %>
+                      <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
+                    <% } else { %>
+                      <span class="badge badge-subtle">Inactive</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <i class="uil uil-users-alt"></i>
+          </div>
+          <h4 class="empty-state-title">No team members registered</h4>
+          <p class="empty-state-text">Click "Add Member" above to onboard employees or contractors.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (payouts && payouts.length > 0) { %>
+    <div class="card">
+      <div class="card-header card-header-flex">
+        <div>
+          <h3 class="card-title">Disbursement & Wage History</h3>
+          <p class="text-xs text-muted">Recent mobile money wages and reimbursements</p>
+        </div>
+        <span class="badge badge-subtle"><%= payouts.length %> Payouts</span>
+      </div>
+      <div class="card-body-table">
+        <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Disbursement Type</th>
+                <th>M-Pesa Number</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% payouts.forEach(function(p) { %>
+                <tr>
+                  <td><strong><%= p.first_name %> <%= p.last_name %></strong></td>
+                  <td><span class="badge badge-subtle"><%= p.payout_type %></span></td>
+                  <td><%= p.mpesa_number || p.mpesa_recipient_number || '—' %></td>
+                  <td><%= new Date(p.payout_date).toLocaleDateString() %></td>
+                  <td class="font-bold"><%= formatKES(parseFloat(p.amount)) %></td>
+                  <td><span class="badge badge-success"><%= p.status %></span></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  <% } %>
+</div>

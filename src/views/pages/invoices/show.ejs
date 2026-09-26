@@ -1,0 +1,209 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Invoice Details & Print View
+     Compliant with KRA eTIMS Tax Invoice Standards
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="invoice-detail-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <a href="/invoices" class="btn btn-sm btn-secondary mb-2">
+        <i class="uil uil-arrow-left"></i>
+        <span>Back to Invoices</span>
+      </a>
+      <h1 class="page-title">Invoice <%= invoice.invoice_number %></h1>
+      <p class="page-subtitle">Commercial Tax Invoice &bull; Client: <strong><%= invoice.client_name || 'Valued Client' %></strong></p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-secondary" id="btn-print-invoice" data-action="print">
+        <i class="uil uil-print"></i>
+        <span>Print Invoice</span>
+      </button>
+      <% if (parseFloat(invoice.balance_due) > 0) { %>
+        <button type="button" class="btn btn-primary" id="btn-pay-mpesa" data-action="mpesa-pay" data-amount="<%= invoice.balance_due %>">
+          <i class="uil uil-mobile-android"></i>
+          <span>Pay via M-Pesa</span>
+        </button>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Document Customization Toolbar -->
+  <div class="doc-customizer-bar">
+    <div class="doc-customizer-section">
+      <span class="doc-customizer-label">Design Template:</span>
+      <div class="template-selector-group">
+        <button type="button" class="template-btn active" data-template="modern">
+          <i class="uil uil-layer-group"></i>
+          <span>Modern</span>
+        </button>
+        <button type="button" class="template-btn" data-template="corporate">
+          <i class="uil uil-building"></i>
+          <span>Corporate</span>
+        </button>
+        <button type="button" class="template-btn" data-template="classic">
+          <i class="uil uil-file-alt"></i>
+          <span>Classic</span>
+        </button>
+        <button type="button" class="template-btn" data-template="creative">
+          <i class="uil uil-palette"></i>
+          <span>Creative</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="doc-customizer-section">
+      <span class="doc-customizer-label">Brand Color:</span>
+      <div class="color-swatches-group">
+        <button type="button" class="color-swatch active" data-color="#4F46E5" title="Indigo" aria-label="Indigo"></button>
+        <button type="button" class="color-swatch" data-color="#059669" title="Emerald" aria-label="Emerald"></button>
+        <button type="button" class="color-swatch" data-color="#2563EB" title="Sapphire" aria-label="Sapphire"></button>
+        <button type="button" class="color-swatch" data-color="#DC2626" title="Ruby" aria-label="Ruby"></button>
+        <button type="button" class="color-swatch" data-color="#D97706" title="Amber" aria-label="Amber"></button>
+        <button type="button" class="color-swatch" data-color="#475569" title="Slate" aria-label="Slate"></button>
+        <div class="color-picker-wrapper" title="Pick Custom Color">
+          <input type="color" class="color-picker-input" value="#4F46E5" aria-label="Custom brand color">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="invoice-sheet document-sheet template-modern"
+       data-default-template="<%= (typeof tenant !== 'undefined' && tenant && tenant.invoiceTemplate) ? tenant.invoiceTemplate : 'modern' %>"
+       data-default-color="<%= (typeof invoice !== 'undefined' && invoice.tenant_primary_color) ? invoice.tenant_primary_color : ((typeof tenant !== 'undefined' && tenant && tenant.primaryColor) ? tenant.primaryColor : '#4F46E5') %>">
+    <!-- Invoice Header Row -->
+    <div class="invoice-header-row">
+      <div class="invoice-brand-block">
+        <h2><%= (typeof tenant !== 'undefined' && tenant) ? tenant.name : appName %></h2>
+        <div>
+          <% if (typeof tenant !== 'undefined' && tenant) { %>
+            <p><%= tenant.address || 'Nairobi, Kenya' %></p>
+            <p>Email: <%= tenant.email %></p>
+            <p><strong>KRA PIN:</strong> <%= invoice.tenant_kra_pin || tenant.kra_pin || 'P000000000X' %></p>
+          <% } %>
+        </div>
+      </div>
+      <div class="invoice-meta-block">
+        <span class="badge <%= invoice.status === 'PAID' ? 'badge-success' : (invoice.status === 'SENT' ? 'badge-info' : 'badge-danger') %>">
+          <span class="badge-dot"></span>
+          <%= invoice.status %>
+        </span>
+        <h3><%= invoice.invoice_number %></h3>
+        <p>Issue Date: <%= new Date(invoice.issue_date).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' }) %></p>
+        <p>Due Date: <%= new Date(invoice.due_date).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' }) %></p>
+      </div>
+    </div>
+
+    <!-- Client / Bill To -->
+    <div class="invoice-parties-grid">
+      <div class="invoice-party-col">
+        <h4 class="invoice-party-heading">Billed To:</h4>
+        <h3 class="invoice-party-name"><%= invoice.client_name || 'Valued Client' %></h3>
+        <div class="invoice-party-details">
+          <% if (invoice.client_address) { %><p><%= invoice.client_address %></p><% } %>
+          <% if (invoice.client_email) { %><p>Email: <%= invoice.client_email %></p><% } %>
+          <% if (invoice.client_phone) { %><p>Phone: <%= invoice.client_phone %></p><% } %>
+          <p><strong>Client KRA PIN:</strong> <%= invoice.client_kra_pin || 'P000000000X' %></p>
+        </div>
+      </div>
+      <% if (invoice.project_name) { %>
+        <div class="invoice-party-col text-right">
+          <h4 class="invoice-party-heading">Project:</h4>
+          <p class="font-semibold text-primary">
+            <%= invoice.project_name %> (<%= invoice.project_code %>)
+          </p>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Items Table -->
+    <div class="table-responsive mb-6">
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>Item Description</th>
+            <th class="text-center">Qty</th>
+            <th class="text-right">Unit Price</th>
+            <th class="text-right">VAT (16%)</th>
+            <th class="text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (items && items.length > 0) { %>
+            <% items.forEach(function(item) { %>
+              <tr>
+                <td><strong><%= item.description %></strong></td>
+                <td class="text-center"><%= item.quantity %></td>
+                <td class="text-right"><%= formatKES(parseFloat(item.unit_price)) %></td>
+                <td class="text-right"><%= formatKES(parseFloat(item.line_tax || (item.quantity * item.unit_price * 0.16))) %></td>
+                <td class="text-right font-semibold"><%= formatKES(parseFloat(item.line_total || (item.quantity * item.unit_price * 1.16))) %></td>
+              </tr>
+            <% }); %>
+          <% } else { %>
+            <tr>
+              <td colspan="5" class="text-center text-muted p-4">No line items recorded.</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totals Section -->
+    <div class="invoice-totals-wrapper">
+      <div class="invoice-totals-box">
+        <div class="invoice-total-line">
+          <span>Subtotal (Net):</span>
+          <span><%= formatKES(parseFloat(invoice.subtotal)) %></span>
+        </div>
+        <div class="invoice-total-line">
+          <span>VAT (16% Standard):</span>
+          <span><%= formatKES(parseFloat(invoice.tax_amount)) %></span>
+        </div>
+        <% if (parseFloat(invoice.discount_amount) > 0) { %>
+          <div class="invoice-total-line">
+            <span>Discount:</span>
+            <span>- <%= formatKES(parseFloat(invoice.discount_amount)) %></span>
+          </div>
+        <% } %>
+        <div class="invoice-total-line invoice-total-line-grand">
+          <span>Grand Total:</span>
+          <span><%= formatKES(parseFloat(invoice.total_amount)) %></span>
+        </div>
+        <div class="invoice-total-line text-success font-medium">
+          <span>Amount Paid:</span>
+          <span><%= formatKES(parseFloat(invoice.amount_paid)) %></span>
+        </div>
+        <div class="invoice-total-line invoice-total-line-balance">
+          <span>Balance Due:</span>
+          <span><%= formatKES(parseFloat(invoice.balance_due)) %></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- KRA eTIMS Verification Banner -->
+    <div class="invoice-etims-banner">
+      <div class="invoice-etims-info">
+        <div class="invoice-etims-title">KRA eTIMS Verification</div>
+        <div class="invoice-etims-hash">
+          Hash: <%= invoice.etims_verification_hash || 'ETIMS-SIGNATURE-NOT-AVAILABLE' %>
+        </div>
+      </div>
+      <div class="invoice-etims-badge">
+        <i class="uil uil-qrcode-scan"></i>
+        <span class="invoice-etims-badge-text">eTIMS QR</span>
+      </div>
+
+    </div>
+
+    <!-- Notes & Terms -->
+    <% if (invoice.notes || invoice.terms) { %>
+      <div class="invoice-notes-terms">
+        <% if (invoice.notes) { %>
+          <p class="mb-1"><strong>Notes:</strong> <%= invoice.notes %></p>
+        <% } %>
+        <% if (invoice.terms) { %>
+          <p><strong>Terms:</strong> <%= invoice.terms %></p>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+</div>

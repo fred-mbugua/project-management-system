@@ -1,0 +1,65 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Top Navbar Partial
+     Search, notifications, theme toggle, user menu with Unicons
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<header class="top-navbar" id="topNavbar">
+  <div class="navbar-left">
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Toggle navigation">
+      <i class="uil uil-bars"></i>
+    </button>
+
+    <div class="navbar-search">
+      <i class="uil uil-search search-icon"></i>
+      <input type="text" class="search-input" id="globalSearch" placeholder="Search projects, invoices, clients..." autocomplete="off">
+    </div>
+  </div>
+
+  <div class="navbar-right">
+    <!-- Theme Toggle -->
+    <button class="navbar-icon-btn" id="themeToggle" aria-label="Toggle theme" title="Toggle dark mode">
+      <i class="uil uil-sun icon-sun"></i>
+      <i class="uil uil-moon icon-moon"></i>
+    </button>
+
+    <!-- Notifications -->
+    <button class="navbar-icon-btn notification-btn" id="notificationBtn" aria-label="Notifications" title="Notifications">
+      <i class="uil uil-bell"></i>
+      <span class="notification-badge" id="notificationBadge"></span>
+    </button>
+
+    <!-- User Menu -->
+    <div class="navbar-user-menu" id="userMenu">
+      <button class="navbar-user-btn" id="userMenuBtn" aria-label="User menu">
+        <div class="navbar-user-avatar">
+          <% if (typeof currentUser !== 'undefined' && currentUser && currentUser.avatarUrl) { %>
+            <img src="<%= currentUser.avatarUrl %>" alt="Avatar">
+          <% } else { %>
+            <span class="avatar-initials-sm"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.firstName.charAt(0) + currentUser.lastName.charAt(0) : 'U' %></span>
+          <% } %>
+        </div>
+        <span class="navbar-user-name"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.firstName : 'User' %></span>
+        <i class="uil uil-angle-down"></i>
+      </button>
+
+      <div class="user-dropdown" id="userDropdown">
+        <div class="dropdown-header">
+          <span class="dropdown-user-name"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.firstName + ' ' + currentUser.lastName : 'User' %></span>
+          <span class="dropdown-user-email"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.email : '' %></span>
+        </div>
+        <div class="dropdown-divider"></div>
+        <a href="/settings" class="dropdown-item" id="dropdown-settings">
+          <i class="uil uil-setting"></i>
+          <span>Settings</span>
+        </a>
+        <div class="dropdown-divider"></div>
+        <form action="/auth/logout" method="POST">
+          <button type="submit" class="dropdown-item dropdown-item-danger" id="dropdown-logout">
+            <i class="uil uil-signout"></i>
+            <span>Sign Out</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</header>

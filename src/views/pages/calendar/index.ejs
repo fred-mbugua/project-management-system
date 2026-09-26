@@ -1,0 +1,68 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Unified Timeline Calendar View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="calendar-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Operations & Deliveries Timeline</h1>
+      <p class="page-subtitle">Unified chronological schedule of project milestones, task deadlines, invoices, and SLAs.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header card-header-flex">
+      <div>
+        <h3 class="card-title">Upcoming Milestones & Deadlines</h3>
+        <p class="text-xs text-muted">Chronological order of actionable deliverables</p>
+      </div>
+      <span class="badge badge-subtle"><%= events ? events.length : 0 %> Scheduled Items</span>
+    </div>
+    <div class="card-body">
+      <% if (events && events.length > 0) { %>
+        <div class="timeline-list">
+          <% events.forEach(function(ev) { %>
+            <div class="timeline-item">
+              <!-- Date Box -->
+              <div class="timeline-date-box">
+                <div class="timeline-month">
+                  <%= ev.date.toLocaleDateString('en-US', { month: 'short' }) %>
+                </div>
+                <div class="timeline-day">
+                  <%= ev.date.getDate() %>
+                </div>
+              </div>
+
+              <!-- Event Info -->
+              <div class="timeline-content">
+                <div class="timeline-header-group">
+                  <span class="badge <%= ev.badgeClass %>"><%= ev.type %></span>
+                  <span class="timeline-title"><%= ev.title %></span>
+                </div>
+                <div class="timeline-detail">
+                  <%= ev.detail %>
+                </div>
+              </div>
+
+              <!-- Action Link -->
+              <div class="timeline-action">
+                <a href="<%= ev.link %>" class="btn btn-sm btn-secondary">
+                  <i class="uil uil-eye"></i>
+                  <span>View</span>
+                </a>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <i class="uil uil-calendar-slash"></i>
+          </div>
+          <h4 class="empty-state-title">No upcoming milestones or deadlines</h4>
+          <p class="empty-state-text">All scheduled projects and invoices are currently up to date.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

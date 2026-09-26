@@ -1,0 +1,95 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Platform Admin - Organizations List
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="admin-tenants-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Organizations</h1>
+      <p class="page-subtitle">Manage registered businesses, their active subscriptions, and user limits.</p>
+    </div>
+    <div class="page-actions">
+      <a href="/admin/tenants/new" class="btn btn-primary" id="btn-add-tenant">
+        <i class="uil uil-plus"></i>
+        <span>Add Organization</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header card-header-flex">
+      <div>
+        <h3 class="card-title">Tenant Workspaces</h3>
+        <p class="text-xs text-muted">All registered SaaS tenant organizations</p>
+      </div>
+      <span class="badge badge-subtle"><%= tenants ? tenants.length : 0 %> Tenants</span>
+    </div>
+    <div class="card-body-table">
+      <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
+      <% if (tenants && tenants.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Company Name</th>
+                <th>Slug</th>
+                <th>Contact</th>
+                <th>Plan</th>
+                <th>Users</th>
+                <th>Projects</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% tenants.forEach(function(t) { %>
+                <tr>
+                  <td>
+                    <div class="flex-align-center gap-3">
+                      <div class="avatar-circle">
+                        <%= t.name.charAt(0) %>
+                      </div>
+                      <div>
+                        <strong><%= t.name %></strong>
+                        <% if (t.kra_pin) { %>
+                          <div class="text-xs text-muted">PIN: <%= t.kra_pin %></div>
+                        <% } %>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td><code><%= t.slug %></code></td>
+                  <td>
+                    <div><%= t.email %></div>
+                    <small class="text-xs text-muted"><%= t.phone || 'No phone' %></small>
+                  </td>
+                  <td>
+                    <span class="badge badge-info"><%= t.plan_name || 'Trial' %></span>
+                  </td>
+                  <td><%= t.user_count %></td>
+                  <td><%= t.project_count %></td>
+                  <td>
+                    <% if (t.is_active) { %>
+                      <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
+                    <% } else { %>
+                      <span class="badge badge-danger">Inactive</span>
+                    <% } %>
+                  </td>
+                  <td><%= new Date(t.created_at).toLocaleDateString() %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <i class="uil uil-building"></i>
+          </div>
+          <h4 class="empty-state-title">No organizations registered yet</h4>
+          <p class="empty-state-text">Click "Add Organization" above to onboard your first platform tenant.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

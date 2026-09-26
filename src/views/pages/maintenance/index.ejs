@@ -1,0 +1,173 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Preventive Maintenance Schedules View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="maintenance-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Maintenance & SLAs</h1>
+      <p class="page-subtitle">Schedule recurring technical inspections, preventative maintenance, and SLA retainers.</p>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="kpi-grid mb-6">
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-success">
+        <i class="uil uil-wrench"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Active Contracts</span>
+        <div class="kpi-value"><%= stats.activeCount %></div>
+        <span class="text-xs text-muted mt-1 block">Ongoing service retainers</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-primary">
+        <i class="uil uil-sync"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Monthly Retainer (MRR)</span>
+        <div class="kpi-value text-primary"><%= formatKES(stats.totalMRR) %></div>
+        <span class="text-xs text-muted mt-1 block">Contracted recurring revenue</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-info">
+        <i class="uil uil-file-check-alt"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Total Contracts</span>
+        <div class="kpi-value"><%= stats.totalSchedules %></div>
+        <span class="text-xs text-muted mt-1 block">All registered schedules</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Schedule Card -->
+  <div class="card mb-6">
+    <div class="card-header">
+      <h3 class="card-title">Add Service Contract / Inspection Schedule</h3>
+      <p class="text-xs text-muted">Register a new scheduled maintenance or recurring SLA contract</p>
+    </div>
+    <div class="card-body">
+      <form action="/maintenance/new" method="POST">
+        <div class="form-row-2-1-1">
+          <div class="form-group">
+            <label for="title" class="form-label">Contract Title *</label>
+            <input type="text" id="title" name="title" class="form-input" placeholder="e.g. Monthly Server & Security Patching" required>
+          </div>
+          <div class="form-group">
+            <label for="clientId" class="form-label">Client *</label>
+            <select id="clientId" name="clientId" class="form-select" required>
+              <option value="">Select Client</option>
+              <% clients.forEach(function(c) { %>
+                <option value="<%= c.id %>"><%= c.name %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="projectId" class="form-label">Project (Optional)</label>
+            <select id="projectId" name="projectId" class="form-select">
+              <option value="">None / Standalone</option>
+              <% projects.forEach(function(p) { %>
+                <option value="<%= p.id %>"><%= p.name %> (<%= p.code %>)</option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-1-1-1-2">
+          <div class="form-group">
+            <label for="frequency" class="form-label">Cadence *</label>
+            <select id="frequency" name="frequency" class="form-select" required>
+              <% frequencies.forEach(function(f) { %>
+                <option value="<%= f %>"><%= f %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="chargeAmount" class="form-label">Retainer Amount (KES) *</label>
+            <input type="number" id="chargeAmount" name="chargeAmount" class="form-input" placeholder="0.00" step="any" min="0" required>
+          </div>
+          <div class="form-group">
+            <label for="nextDueDate" class="form-label">Next Due Date *</label>
+            <input type="date" id="nextDueDate" name="nextDueDate" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label for="notes" class="form-label">SLA Scope Notes</label>
+            <input type="text" id="notes" name="notes" class="form-input" placeholder="e.g. 4-hour critical response time">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="btn-save-maintenance">
+            <i class="uil uil-plus"></i>
+            <span>Schedule Contract</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Contracts Table -->
+  <div class="card">
+    <div class="card-header card-header-flex">
+      <div>
+        <h3 class="card-title">Active Maintenance Retainers</h3>
+        <p class="text-xs text-muted">Overview of current service level agreements</p>
+      </div>
+      <span class="badge badge-subtle"><%= schedules ? schedules.length : 0 %> Contracts</span>
+    </div>
+    <div class="card-body-table">
+      <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
+      <% if (schedules && schedules.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Client</th>
+                <th>Project</th>
+                <th>Cadence</th>
+                <th>Retainer</th>
+                <th>Next Due Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% schedules.forEach(function(s) { %>
+                <tr>
+                  <td><strong><%= s.title %></strong></td>
+                  <td>
+                    <div><%= s.client_name %></div>
+                    <% if (s.client_phone) { %><small class="text-xs text-muted"><%= s.client_phone %></small><% } %>
+                  </td>
+                  <td><%= s.project_code || 'Standalone' %></td>
+                  <td><span class="badge badge-info"><%= s.frequency %></span></td>
+                  <td class="font-bold"><%= formatKES(parseFloat(s.charge_amount)) %></td>
+                  <td><%= new Date(s.next_due_date).toLocaleDateString() %></td>
+                  <td>
+                    <% if (s.status === 'ACTIVE') { %>
+                      <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
+                    <% } else { %>
+                      <span class="badge badge-subtle"><%= s.status %></span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <i class="uil uil-wrench"></i>
+          </div>
+          <h4 class="empty-state-title">No maintenance schedules configured</h4>
+          <p class="empty-state-text">Add your recurring SLAs or maintenance contracts using the form above.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

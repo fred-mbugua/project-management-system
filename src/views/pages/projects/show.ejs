@@ -1,0 +1,189 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Project Detail View (Tasks, Budget, Team)
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="project-detail-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <div class="flex-align-center gap-2">
+        <span class="badge badge-subtle"><%= project.code %></span>
+        <h1 class="page-title m-0"><%= project.name %></h1>
+      </div>
+      <p class="page-subtitle">
+        Client: <strong><%= project.client_name || 'Internal' %></strong> 
+        &bull; Status: <span class="badge badge-info"><%= project.status %></span>
+      </p>
+    </div>
+    <div class="page-actions">
+      <a href="/projects" class="btn btn-secondary">
+        <i class="uil uil-arrow-left"></i>
+        <span>Back to Projects</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Project Metadata Grid -->
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-card-indigo">
+      <div class="kpi-icon kpi-icon-indigo">
+        <i class="uil uil-bill"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Project Budget</span>
+        <span class="kpi-value"><%= project.budget ? formatKES(parseFloat(project.budget)) : 'Not set' %></span>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card-emerald">
+      <div class="kpi-icon kpi-icon-emerald">
+        <i class="uil uil-check-circle"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Tasks Progress</span>
+        <span class="kpi-value"><%= tasks.filter(t => t.status === 'COMPLETED').length %> / <%= tasks.length %></span>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card-cyan">
+      <div class="kpi-icon kpi-icon-cyan">
+        <i class="uil uil-calendar-alt"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Timeline</span>
+        <span class="kpi-value kpi-timeline-value">
+          <span><%= project.start_date ? new Date(project.start_date).toLocaleDateString() : 'N/A' %></span>
+          <i class="uil uil-arrow-right text-muted"></i>
+          <span><%= project.end_date ? new Date(project.end_date).toLocaleDateString() : 'Ongoing' %></span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <% if (project.description) { %>
+    <div class="card mt-6">
+      <div class="card-body">
+        <h3 class="stat-panel-label mb-2">Project Overview</h3>
+        <p class="project-overview-text"><%= project.description %></p>
+      </div>
+    </div>
+  <% } %>
+
+
+  <!-- Tasks Section -->
+  <div class="project-layout-grid mt-6">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Tasks & Deliverables</h2>
+        <span class="text-xs text-muted"><%= tasks.length %> Total Tasks</span>
+      </div>
+      <div class="card-body-table">
+        <% if (tasks && tasks.length > 0) { %>
+          <div class="table-scroll-hint">
+            <i class="uil uil-arrows-h"></i>
+            <span>Swipe to view all</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Assignee</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% tasks.forEach(function(t) { %>
+                  <tr>
+                    <td>
+                      <strong><%= t.title %></strong>
+                      <% if (t.description) { %>
+                        <br><small class="text-tertiary"><%= t.description %></small>
+                      <% } %>
+                    </td>
+                    <td><%= t.first_name ? t.first_name + ' ' + t.last_name : 'Unassigned' %></td>
+                    <td>
+                      <% if (t.priority === 'URGENT') { %>
+                        <span class="badge badge-danger">Urgent</span>
+                      <% } else if (t.priority === 'HIGH') { %>
+                        <span class="badge badge-warning">High</span>
+                      <% } else { %>
+                        <span class="badge badge-subtle"><%= t.priority %></span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <% if (t.status === 'COMPLETED') { %>
+                        <span class="badge badge-success"><span class="badge-dot"></span>Done</span>
+                      <% } else if (t.status === 'IN_PROGRESS') { %>
+                        <span class="badge badge-info"><span class="badge-dot"></span>In Progress</span>
+                      <% } else { %>
+                        <span class="badge badge-secondary"><%= t.status %></span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="empty-state">
+            <div class="empty-state-icon"><i class="uil uil-clipboard-notes"></i></div>
+            <p class="empty-state-title">No tasks yet</p>
+            <p class="empty-state-message">Add deliverables and milestones using the form on the right.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Quick Add Task Form -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Add New Task</h2>
+      </div>
+      <div class="card-body">
+        <form action="/projects/<%= project.id %>/tasks" method="POST" class="form-stack">
+          <div class="form-group">
+            <label class="form-label" for="taskTitle">Task Title *</label>
+            <input type="text" class="form-input" id="taskTitle" name="title" required placeholder="e.g. Conduct cabling tests">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="assignedToId">Assign To</label>
+            <select class="form-select" id="assignedToId" name="assignedToId">
+              <option value="">-- Unassigned --</option>
+              <% if (teamUsers && teamUsers.length > 0) { %>
+                <% teamUsers.forEach(function(u) { %>
+                  <option value="<%= u.id %>"><%= u.first_name %> <%= u.last_name %> (<%= u.role %>)</option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="priority">Priority</label>
+              <select class="form-select" id="priority" name="priority">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM" selected>Medium</option>
+                <option value="HIGH">High</option>
+                <option value="URGENT">Urgent</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="dueDate">Due Date</label>
+              <input type="date" class="form-input" id="dueDate" name="dueDate">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="taskDesc">Details / Notes</label>
+            <textarea class="form-input" id="taskDesc" name="description" rows="3" placeholder="Brief technical or delivery notes..."></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="uil uil-plus"></i>
+            <span>Add Task</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

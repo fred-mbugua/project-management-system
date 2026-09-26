@@ -1,0 +1,255 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Tenant Dashboard View
+     KPI statistics, active projects, recent invoices, and team tasks with Unicons
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="dashboard-page">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Welcome back, <%= currentUser ? currentUser.firstName : 'User' %>!</h1>
+      <p class="page-subtitle">Here is the latest operational snapshot for <strong><%= tenant ? tenant.name : 'your organization' %></strong>.</p>
+    </div>
+    <div class="page-actions">
+      <a href="/projects/new" class="btn btn-primary" id="btn-create-project">
+        <i class="uil uil-plus"></i>
+        <span>New Project</span>
+      </a>
+      <a href="/invoices/new" class="btn btn-secondary" id="btn-create-invoice">
+        <i class="uil uil-receipt"></i>
+        <span>New Invoice</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Cards Grid -->
+  <div class="kpi-grid">
+    <!-- Active Projects -->
+    <div class="kpi-card kpi-card-indigo">
+      <div class="kpi-icon kpi-icon-indigo">
+        <i class="uil uil-folder"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Active Projects</span>
+        <span class="kpi-value"><%= stats.activeProjects %></span>
+        <span class="kpi-change"><%= stats.totalProjects %> total projects</span>
+      </div>
+    </div>
+
+    <!-- Revenue Collected -->
+    <div class="kpi-card kpi-card-emerald">
+      <div class="kpi-icon kpi-icon-emerald">
+        <i class="uil uil-money-withdraw"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Revenue Collected</span>
+        <span class="kpi-value"><%= stats.formattedReceived %></span>
+        <span class="kpi-change kpi-change-up">From paid invoices</span>
+      </div>
+    </div>
+
+    <!-- Outstanding Due -->
+    <div class="kpi-card kpi-card-amber">
+      <div class="kpi-icon kpi-icon-amber">
+        <i class="uil uil-clock"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Outstanding Balance</span>
+        <span class="kpi-value"><%= stats.formattedDue %></span>
+        <span class="kpi-change">Pending settlement</span>
+      </div>
+    </div>
+
+    <!-- Tasks In Progress -->
+    <div class="kpi-card kpi-card-cyan">
+      <div class="kpi-icon kpi-icon-cyan">
+        <i class="uil uil-check-square"></i>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Pending Tasks</span>
+        <span class="kpi-value"><%= stats.pendingTasks %></span>
+        <span class="kpi-change"><%= stats.completedTasks %> completed</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Grids -->
+  <div class="dashboard-grid mt-6">
+    <!-- Recent Projects Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Recent Projects</h2>
+        <a href="/projects" class="text-sm text-primary font-medium flex items-center gap-1">
+          <span>View All</span>
+          <i class="uil uil-arrow-right"></i>
+        </a>
+      </div>
+      <div class="card-body-table">
+        <% if (recentProjects && recentProjects.length > 0) { %>
+          <div class="table-scroll-hint">
+            <i class="uil uil-arrows-h"></i>
+            <span>Swipe to view all</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Project Name</th>
+                  <th>Client</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% recentProjects.forEach(function(proj) { %>
+                  <tr>
+                    <td><span class="badge badge-subtle"><%= proj.code %></span></td>
+                    <td><strong><%= proj.name %></strong></td>
+                    <td><%= proj.client_name || 'Internal' %></td>
+                    <td>
+                      <% if (proj.status === 'IN_PROGRESS') { %>
+                        <span class="badge badge-info"><span class="badge-dot"></span>In Progress</span>
+                      <% } else if (proj.status === 'COMPLETED') { %>
+                        <span class="badge badge-success"><span class="badge-dot"></span>Completed</span>
+                      <% } else { %>
+                        <span class="badge badge-warning"><span class="badge-dot"></span><%= proj.status %></span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="empty-state">
+            <div class="empty-state-icon"><i class="uil uil-folder"></i></div>
+            <p class="empty-state-title">No projects yet</p>
+            <p class="empty-state-message">Create your first project to begin tracking milestones and tasks.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Recent Invoices Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Recent Invoices</h2>
+        <a href="/invoices" class="text-sm text-primary font-medium flex items-center gap-1">
+          <span>View All</span>
+          <i class="uil uil-arrow-right"></i>
+        </a>
+      </div>
+      <div class="card-body-table">
+        <% if (recentInvoices && recentInvoices.length > 0) { %>
+          <div class="table-scroll-hint">
+            <i class="uil uil-arrows-h"></i>
+            <span>Swipe to view all</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Number</th>
+                  <th>Client</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% recentInvoices.forEach(function(inv) { %>
+                  <tr>
+                    <td><strong><%= inv.invoice_number %></strong></td>
+                    <td><%= inv.client_name || 'N/A' %></td>
+                    <td><strong><%= formatKES(parseFloat(inv.total_amount)) %></strong></td>
+                    <td>
+                      <% if (inv.status === 'PAID') { %>
+                        <span class="badge badge-success"><span class="badge-dot"></span>Paid</span>
+                      <% } else if (inv.status === 'SENT') { %>
+                        <span class="badge badge-info"><span class="badge-dot"></span>Sent</span>
+                      <% } else if (inv.status === 'OVERDUE') { %>
+                        <span class="badge badge-danger"><span class="badge-dot"></span>Overdue</span>
+                      <% } else { %>
+                        <span class="badge badge-secondary"><span class="badge-dot"></span><%= inv.status %></span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="empty-state">
+            <div class="empty-state-icon"><i class="uil uil-receipt"></i></div>
+            <p class="empty-state-title">No invoices yet</p>
+            <p class="empty-state-message">Bill clients and record payments by generating your first invoice.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Tasks Section -->
+  <div class="card mt-6">
+    <div class="card-header">
+      <h2 class="card-title">Active Team Tasks</h2>
+      <a href="/projects" class="text-sm text-primary font-medium flex items-center gap-1">
+        <span>View All</span>
+        <i class="uil uil-arrow-right"></i>
+      </a>
+    </div>
+    <div class="card-body-table">
+      <% if (recentTasks && recentTasks.length > 0) { %>
+        <div class="table-scroll-hint">
+          <i class="uil uil-arrows-h"></i>
+          <span>Swipe to view all</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Task Title</th>
+                <th>Project</th>
+                <th>Assigned To</th>
+                <th>Priority</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentTasks.forEach(function(task) { %>
+                <tr>
+                  <td><strong><%= task.title %></strong></td>
+                  <td><%= task.project_name || 'N/A' %></td>
+                  <td><%= task.first_name ? task.first_name + ' ' + task.last_name : 'Unassigned' %></td>
+                  <td>
+                    <% if (task.priority === 'URGENT') { %>
+                      <span class="badge badge-danger">Urgent</span>
+                    <% } else if (task.priority === 'HIGH') { %>
+                      <span class="badge badge-warning">High</span>
+                    <% } else { %>
+                      <span class="badge badge-subtle"><%= task.priority %></span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (task.status === 'COMPLETED') { %>
+                      <span class="badge badge-success"><span class="badge-dot"></span>Done</span>
+                    <% } else if (task.status === 'IN_PROGRESS') { %>
+                      <span class="badge badge-info"><span class="badge-dot"></span>In Progress</span>
+                    <% } else { %>
+                      <span class="badge badge-secondary"><%= task.status %></span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="uil uil-check-square"></i></div>
+          <p class="empty-state-title">No active tasks</p>
+          <p class="empty-state-message">All tasks are currently completed or none have been assigned.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,168 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Accounting & Tax Overview View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="accounting-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Financial Accounting & Tax</h1>
+      <p class="page-subtitle">Unified cash flow statements, profit & loss summary, and KRA VAT liability.</p>
+    </div>
+  </div>
+
+  <!-- Financial Cards Grid -->
+  <div class="kpi-grid mb-6">
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-success">
+        <i class="uil uil-wallet"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Cash Collected</span>
+        <div class="kpi-value text-success"><%= formatKES(metrics.totalCollected) %></div>
+        <span class="text-xs text-muted mt-1 block">Total payments realized</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-primary">
+        <i class="uil uil-receipt"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Total Invoiced</span>
+        <div class="kpi-value"><%= formatKES(metrics.totalInvoiced) %></div>
+        <span class="text-xs text-muted mt-1 block">Gross billings to clients</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-warning">
+        <i class="uil uil-clock"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Outstanding Receivables</span>
+        <div class="kpi-value text-warning"><%= formatKES(metrics.totalReceivables) %></div>
+        <span class="text-xs text-muted mt-1 block">Unpaid customer balances</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-danger">
+        <i class="uil uil-money-withdraw"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Operating Expenses</span>
+        <div class="kpi-value text-danger"><%= formatKES(metrics.totalExpenses) %></div>
+        <span class="text-xs text-muted mt-1 block">Direct costs & overhead</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon <%= metrics.netOperatingProfit >= 0 ? 'kpi-icon-success' : 'kpi-icon-danger' %>">
+        <i class="uil uil-chart-line"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Operating Cash Margin</span>
+        <div class="kpi-value <%= metrics.netOperatingProfit >= 0 ? 'text-success' : 'text-danger' %>"><%= formatKES(metrics.netOperatingProfit) %></div>
+        <span class="text-xs text-muted mt-1 block">Collected minus Expenses</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- KRA VAT Breakdown Card -->
+  <div class="card mb-6">
+    <div class="card-header">
+      <h3 class="card-title">KRA Monthly VAT Return Estimator</h3>
+      <p class="text-xs text-muted">Estimated 16% standard rate tax liability for current billing cycle</p>
+    </div>
+    <div class="card-body">
+      <div class="grid-3">
+        <div class="stat-panel">
+          <div class="stat-panel-label">Output VAT (Billed)</div>
+          <div class="stat-panel-value">
+            <%= formatKES(metrics.outputVat) %>
+          </div>
+          <p class="stat-panel-hint">
+            16% VAT charged on client invoices.
+          </p>
+        </div>
+
+        <div class="stat-panel">
+          <div class="stat-panel-label">Input VAT (Claimable)</div>
+          <div class="stat-panel-value text-primary">
+            <%= formatKES(metrics.inputVat) %>
+          </div>
+          <p class="stat-panel-hint">
+            VAT paid on qualifying supplier invoices.
+          </p>
+        </div>
+
+        <div class="stat-panel">
+          <div class="stat-panel-label">Net Tax Position</div>
+          <div class="stat-panel-value <%= metrics.netVatPayable >= 0 ? 'text-warning' : 'text-success' %>">
+            <%= formatKES(Math.abs(metrics.netVatPayable)) %>
+            <span class="text-xs font-normal">
+              <%= metrics.netVatPayable >= 0 ? '(Payable to KRA)' : '(Credit / Refund)' %>
+            </span>
+          </div>
+          <p class="stat-panel-hint">
+            Due by the 20th of next month via iTax.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Payments Audit Table -->
+  <div class="card">
+    <div class="card-header card-header-flex">
+      <div>
+        <h3 class="card-title">Recent Payment Collections</h3>
+        <p class="text-xs text-muted">Real-time ledger of inbound client settlements</p>
+      </div>
+      <span class="badge badge-subtle"><%= recentPayments ? recentPayments.length : 0 %> Received</span>
+    </div>
+    <div class="card-body-table">
+      <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
+      <% if (recentPayments && recentPayments.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Receipt / Ref</th>
+                <th>Client</th>
+                <th>Invoice #</th>
+                <th>Method</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentPayments.forEach(function(pay) { %>
+                <tr>
+                  <td><strong><%= pay.mpesa_receipt_number || pay.reference_number || pay.id.substring(0, 8) %></strong></td>
+                  <td><%= pay.client_name || '—' %></td>
+                  <td><%= pay.invoice_number %></td>
+                  <td><span class="badge badge-subtle"><%= pay.payment_method %></span></td>
+                  <td><%= new Date(pay.payment_date).toLocaleDateString() %></td>
+                  <td class="text-success font-bold"><%= formatKES(parseFloat(pay.amount)) %></td>
+                  <td>
+                    <span class="badge badge-success"><%= pay.status %></span>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <i class="uil uil-receipt"></i>
+          </div>
+          <h4 class="empty-state-title">No completed payments recorded yet</h4>
+          <p class="empty-state-text">Payments collected via M-Pesa or bank transfer will populate this ledger.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

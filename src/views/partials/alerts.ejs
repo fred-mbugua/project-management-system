@@ -1,0 +1,62 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Flash Message Alerts Partial
+     Auto-dismissible notification banners with Unicons
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="alerts-container" id="alertsContainer">
+  <% if (typeof success !== 'undefined' && success && success.length > 0) { %>
+    <% success.forEach(function(msg) { %>
+      <div class="alert alert-success" role="alert">
+        <div class="alert-content">
+          <i class="uil uil-check-circle alert-icon"></i>
+          <span class="alert-message"><%= msg %></span>
+        </div>
+        <button class="alert-close" aria-label="Close alert">
+          <i class="uil uil-times"></i>
+        </button>
+      </div>
+    <% }); %>
+  <% } %>
+
+  <% if (typeof error !== 'undefined' && error && error.length > 0) { %>
+    <% error.forEach(function(msg) { %>
+      <div class="alert alert-error" role="alert">
+        <div class="alert-content">
+          <i class="uil uil-times-circle alert-icon"></i>
+          <span class="alert-message"><%= msg %></span>
+        </div>
+        <button class="alert-close" aria-label="Close alert">
+          <i class="uil uil-times"></i>
+        </button>
+      </div>
+    <% }); %>
+  <% } %>
+
+  <% if (typeof info !== 'undefined' && info && info.length > 0) { %>
+    <% info.forEach(function(msg) { %>
+      <div class="alert alert-info" role="alert">
+        <div class="alert-content">
+          <i class="uil uil-info-circle alert-icon"></i>
+          <span class="alert-message"><%= msg %></span>
+        </div>
+        <button class="alert-close" aria-label="Close alert">
+          <i class="uil uil-times"></i>
+        </button>
+      </div>
+    <% }); %>
+  <% } %>
+
+  <% if (typeof warning !== 'undefined' && warning && warning.length > 0) { %>
+    <% warning.forEach(function(msg) { %>
+      <div class="alert alert-warning" role="alert">
+        <div class="alert-content">
+          <i class="uil uil-exclamation-triangle alert-icon"></i>
+          <span class="alert-message"><%= msg %></span>
+        </div>
+        <button class="alert-close" aria-label="Close alert">
+          <i class="uil uil-times"></i>
+        </button>
+      </div>
+    <% }); %>
+  <% } %>
+</div>

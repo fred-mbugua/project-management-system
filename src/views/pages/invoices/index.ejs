@@ -1,0 +1,97 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Invoices Directory View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="invoices-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Invoices</h1>
+      <p class="page-subtitle">Generate KRA/eTIMS compliant tax invoices and track payment collections.</p>
+    </div>
+    <div class="page-actions">
+      <a href="/invoices/new" class="btn btn-primary" id="btn-create-invoice">
+        <i class="uil uil-plus"></i>
+        <span>New Invoice</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body-table">
+      <% if (invoices && invoices.length > 0) { %>
+        <div class="table-scroll-hint">
+          <i class="uil uil-arrows-h"></i>
+          <span>Swipe to view all</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Client</th>
+                <th>Project</th>
+                <th>Issue Date</th>
+                <th>Due Date</th>
+                <th>Total</th>
+                <th>Paid</th>
+                <th>Balance Due</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% invoices.forEach(function(inv) { %>
+                <tr>
+                  <td>
+                    <a href="/invoices/<%= inv.id %>" class="font-bold text-primary">
+                      <%= inv.invoice_number %>
+                    </a>
+                  </td>
+                  <td><%= inv.client_name || '—' %></td>
+                  <td><%= inv.project_code || '—' %></td>
+                  <td><%= new Date(inv.issue_date).toLocaleDateString() %></td>
+                  <td><%= new Date(inv.due_date).toLocaleDateString() %></td>
+                  <td><strong><%= formatKES(parseFloat(inv.total_amount)) %></strong></td>
+                  <td class="text-success font-semibold"><%= formatKES(parseFloat(inv.amount_paid)) %></td>
+                  <td>
+                    <% const bal = parseFloat(inv.balance_due); %>
+                    <strong class="<%= bal > 0 ? 'text-error' : 'text-muted' %>">
+                      <%= formatKES(bal) %>
+                    </strong>
+                  </td>
+                  <td>
+                    <% if (inv.status === 'PAID') { %>
+                      <span class="badge badge-success"><span class="badge-dot"></span>Paid</span>
+                    <% } else if (inv.status === 'SENT') { %>
+                      <span class="badge badge-info"><span class="badge-dot"></span>Sent</span>
+                    <% } else if (inv.status === 'OVERDUE') { %>
+                      <span class="badge badge-danger"><span class="badge-dot"></span>Overdue</span>
+                    <% } else { %>
+                      <span class="badge badge-subtle"><%= inv.status %></span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <a href="/invoices/<%= inv.id %>" class="btn btn-sm btn-secondary">
+                      <i class="uil uil-eye"></i>
+                      <span>View</span>
+                    </a>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="uil uil-invoice"></i></div>
+          <p class="empty-state-title">No invoices yet</p>
+          <p class="empty-state-message">Generate your first tax invoice and collect payments through M-Pesa or bank transfer.</p>
+          <a href="/invoices/new" class="btn btn-primary btn-sm mt-3">
+            <i class="uil uil-plus"></i>
+            <span>Create Invoice</span>
+          </a>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

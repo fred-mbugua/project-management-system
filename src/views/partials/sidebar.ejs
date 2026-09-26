@@ -1,0 +1,141 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Sidebar Navigation Partial
+     Responsive off-canvas drawer with role-based menu rendering & Unicons
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+  <!-- Sidebar Header -->
+  <div class="sidebar-header">
+    <div class="sidebar-brand">
+      <% if (typeof tenant !== 'undefined' && tenant && tenant.logoUrl) { %>
+        <img src="<%= tenant.logoUrl %>" alt="<%= tenant.name %>" class="sidebar-logo-img">
+      <% } else { %>
+        <div class="sidebar-logo-icon">
+          <i class="uil uil-layer-group"></i>
+        </div>
+      <% } %>
+      <div class="sidebar-brand-text">
+        <span class="sidebar-brand-name"><%= (typeof tenant !== 'undefined' && tenant) ? tenant.name : appName %></span>
+        <span class="sidebar-brand-plan">Enterprise Workspace</span>
+      </div>
+    </div>
+    <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close navigation">
+      <i class="uil uil-times"></i>
+    </button>
+  </div>
+
+  <!-- Navigation Menu -->
+  <nav class="sidebar-nav">
+    <!-- Main Section -->
+    <div class="sidebar-section">
+      <span class="sidebar-section-title">Main</span>
+      <a href="/dashboard" class="sidebar-link<%= currentPath === '/dashboard' ? ' active' : '' %>" id="nav-dashboard">
+        <i class="uil uil-apps sidebar-icon"></i>
+        <span>Dashboard</span>
+      </a>
+    </div>
+
+    <!-- Project Management -->
+    <% if (typeof currentUser !== 'undefined' && currentUser && currentUser.role !== 'CLIENT_PORTAL') { %>
+    <div class="sidebar-section">
+      <span class="sidebar-section-title">Project Management</span>
+      <a href="/projects" class="sidebar-link<%= currentPath.startsWith('/projects') ? ' active' : '' %>" id="nav-projects">
+        <i class="uil uil-folder sidebar-icon"></i>
+        <span>Projects</span>
+      </a>
+      <a href="/calendar" class="sidebar-link<%= currentPath.startsWith('/calendar') ? ' active' : '' %>" id="nav-calendar">
+        <i class="uil uil-calendar-alt sidebar-icon"></i>
+        <span>Calendar</span>
+      </a>
+      <a href="/maintenance" class="sidebar-link<%= currentPath.startsWith('/maintenance') ? ' active' : '' %>" id="nav-maintenance">
+        <i class="uil uil-wrench sidebar-icon"></i>
+        <span>Maintenance & SLAs</span>
+      </a>
+    </div>
+    <% } %>
+
+    <!-- Finance & Billing -->
+    <% if (typeof currentUser !== 'undefined' && currentUser && ['SUPER_ADMIN', 'TENANT_OWNER', 'PROJECT_MANAGER', 'ACCOUNTANT'].includes(currentUser.role)) { %>
+    <div class="sidebar-section">
+      <span class="sidebar-section-title">Finance & Billing</span>
+      <a href="/quotations" class="sidebar-link<%= currentPath.startsWith('/quotations') ? ' active' : '' %>" id="nav-quotations">
+        <i class="uil uil-file-alt sidebar-icon"></i>
+        <span>Quotations</span>
+      </a>
+      <a href="/invoices" class="sidebar-link<%= currentPath.startsWith('/invoices') ? ' active' : '' %>" id="nav-invoices">
+        <i class="uil uil-receipt sidebar-icon"></i>
+        <span>Invoices</span>
+      </a>
+      <a href="/expenses" class="sidebar-link<%= currentPath.startsWith('/expenses') ? ' active' : '' %>" id="nav-expenses">
+        <i class="uil uil-money-withdraw sidebar-icon"></i>
+        <span>Expenses</span>
+      </a>
+      <a href="/accounting" class="sidebar-link<%= currentPath.startsWith('/accounting') ? ' active' : '' %>" id="nav-accounting">
+        <i class="uil uil-chart-line sidebar-icon"></i>
+        <span>Accounting & Tax</span>
+      </a>
+    </div>
+    <% } %>
+
+    <!-- People -->
+    <% if (typeof currentUser !== 'undefined' && currentUser && ['SUPER_ADMIN', 'TENANT_OWNER', 'PROJECT_MANAGER'].includes(currentUser.role)) { %>
+    <div class="sidebar-section">
+      <span class="sidebar-section-title">People</span>
+      <a href="/team" class="sidebar-link<%= currentPath.startsWith('/team') ? ' active' : '' %>" id="nav-team">
+        <i class="uil uil-users-alt sidebar-icon"></i>
+        <span>Team</span>
+      </a>
+      <a href="/clients" class="sidebar-link<%= currentPath.startsWith('/clients') ? ' active' : '' %>" id="nav-clients">
+        <i class="uil uil-user-square sidebar-icon"></i>
+        <span>Clients</span>
+      </a>
+    </div>
+    <% } %>
+
+    <!-- Settings -->
+    <% if (typeof currentUser !== 'undefined' && currentUser && ['SUPER_ADMIN', 'TENANT_OWNER'].includes(currentUser.role)) { %>
+    <div class="sidebar-section">
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/settings" class="sidebar-link<%= currentPath.startsWith('/settings') ? ' active' : '' %>" id="nav-settings">
+        <i class="uil uil-setting sidebar-icon"></i>
+        <span>Settings</span>
+      </a>
+    </div>
+    <% } %>
+
+    <!-- Super Admin -->
+    <% if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'SUPER_ADMIN') { %>
+    <div class="sidebar-section">
+      <span class="sidebar-section-title">Platform Admin</span>
+      <a href="/admin/tenants" class="sidebar-link<%= currentPath.startsWith('/admin') ? ' active' : '' %>" id="nav-admin">
+        <i class="uil uil-shield-check sidebar-icon"></i>
+        <span>Organizations</span>
+      </a>
+      <a href="/admin/plans" class="sidebar-link<%= currentPath.startsWith('/admin/plans') ? ' active' : '' %>" id="nav-plans">
+        <i class="uil uil-layers sidebar-icon"></i>
+        <span>Subscription Plans</span>
+      </a>
+    </div>
+    <% } %>
+  </nav>
+
+  <!-- Sidebar Footer -->
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="sidebar-user-avatar">
+        <% if (typeof currentUser !== 'undefined' && currentUser && currentUser.avatarUrl) { %>
+          <img src="<%= currentUser.avatarUrl %>" alt="Avatar">
+        <% } else { %>
+          <span class="avatar-initials"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.firstName.charAt(0) + currentUser.lastName.charAt(0) : 'U' %></span>
+        <% } %>
+      </div>
+      <div class="sidebar-user-info">
+        <span class="sidebar-user-name"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.firstName + ' ' + currentUser.lastName : 'User' %></span>
+        <span class="sidebar-user-role"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.role.replace(/_/g, ' ') : '' %></span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Mobile Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>

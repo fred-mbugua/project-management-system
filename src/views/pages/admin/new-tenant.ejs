@@ -1,0 +1,106 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Platform Admin - Add Organization Form
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="admin-new-tenant-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <a href="/admin/tenants" class="btn btn-sm btn-secondary mb-2">
+        <i class="uil uil-arrow-left"></i>
+        <span>Back to Tenants</span>
+      </a>
+      <h1 class="page-title">Onboard Organization</h1>
+      <p class="page-subtitle">Set up a new tenant workspace and generate their primary owner account.</p>
+    </div>
+  </div>
+
+  <div class="card max-w-wide">
+    <div class="card-header">
+      <h3 class="card-title">New Workspace Setup</h3>
+      <p class="text-xs text-muted">Register company identity and initialize the administrative owner</p>
+    </div>
+    <div class="card-body">
+      <form action="/admin/tenants/new" method="POST" class="form-stack">
+        <h4 class="card-title text-primary mb-3">1. Organization Details</h4>
+        
+        <div class="form-group mb-4">
+          <label class="form-label" for="companyName">Company Name *</label>
+          <input type="text" class="form-input" id="companyName" name="companyName" required placeholder="e.g. Apex Engineering Ltd">
+        </div>
+
+        <div class="form-row mb-4">
+          <div class="form-group">
+            <label class="form-label" for="email">Organization Email *</label>
+            <input type="email" class="form-input" id="email" name="email" required placeholder="info@company.co.ke">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="phone">Phone Number</label>
+            <input type="tel" class="form-input" id="phone" name="phone" placeholder="+254 700 000 000">
+          </div>
+        </div>
+
+        <div class="form-row-2-1 mb-4">
+          <div class="form-group">
+            <label class="form-label" for="address">Physical Address</label>
+            <input type="text" class="form-input" id="address" name="address" placeholder="e.g. Westlands Office Park">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="city">City</label>
+            <input type="text" class="form-input" id="city" name="city" value="Nairobi">
+          </div>
+        </div>
+
+        <div class="form-row mb-4">
+          <div class="form-group">
+            <label class="form-label" for="kraPin">KRA PIN</label>
+            <input type="text" class="form-input" id="kraPin" name="kraPin" placeholder="P051234567X">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="planId">Subscription Plan</label>
+            <select class="form-select" id="planId" name="planId">
+              <% if (plans && plans.length > 0) { %>
+                <% plans.forEach(function(p) { %>
+                  <option value="<%= p.id %>"><%= p.name %> (<%= p.tier %>)</option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+        </div>
+
+        <hr class="divider my-6">
+
+        <h4 class="card-title text-primary mb-3">2. Owner User Credentials</h4>
+
+        <div class="form-row mb-4">
+          <div class="form-group">
+            <label class="form-label" for="ownerFirstName">First Name *</label>
+            <input type="text" class="form-input" id="ownerFirstName" name="ownerFirstName" required placeholder="Jane">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ownerLastName">Last Name *</label>
+            <input type="text" class="form-input" id="ownerLastName" name="ownerLastName" required placeholder="Doe">
+          </div>
+        </div>
+
+        <div class="form-row mb-4">
+          <div class="form-group">
+            <label class="form-label" for="ownerEmail">Owner Login Email *</label>
+            <input type="email" class="form-input" id="ownerEmail" name="ownerEmail" required placeholder="owner@company.co.ke">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ownerPassword">Initial Password *</label>
+            <input type="password" class="form-input" id="ownerPassword" name="ownerPassword" required minlength="8" placeholder="At least 8 characters">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a href="/admin/tenants" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary" id="btn-submit-tenant">
+            <i class="uil uil-check"></i>
+            <span>Create Workspace</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,74 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Registration Page - Tenant Onboarding
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="auth-form-wrapper">
+  <div class="auth-form-header">
+    <h1 class="auth-form-title">Create your workspace</h1>
+    <p class="auth-form-subtitle">Start managing projects and invoices in minutes</p>
+  </div>
+
+  <form class="auth-form" action="/auth/register" method="POST" id="registerForm">
+    <div class="form-group">
+      <label class="form-label" for="companyName">Company / Organization Name</label>
+      <div class="input-wrapper">
+        <i class="uil uil-building input-icon"></i>
+        <input type="text" class="form-input" id="companyName" name="companyName" placeholder="Acme Engineering Ltd" required autofocus>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="firstName">First Name</label>
+        <input type="text" class="form-input" id="firstName" name="firstName" placeholder="John" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="lastName">Last Name</label>
+        <input type="text" class="form-input" id="lastName" name="lastName" placeholder="Doe" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="regEmail">Email Address</label>
+      <div class="input-wrapper">
+        <i class="uil uil-envelope input-icon"></i>
+        <input type="email" class="form-input" id="regEmail" name="email" placeholder="you@company.com" required autocomplete="email">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="phone">Phone Number (Optional)</label>
+      <div class="input-wrapper">
+        <i class="uil uil-phone input-icon"></i>
+        <input type="tel" class="form-input" id="phone" name="phone" placeholder="+254 7XX XXX XXX">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="regPassword">Password</label>
+      <div class="input-wrapper">
+        <i class="uil uil-lock-alt input-icon"></i>
+        <input type="password" class="form-input" id="regPassword" name="password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="confirmPassword">Confirm Password</label>
+      <div class="input-wrapper">
+        <i class="uil uil-shield-check input-icon"></i>
+        <input type="password" class="form-input" id="confirmPassword" name="confirmPassword" placeholder="Repeat your password" required autocomplete="new-password">
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block" id="registerBtn">
+      <span class="btn-text">Create Workspace</span>
+      <span class="btn-loader">
+        <i class="uil uil-spinner-alt spinner"></i>
+      </span>
+    </button>
+  </form>
+
+  <div class="auth-form-footer">
+    <p>Already have an account? <a href="/auth/login" class="auth-link">Sign in</a></p>
+  </div>
+</div>

@@ -1,0 +1,171 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Expenses Directory View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="expenses-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Expenses & Disbursements</h1>
+      <p class="page-subtitle">Track project costs, operational overhead, and claimable input VAT.</p>
+    </div>
+  </div>
+
+  <!-- Summary Stats -->
+  <div class="kpi-grid mb-6">
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-danger">
+        <i class="uil uil-money-withdraw"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Total Expenses</span>
+        <div class="kpi-value text-danger"><%= formatKES(parseFloat(stats.total_amount || 0)) %></div>
+        <span class="text-xs text-muted mt-1 block">Gross recorded disbursements</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-primary">
+        <i class="uil uil-percentage"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Claimable Input VAT</span>
+        <div class="kpi-value text-primary"><%= formatKES(parseFloat(stats.total_vat || 0)) %></div>
+        <span class="text-xs text-muted mt-1 block">Deductible against output VAT</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-info">
+        <i class="uil uil-file-alt"></i>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Total Records</span>
+        <div class="kpi-value"><%= stats.total_count || 0 %></div>
+        <span class="text-xs text-muted mt-1 block">Receipted expense vouchers</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log Expense Form Card -->
+  <div class="card mb-6">
+    <div class="card-header">
+      <h3 class="card-title">Log a New Expense</h3>
+      <p class="text-xs text-muted">Record supplier invoices, site disbursements, and petty cash</p>
+    </div>
+    <div class="card-body">
+      <form action="/expenses/new" method="POST">
+        <div class="form-row-2-1-1 mb-4">
+          <div class="form-group">
+            <label for="description" class="form-label">Description *</label>
+            <input type="text" id="description" name="description" class="form-input" placeholder="e.g. AWS Cloud Hosting / Cement & Sand Bags" required>
+          </div>
+          <div class="form-group">
+            <label for="category" class="form-label">Category *</label>
+            <select id="category" name="category" class="form-select" required>
+              <% categories.forEach(function(cat) { %>
+                <option value="<%= cat %>"><%= cat.replace(/_/g, ' ') %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="projectId" class="form-label">Project (Optional)</label>
+            <select id="projectId" name="projectId" class="form-select">
+              <option value="">General Overhead</option>
+              <% projects.forEach(function(p) { %>
+                <option value="<%= p.id %>"><%= p.name %> (<%= p.code %>)</option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-4 mb-4">
+          <div class="form-group">
+            <label for="amount" class="form-label">Gross Amount (KES) *</label>
+            <input type="number" id="amount" name="amount" class="form-input" placeholder="0.00" step="any" min="0" required>
+          </div>
+          <div class="form-group">
+            <label for="vatAmount" class="form-label">Input VAT (KES)</label>
+            <input type="number" id="vatAmount" name="vatAmount" class="form-input" placeholder="0.00" step="any" min="0">
+          </div>
+          <div class="form-group">
+            <label for="vendor" class="form-label">Vendor / Supplier</label>
+            <input type="text" id="vendor" name="vendor" class="form-input" placeholder="e.g. Safaricom / TotalEnergies">
+          </div>
+          <div class="form-group">
+            <label for="referenceNo" class="form-label">Receipt / ETR No.</label>
+            <input type="text" id="referenceNo" name="referenceNo" class="form-input" placeholder="e.g. ETR-493821">
+          </div>
+        </div>
+
+        <div class="form-actions-between">
+          <label class="form-check">
+            <input type="checkbox" name="billable" value="true" class="form-check-input">
+            <span class="form-check-label">Billable to Client</span>
+          </label>
+          <button type="submit" class="btn btn-primary" id="btn-save-expense">
+            <i class="uil uil-plus"></i>
+            <span>Record Expense</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Expenses Table -->
+  <div class="card">
+    <div class="card-header card-header-flex">
+      <div>
+        <h3 class="card-title">Expense Transactions</h3>
+        <p class="text-xs text-muted">Complete historical disbursement journal</p>
+      </div>
+      <span class="badge badge-subtle"><%= expenses ? expenses.length : 0 %> Entries</span>
+    </div>
+    <div class="card-body-table">
+      <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
+      <% if (expenses && expenses.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Vendor</th>
+                <th>Project</th>
+                <th>Gross (KES)</th>
+                <th>VAT (KES)</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% expenses.forEach(function(exp) { %>
+                <tr>
+                  <td><%= new Date(exp.expense_date).toLocaleDateString() %></td>
+                  <td><strong><%= exp.description %></strong></td>
+                  <td><span class="badge badge-subtle"><%= exp.category %></span></td>
+                  <td><%= exp.vendor || '—' %></td>
+                  <td><%= exp.project_code || 'General' %></td>
+                  <td class="font-bold"><%= formatKES(parseFloat(exp.amount)) %></td>
+                  <td class="text-muted"><%= formatKES(parseFloat(exp.vat_amount || 0)) %></td>
+                  <td>
+                    <% if (exp.billable) { %>
+                      <span class="badge badge-info">Billable</span>
+                    <% } else { %>
+                      <span class="badge badge-subtle">Internal</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <i class="uil uil-bill"></i>
+          </div>
+          <h4 class="empty-state-title">No expenses logged yet</h4>
+          <p class="empty-state-text">Use the form above to record your first operational or project disbursement.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

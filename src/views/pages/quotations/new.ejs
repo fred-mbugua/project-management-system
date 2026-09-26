@@ -1,0 +1,100 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Create Quotation Form View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="quotations-new-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <a href="/quotations" class="btn btn-sm btn-secondary mb-2">
+        <i class="uil uil-arrow-left"></i>
+        <span>Back to Quotations</span>
+      </a>
+
+      <h1 class="page-title">Generate New Quotation</h1>
+      <p class="page-subtitle">Prepare an estimate or proposal for a client.</p>
+    </div>
+  </div>
+
+  <div class="card max-w-form">
+    <div class="card-body">
+      <form action="/quotations/new" method="POST" class="form-stack">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="quotationNumber" class="form-label">Quotation Number *</label>
+            <input type="text" id="quotationNumber" name="quotationNumber" class="form-input" value="<%= quotationNumber %>" required readonly>
+          </div>
+          <div class="form-group">
+            <label for="clientId" class="form-label">Client *</label>
+            <select id="clientId" name="clientId" class="form-select" required>
+              <option value="">Select a Client</option>
+              <% clients.forEach(function(c) { %>
+                <option value="<%= c.id %>"><%= c.name %></option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="title" class="form-label">Quotation Title / Subject</label>
+            <input type="text" id="title" name="title" class="form-input" placeholder="e.g. Website Redesign & Maintenance" required>
+          </div>
+          <div class="form-group">
+            <label for="projectId" class="form-label">Linked Project (Optional)</label>
+            <select id="projectId" name="projectId" class="form-select">
+              <option value="">None / General</option>
+              <% projects.forEach(function(p) { %>
+                <option value="<%= p.id %>"><%= p.name %> (<%= p.code %>)</option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="validUntil" class="form-label">Valid Until *</label>
+          <input type="date" id="validUntil" name="validUntil" class="form-input" required>
+        </div>
+
+        <div class="line-item-row mt-4">
+          <h3 class="font-semibold text-primary mb-3">Initial Scope Item</h3>
+          <div class="form-group mb-3">
+            <label for="itemDescription" class="form-label">Item Description *</label>
+            <input type="text" id="itemDescription" name="itemDescription" class="form-input" placeholder="e.g. Phase 1 Architecture & Implementation" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="itemQty" class="form-label">Quantity *</label>
+              <input type="number" id="itemQty" name="itemQty" class="form-input" value="1" min="1" step="any" required>
+            </div>
+            <div class="form-group">
+              <label for="itemPrice" class="form-label">Unit Price (KES) *</label>
+              <input type="number" id="itemPrice" name="itemPrice" class="form-input" placeholder="0.00" min="0" step="any" required>
+            </div>
+          </div>
+          <div class="mt-3 flex items-center justify-between text-xs text-muted flex-wrap gap-2">
+            <span>Standard Kenya VAT (16%) is automatically added to the quote.</span>
+            <span class="font-semibold text-primary">Preview Total: <strong id="quote-preview-total">KES 0.00</strong></span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="terms" class="form-label">Terms & Conditions</label>
+          <textarea id="terms" name="terms" class="form-input" rows="2">Valid for 30 days. 50% deposit required upon commencement.</textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="notes" class="form-label">Additional Client Notes</label>
+          <textarea id="notes" name="notes" class="form-input" rows="2" placeholder="Any special remarks or delivery schedule..."></textarea>
+        </div>
+
+        <div class="form-actions">
+          <a href="/quotations" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary" id="btn-submit-quotation">
+            <i class="uil uil-check"></i>
+            <span>Create & Send Quotation</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

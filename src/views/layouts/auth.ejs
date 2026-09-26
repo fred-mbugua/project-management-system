@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign in to your PM & ERP workspace">
+  <title><%= typeof title !== 'undefined' ? title + ' | ' : '' %><%= appName %></title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Unicons (Iconscout) -->
+  <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/line.css">
+
+  <!-- Stylesheets (Zero Inline Style Constraint) -->
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/components.css">
+
+  <%- style %>
+</head>
+<body class="auth-body">
+  <div class="auth-container">
+    <!-- Left Panel - Branding -->
+    <div class="auth-brand-panel">
+      <div class="auth-brand-content">
+        <div class="auth-brand-logo">
+          <div class="auth-logo-badge">
+            <i class="uil uil-layer-group"></i>
+          </div>
+          <span class="auth-brand-name"><%= appName %></span>
+        </div>
+        <h1 class="auth-brand-headline">Manage Projects.<br>Track Finances.<br>Grow Faster.</h1>
+        <p class="auth-brand-subtext">Enterprise-grade project management, invoicing, and financial tracking with M-Pesa integration — built for African businesses.</p>
+        <div class="auth-brand-features">
+          <div class="auth-feature">
+            <span class="auth-feature-icon"><i class="uil uil-folder-check"></i></span>
+            <span>Project Tracking</span>
+          </div>
+          <div class="auth-feature">
+            <span class="auth-feature-icon"><i class="uil uil-invoice"></i></span>
+            <span>Professional Invoicing</span>
+          </div>
+          <div class="auth-feature">
+            <span class="auth-feature-icon"><i class="uil uil-credit-card"></i></span>
+            <span>M-Pesa Payments</span>
+          </div>
+          <div class="auth-feature">
+            <span class="auth-feature-icon"><i class="uil uil-analytics"></i></span>
+            <span>Financial Reports</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel - Auth Form -->
+    <div class="auth-form-panel">
+      <!-- Flash Messages -->
+      <%- include('../partials/alerts') %>
+
+      <%- body %>
+
+      <div class="auth-footer">
+        <p>&copy; <%= currentYear %> <%= appName %>. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts (Zero Inline Script Constraint) -->
+  <script src="/js/app.js"></script>
+  <%- script %>
+</body>
+</html>

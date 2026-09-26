@@ -1,0 +1,74 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Clients Directory View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="clients-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Clients Directory</h1>
+      <p class="page-subtitle">Customer contacts, company tax details, and billing accounts.</p>
+    </div>
+    <div class="page-actions">
+      <a href="/clients/new" class="btn btn-primary" id="btn-add-client">
+        <i class="uil uil-plus"></i>
+        <span>Add Client</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header card-header-flex">
+      <div>
+        <h3 class="card-title">All Registered Clients</h3>
+        <p class="text-xs text-muted">Corporate and individual client directory</p>
+      </div>
+      <span class="badge badge-subtle"><%= clients ? clients.length : 0 %> Clients</span>
+    </div>
+    <div class="card-body-table">
+      <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
+      <% if (clients && clients.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Client Name</th>
+                <th>Contact Person</th>
+                <th>Email & Phone</th>
+                <th>Location</th>
+                <th>KRA PIN</th>
+                <th>Projects</th>
+                <th>Invoices</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% clients.forEach(function(c) { %>
+                <tr>
+                  <td>
+                    <strong><%= c.name %></strong>
+                  </td>
+                  <td><%= c.contact_person || '—' %></td>
+                  <td>
+                    <div><%= c.email || '—' %></div>
+                    <small class="text-xs text-muted"><%= c.phone || 'No phone' %></small>
+                  </td>
+                  <td><%= c.city || 'Nairobi' %>, <%= c.country %></td>
+                  <td><code><%= c.kra_pin || '—' %></code></td>
+                  <td><span class="badge badge-subtle"><%= c.project_count %></span></td>
+                  <td><span class="badge badge-subtle"><%= c.invoice_count %></span></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <i class="uil uil-users-alt"></i>
+          </div>
+          <h4 class="empty-state-title">No clients registered yet</h4>
+          <p class="empty-state-text">Click "Add Client" above to create your first client account.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

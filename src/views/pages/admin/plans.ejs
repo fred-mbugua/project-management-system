@@ -1,0 +1,52 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Platform Admin - Subscription Plans View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="admin-plans-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Subscription Plans</h1>
+      <p class="page-subtitle">Configure SaaS pricing tiers, limits, and active recurring subscriptions.</p>
+    </div>
+  </div>
+
+  <div class="plan-grid">
+    <% if (plans && plans.length > 0) { %>
+      <% plans.forEach(function(p) { %>
+        <div class="card plan-card">
+          <div class="card-header">
+            <span class="badge badge-primary"><%= p.tier %></span>
+            <h2 class="card-title mt-2"><%= p.name %></h2>
+            <div class="plan-price-group">
+              <span class="plan-price"><%= formatKES(parseFloat(p.monthly_price)) %></span>
+              <span class="plan-period">/ month</span>
+            </div>
+            <div class="plan-annual">
+              or <%= formatKES(parseFloat(p.annual_price)) %> / year
+            </div>
+          </div>
+          <div class="card-body">
+            <ul class="plan-features">
+              <li class="plan-feature-item">
+                <i class="uil uil-check text-success"></i>
+                <span><strong><%= p.max_users %></strong> Team Members</span>
+              </li>
+              <li class="plan-feature-item">
+                <i class="uil uil-check text-success"></i>
+                <span><strong><%= p.max_projects %></strong> Active Projects</span>
+              </li>
+              <li class="plan-feature-item">
+                <i class="uil uil-check text-success"></i>
+                <span><strong><%= p.max_storage_mb %> MB</strong> Storage Space</span>
+              </li>
+              <li class="plan-feature-item">
+                <i class="uil uil-users-alt text-primary"></i>
+                <span>Active Subscriptions: <strong class="text-success"><%= p.active_count %></strong></span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      <% }); %>
+    <% } %>
+  </div>
+</div>

@@ -1,0 +1,18 @@
+<!-- Generic Error Page -->
+<div class="error-page">
+  <div class="error-content">
+    <div class="error-code"><%= typeof statusCode !== 'undefined' ? statusCode : 500 %></div>
+    <h1 class="error-title">Something Went Wrong</h1>
+    <p class="error-message"><%= typeof message !== 'undefined' ? message : 'An unexpected error occurred. Please try again later.' %></p>
+    <% if (typeof stack !== 'undefined' && stack) { %>
+      <details class="error-details">
+        <summary>Technical Details</summary>
+        <pre class="error-stack"><%= stack %></pre>
+      </details>
+    <% } %>
+    <a href="/dashboard" class="btn btn-primary">
+      <i class="uil uil-arrow-left"></i>
+      <span>Back to Dashboard</span>
+    </a>
+  </div>
+</div>

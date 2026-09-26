@@ -1,0 +1,82 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Invite / Add Team Member View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="team-new-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <a href="/team" class="btn btn-sm btn-secondary mb-2">
+        <i class="uil uil-arrow-left"></i>
+        <span>Back to Team</span>
+      </a>
+      <h1 class="page-title">Add Team Member</h1>
+      <p class="page-subtitle">Create login credentials and configure compensation & roles for an employee or contractor.</p>
+    </div>
+  </div>
+
+  <div class="card max-w-form">
+    <div class="card-header">
+      <h3 class="card-title">Member Details & Access Control</h3>
+      <p class="text-xs text-muted">Provide basic contact information and assign an operational role</p>
+    </div>
+    <div class="card-body">
+      <form action="/team/new" method="POST" class="form-stack">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstName" class="form-label">First Name *</label>
+            <input type="text" id="firstName" name="firstName" class="form-input" required placeholder="e.g. Samuel">
+          </div>
+          <div class="form-group">
+            <label for="lastName" class="form-label">Last Name *</label>
+            <input type="text" id="lastName" name="lastName" class="form-input" required placeholder="e.g. Mwangi">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email" class="form-label">Work Email *</label>
+            <input type="email" id="email" name="email" class="form-input" required placeholder="samuel@company.co.ke">
+          </div>
+          <div class="form-group">
+            <label for="phone" class="form-label">Phone Number</label>
+            <input type="tel" id="phone" name="phone" class="form-input" placeholder="+254 700 000000">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="role" class="form-label">Access Role *</label>
+            <select id="role" name="role" class="form-select" required>
+              <% roles.forEach(function(r) { %>
+                <option value="<%= r %>"><%= r.replace(/_/g, ' ') %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="hourlyRate" class="form-label">Hourly Rate (KES)</label>
+            <input type="number" id="hourlyRate" name="hourlyRate" class="form-input" placeholder="e.g. 1500" step="any" min="0">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="mpesaNumber" class="form-label">M-Pesa Disburse Number</label>
+            <input type="text" id="mpesaNumber" name="mpesaNumber" class="form-input" placeholder="2547XXXXXXXX">
+          </div>
+          <div class="form-group">
+            <label for="password" class="form-label">Temporary Password *</label>
+            <input type="password" id="password" name="password" class="form-input" required placeholder="Minimum 8 characters">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a href="/team" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary" id="btn-submit-team-member">
+            <i class="uil uil-check"></i>
+            <span>Add Member</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

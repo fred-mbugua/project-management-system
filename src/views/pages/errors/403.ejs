@@ -1,0 +1,12 @@
+<!-- 403 Forbidden Page -->
+<div class="error-page">
+  <div class="error-content">
+    <div class="error-code">403</div>
+    <h1 class="error-title">Access Denied</h1>
+    <p class="error-message"><%= typeof message !== 'undefined' ? message : 'You do not have permission to access this resource.' %></p>
+    <a href="/dashboard" class="btn btn-primary">
+      <i class="uil uil-arrow-left"></i>
+      <span>Back to Dashboard</span>
+    </a>
+  </div>
+</div>

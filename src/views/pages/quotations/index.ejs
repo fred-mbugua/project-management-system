@@ -1,0 +1,90 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Quotations Directory View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="quotations-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Quotations</h1>
+      <p class="page-subtitle">Create and track commercial price estimates and tenders.</p>
+    </div>
+    <div class="page-actions">
+      <a href="/quotations/new" class="btn btn-primary" id="btn-create-quotation">
+        <i class="uil uil-plus"></i>
+        <span>New Quotation</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body-table">
+      <% if (quotations && quotations.length > 0) { %>
+        <div class="table-scroll-hint">
+          <i class="uil uil-arrows-h"></i>
+          <span>Swipe to view all</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Quote #</th>
+                <th>Title</th>
+                <th>Client</th>
+                <th>Project</th>
+                <th>Valid Until</th>
+                <th>Total (KES)</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% quotations.forEach(function(q) { %>
+                <tr>
+                  <td>
+                    <a href="/quotations/<%= q.id %>" class="font-bold text-primary">
+                      <%= q.quotation_number %>
+                    </a>
+                  </td>
+                  <td><strong><%= q.title || 'Service Quotation' %></strong></td>
+                  <td><%= q.client_name || '—' %></td>
+                  <td><%= q.project_name || '—' %></td>
+                  <td><%= new Date(q.valid_until).toLocaleDateString() %></td>
+                  <td><strong><%= formatKES(parseFloat(q.total_amount)) %></strong></td>
+                  <td>
+                    <% if (q.status === 'APPROVED' || q.status === 'CONVERTED') { %>
+                      <span class="badge badge-success"><span class="badge-dot"></span><%= q.status %></span>
+                    <% } else if (q.status === 'SENT') { %>
+                      <span class="badge badge-info"><span class="badge-dot"></span>Sent</span>
+                    <% } else if (q.status === 'REJECTED' || q.status === 'EXPIRED') { %>
+                      <span class="badge badge-danger"><span class="badge-dot"></span><%= q.status %></span>
+                    <% } else { %>
+                      <span class="badge badge-subtle"><%= q.status %></span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div class="table-actions">
+                      <a href="/quotations/<%= q.id %>" class="btn btn-sm btn-secondary" title="View & Print Quotation">
+                        <i class="uil uil-eye"></i>
+                        <span>View</span>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="uil uil-file-alt"></i></div>
+          <p class="empty-state-title">No quotations yet</p>
+          <p class="empty-state-message">Prepare commercial estimates and client proposals with automatic VAT breakdown.</p>
+          <a href="/quotations/new" class="btn btn-primary btn-sm mt-3">
+            <i class="uil uil-plus"></i>
+            <span>New Quotation</span>
+          </a>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,90 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Projects Directory View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="projects-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Projects</h1>
+      <p class="page-subtitle">Track deliverables, progress, budgets, and milestone completion.</p>
+    </div>
+    <div class="page-actions">
+      <a href="/projects/new" class="btn btn-primary" id="btn-create-project">
+        <i class="uil uil-plus"></i>
+        <span>New Project</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body-table">
+      <% if (projects && projects.length > 0) { %>
+        <div class="table-scroll-hint">
+          <i class="uil uil-arrows-h"></i>
+          <span>Swipe to view all</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Project Name</th>
+                <th>Client</th>
+                <th>Budget</th>
+                <th>Tasks</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% projects.forEach(function(p) { %>
+                <tr>
+                  <td><span class="badge badge-subtle"><%= p.code %></span></td>
+                  <td>
+                    <a href="/projects/<%= p.id %>" class="font-semibold text-primary"><strong><%= p.name %></strong></a>
+                    <% if (p.description) { %>
+                      <p class="text-xs text-muted truncate-cell"><%= p.description %></p>
+                    <% } %>
+
+                  </td>
+                  <td><%= p.client_name || 'Internal' %></td>
+                  <td><strong><%= p.budget ? formatKES(parseFloat(p.budget)) : '—' %></strong></td>
+                  <td>
+                    <span class="text-sm font-medium"><%= p.completed_task_count %> / <%= p.task_count %> completed</span>
+                  </td>
+                  <td>
+                    <% if (p.status === 'IN_PROGRESS') { %>
+                      <span class="badge badge-info"><span class="badge-dot"></span>In Progress</span>
+                    <% } else if (p.status === 'COMPLETED') { %>
+                      <span class="badge badge-success"><span class="badge-dot"></span>Completed</span>
+                    <% } else if (p.status === 'PLANNING') { %>
+                      <span class="badge badge-secondary"><span class="badge-dot"></span>Planning</span>
+                    <% } else { %>
+                      <span class="badge badge-warning"><span class="badge-dot"></span><%= p.status %></span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <a href="/projects/<%= p.id %>" class="btn btn-sm btn-secondary">
+                      <i class="uil uil-folder-open"></i>
+                      <span>Open</span>
+                    </a>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="uil uil-folder-plus"></i></div>
+          <p class="empty-state-title">No projects yet</p>
+          <p class="empty-state-message">Create your first client deliverable or internal milestone project.</p>
+          <a href="/projects/new" class="btn btn-primary btn-sm mt-3">
+            <i class="uil uil-plus"></i>
+            <span>Create Project</span>
+          </a>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

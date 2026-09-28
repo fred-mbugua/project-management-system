@@ -31,10 +31,10 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3000,
         APP_NAME: 'PM & ERP SaaS',
-        APP_URL: 'http://localhost:3000', // Set to production domain, e.g. https://erp.yourdomain.com
+        APP_URL: 'https://projects.freestylecodetechnologies.com',
 
-        // PostgreSQL Database Connection
-        DATABASE_URL: 'postgresql://databaseadmin:VSecure2026@Infinity@localhost:5432/pm_erp_saas?schema=public',
+        // PostgreSQL Database Connection (Note: @ in password is URL-encoded as %40)
+        DATABASE_URL: 'postgresql://databaseadmin:VSecure2026%40Infinity@localhost:5432/pm_erp_saas?schema=public',
 
         // Session & Security Secrets
         SESSION_SECRET: 'pm-erp-super-secret-session-key-change-in-production-2026',
@@ -50,7 +50,7 @@ module.exports = {
         DARAJA_CONSUMER_SECRET: '7pZUelreG8xS1H09WDAnsVxeQrywZs5bxw6fUMV4fnipq4Pt2LeLCYe9JQ9QOivs',
         DARAJA_PASSKEY: 'ee995f018e57d429fe5a82e737aa410528c1347972391ecb0ede2d1a498debd2',
         DARAJA_SHORTCODE: '4814641',
-        DARAJA_SHORTCODE_TYPE: 'Bussiness Paybill', // PAYBILL or TILL
+        DARAJA_SHORTCODE_TYPE: 'PAYBILL', // Must be 'PAYBILL' or 'TILL'
         DARAJA_CALLBACK_URL: 'https://projects.freestylecodetechnologies.com/api/mpesa/callback',
 
         // Email (Nodemailer SMTP)

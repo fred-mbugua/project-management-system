@@ -32,17 +32,26 @@ import teamRoutes from './routes/team.routes';
 import maintenanceRoutes from './routes/maintenance.routes';
 import calendarRoutes from './routes/calendar.routes';
 import settingsRoutes from './routes/settings.routes';
+import auditRoutes from './routes/audit.routes';
+import paymentPortalRoutes from './routes/paymentPortal.routes';
+import { recurringBillingService } from './services/recurringBilling.service';
+import { subscriptionBillingService } from './services/subscriptionBilling.service';
 
 const app = express();
 const PgSession = connectPgSimple(session);
+
+// Trust first proxy in production (e.g. Nginx, Cloudflare, Traefik)
+app.set('trust proxy', 1);
 
 // ──────────────────────────────────────────────
 // View Engine Configuration
 // ──────────────────────────────────────────────
 
-const viewsDir = fs.existsSync(path.join(__dirname, 'views'))
-  ? path.join(__dirname, 'views')
-  : path.join(__dirname, '..', 'src', 'views');
+const srcViewsDir = path.join(__dirname, '..', 'src', 'views');
+const localViewsDir = path.join(__dirname, 'views');
+const viewsDir = (fs.existsSync(srcViewsDir) && process.env.NODE_ENV !== 'production')
+  ? srcViewsDir
+  : (fs.existsSync(localViewsDir) ? localViewsDir : srcViewsDir);
 
 app.set('view engine', 'ejs');
 app.set('views', viewsDir);
@@ -61,9 +70,11 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unicons.iconscout.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unicons.iconscout.com', 'https://cdn.jsdelivr.net'],
+        styleSrcAttr: ["'self'", "'unsafe-inline'"],
         fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://unicons.iconscout.com'],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+        scriptSrcAttr: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
         connectSrc: ["'self'"],
       },
@@ -151,6 +162,7 @@ app.use((req, res, next) => {
 
 // Public routes (no auth required)
 app.use('/auth', authRoutes);
+app.use('/pay', paymentPortalRoutes);
 
 // Protected routes
 app.use('/dashboard', dashboardRoutes);
@@ -165,6 +177,7 @@ app.use('/team', teamRoutes);
 app.use('/maintenance', maintenanceRoutes);
 app.use('/calendar', calendarRoutes);
 app.use('/settings', settingsRoutes);
+app.use('/audit-logs', auditRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -178,6 +191,24 @@ app.get('/', (req, res) => {
   } else {
     res.redirect('/auth/login');
   }
+});
+
+// ──────────────────────────────────────────────
+// Process-Wide Error Catchers
+// ──────────────────────────────────────────────
+
+process.on('unhandledRejection', (reason: any) => {
+  logger.error('Unhandled Promise Rejection', {
+    reason: reason?.message || String(reason),
+    stack: reason?.stack,
+  });
+});
+
+process.on('uncaughtException', (err: Error) => {
+  logger.fatal('Uncaught Process Exception', {
+    message: err.message,
+    stack: err.stack,
+  });
 });
 
 // ──────────────────────────────────────────────
@@ -199,6 +230,8 @@ app.listen(PORT, () => {
     env: appConfig.nodeEnv,
     url: `http://localhost:${PORT}`,
   });
+  recurringBillingService.initCron();
+  subscriptionBillingService.startScheduledChecker();
 });
 
 export default app;

@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title><%= title %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/line.css">
+  
+  <style>
+    :root {
+      --primary: <%= invoice.tenant_primary_color || '#2563eb' %>;
+      --primary-dark: #1d4ed8;
+      --primary-50: #eff6ff;
+      --success: #10b981;
+      --success-50: #ecfdf5;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --dark: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --slate-300: #cbd5e1;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --slate-50: #f8fafc;
+      --white: #ffffff;
+      --mpesa-green: #008751;
+      --mpesa-dark: #005a36;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+      --shadow-lg: 0 10px 25px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 35px -5px rgb(0 0 0 / 0.12), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
+      color: var(--dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* Top Navigation bar */
+    .portal-header {
+      background: var(--white);
+      border-bottom: 1px solid var(--slate-200);
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.92);
+    }
+    .header-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      height: 38px;
+      max-width: 140px;
+      object-fit: contain;
+      border-radius: var(--radius-sm);
+    }
+    .brand-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--dark);
+      letter-spacing: -0.02em;
+    }
+    .security-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--slate-100);
+      color: var(--slate-600);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      border: 1px solid var(--slate-200);
+    }
+    .security-badge i {
+      color: var(--success);
+      font-size: 1rem;
+    }
+
+    /* Layout Container */
+    .portal-main {
+      flex: 1;
+      max-width: 1080px;
+      width: 100%;
+      margin: 28px auto 40px;
+      padding: 0 20px;
+    }
+    .checkout-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.05fr;
+      gap: 28px;
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .checkout-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--slate-200);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: box-shadow 0.2s ease;
+    }
+    .card:hover {
+      box-shadow: var(--shadow-lg);
+    }
+    .card-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--slate-100);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-body {
+      padding: 24px;
+    }
+
+    /* Invoice Summary Panel */
+    .invoice-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--slate-100);
+      color: var(--slate-700);
+      border: 1px solid var(--slate-200);
+    }
+    .status-pill {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 5px 12px;
+      border-radius: 9999px;
+    }
+    .status-paid {
+      background: var(--success-50);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .status-unpaid {
+      background: #fef2f2;
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .status-partial {
+      background: #fffbeb;
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .meta-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--slate-100);
+    }
+    .meta-item label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--slate-400);
+      display: block;
+      margin-bottom: 4px;
+    }
+    .meta-item span {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--slate-700);
+    }
+
+    /* Line items list */
+    .items-list {
+      margin-bottom: 20px;
+    }
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px dashed var(--slate-200);
+      font-size: 0.9rem;
+    }
+    .item-row:last-child {
+      border-bottom: none;
+    }
+    .item-name {
+      font-weight: 500;
+      color: var(--slate-700);
+    }
+    .item-qty {
+      font-size: 0.8rem;
+      color: var(--slate-400);
+      margin-left: 6px;
+    }
+    .item-amount {
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--slate-800);
+    }
+
+    /* Totals Breakdown */
+    .totals-box {
+      background: var(--slate-50);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-top: 16px;
+      border: 1px solid var(--slate-200);
+    }
+    .totals-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.88rem;
+      color: var(--slate-600);
+      margin-bottom: 8px;
+    }
+    .totals-line.grand {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--slate-200);
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--dark);
+    }
+    .totals-line.due {
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    /* Payment Panel */
+    .payment-tabs {
+      display: flex;
+      gap: 8px;
+      background: var(--slate-100);
+      padding: 6px;
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--slate-600);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background: var(--white);
+      color: var(--dark);
+      box-shadow: var(--shadow-sm);
+    }
+    .tab-btn i {
+      font-size: 1.1rem;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+      animation: fadeIn 0.25s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Form Fields */
+    .form-group {
+      margin-bottom: 18px;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--slate-700);
+      margin-bottom: 6px;
+    }
+    .input-wrapper {
+      position: relative;
+    }
+    .input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--slate-400);
+      font-size: 1.2rem;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px 12px 42px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      border: 1.5px solid var(--slate-200);
+      border-radius: var(--radius-md);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    }
+
+    /* Action Buttons */
+    .btn-pay-mpesa {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #008751 0%, #006b40 100%);
+      color: var(--white);
+      border: none;
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 4px 14px rgba(0, 135, 81, 0.35);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-pay-mpesa:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 135, 81, 0.45);
+    }
+    .btn-pay-mpesa:active {
+      transform: translateY(1px);
+    }
+
+    .btn-pay-card {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: var(--white);
+      border: none;
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-pay-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+    }
+
+    /* Paybill Instructions Box */
+    .paybill-box {
+      background: var(--slate-50);
+      border: 1.5px dashed var(--slate-300);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+    .instruction-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 0.88rem;
+      color: var(--slate-700);
+    }
+    .instruction-step:last-child {
+      margin-bottom: 0;
+    }
+    .step-number {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--slate-200);
+      color: var(--slate-700);
+      font-weight: 700;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .copyable-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--white);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--slate-200);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--dark);
+      cursor: pointer;
+    }
+    .copyable-field:hover {
+      background: var(--primary-50);
+      border-color: var(--primary);
+    }
+
+    /* Success / Settled View */
+    .settled-banner {
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .settled-icon {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: var(--success-50);
+      color: var(--success);
+      font-size: 2.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      border: 3px solid rgba(16, 185, 129, 0.2);
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      from { transform: scale(0.6); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .settled-title {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 8px;
+    }
+    .settled-desc {
+      font-size: 0.95rem;
+      color: var(--slate-500);
+      max-width: 380px;
+      margin: 0 auto 24px;
+    }
+    .btn-download-receipt {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 28px;
+      background: var(--primary);
+      color: var(--white);
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+      transition: all 0.2s;
+    }
+    .btn-download-receipt:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    /* Modal / Alert Overlay for STK Waiting */
+    .stk-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .stk-modal {
+      background: var(--white);
+      border-radius: var(--radius-xl);
+      padding: 36px 28px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      box-shadow: var(--shadow-xl);
+      position: relative;
+    }
+    .pulse-ring {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #ecfdf5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      position: relative;
+    }
+    .pulse-ring i {
+      font-size: 2.4rem;
+      color: var(--mpesa-green);
+    }
+    .pulse-ring::after {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border: 2px solid var(--mpesa-green);
+      border-radius: 50%;
+      animation: ripple 1.6s infinite ease-out;
+    }
+    @keyframes ripple {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+
+    /* Sandbox / Testing Pill */
+    .sandbox-pill {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px dashed #f59e0b;
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+
+    .footer-note {
+      text-align: center;
+      margin-top: 32px;
+      font-size: 0.82rem;
+      color: var(--slate-400);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="portal-header">
+    <div class="header-inner">
+      <div class="brand-wrap">
+        <% if (invoice.tenant_logo_url) { %>
+          <img src="<%= invoice.tenant_logo_url %>" alt="<%= invoice.tenant_name %>" class="brand-logo">
+        <% } %>
+        <span class="brand-name"><%= invoice.tenant_name %></span>
+      </div>
+      <div class="security-badge">
+        <i class="uil uil-shield-check"></i>
+        <span>Bank-Grade 256-Bit SSL</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="portal-main">
+    <div class="checkout-grid">
+      
+      <!-- Left: Invoice Breakdown & Details -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="uil uil-file-alt" style="color: var(--primary);"></i>
+            <span>Invoice Details</span>
+          </div>
+          <span class="invoice-badge"><%= invoice.invoice_number %></span>
+        </div>
+        <div class="card-body">
+          <div class="meta-row">
+            <div class="meta-item">
+              <label>Billed To</label>
+              <span><%= invoice.client_name %></span>
+              <% if (invoice.client_email) { %>
+                <div style="font-size: 0.8rem; color: var(--slate-500);"><%= invoice.client_email %></div>
+              <% } %>
+            </div>
+            <div class="meta-item">
+              <label>Status</label>
+              <% if (invoice.status === 'PAID') { %>
+                <span class="status-pill status-paid"><i class="uil uil-check-circle"></i> Paid & Settled</span>
+              <% } else if (invoice.status === 'PARTIALLY_PAID') { %>
+                <span class="status-pill status-partial">Partially Paid</span>
+              <% } else { %>
+                <span class="status-pill status-unpaid">Pending Payment</span>
+              <% } %>
+            </div>
+          </div>
+
+          <div class="meta-row" style="margin-bottom: 12px; padding-bottom: 12px;">
+            <div class="meta-item">
+              <label>Issue Date</label>
+              <span><%= new Date(invoice.issue_date).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' }) %></span>
+            </div>
+            <div class="meta-item">
+              <label>Due Date</label>
+              <span style="color: <%= new Date(invoice.due_date) < new Date() && invoice.status !== 'PAID' ? 'var(--danger)' : 'inherit' %>">
+                <%= new Date(invoice.due_date).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+              </span>
+            </div>
+          </div>
+
+          <% if (invoice.project_name) { %>
+            <div style="margin-bottom: 16px; font-size: 0.85rem; color: var(--slate-600);">
+              <strong>Project:</strong> <%= invoice.project_name %> (<%= invoice.project_code %>)
+            </div>
+          <% } %>
+
+          <!-- Line items -->
+          <div class="items-list">
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--slate-400); text-transform: uppercase; margin-bottom: 8px;">
+              Line Items
+            </div>
+            <% (items || []).forEach(item => { %>
+              <div class="item-row">
+                <div>
+                  <span class="item-name"><%= item.description %></span>
+                  <span class="item-qty">&times; <%= item.quantity %></span>
+                </div>
+                <div class="item-amount"><%= formatKES(item.line_total) %></div>
+              </div>
+            <% }); %>
+          </div>
+
+          <!-- Totals -->
+          <div class="totals-box">
+            <div class="totals-line">
+              <span>Subtotal</span>
+              <span style="font-family: 'JetBrains Mono', monospace;"><%= formatKES(invoice.subtotal) %></span>
+            </div>
+            <% if (parseFloat(invoice.tax_amount) > 0) { %>
+              <div class="totals-line">
+                <span>Tax / VAT (16%)</span>
+                <span style="font-family: 'JetBrains Mono', monospace;"><%= formatKES(invoice.tax_amount) %></span>
+              </div>
+            <% } %>
+            <div class="totals-line grand">
+              <span>Total Amount</span>
+              <span style="font-family: 'JetBrains Mono', monospace;"><%= formatKES(invoice.total_amount) %></span>
+            </div>
+            <% if (parseFloat(invoice.amount_paid) > 0) { %>
+              <div class="totals-line" style="color: var(--success); font-weight: 600;">
+                <span>Amount Paid</span>
+                <span style="font-family: 'JetBrains Mono', monospace;">- <%= formatKES(invoice.amount_paid) %></span>
+              </div>
+            <% } %>
+            <div class="totals-line due">
+              <span>Balance Due</span>
+              <span style="font-family: 'JetBrains Mono', monospace;"><%= formatKES(invoice.balance_due) %></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Checkout & Payment Section -->
+      <div class="card">
+        <% if (invoice.status === 'PAID') { %>
+          <!-- Settled Screen -->
+          <div class="card-body settled-banner">
+            <div class="settled-icon">
+              <i class="uil uil-check"></i>
+            </div>
+            <h2 class="settled-title">Invoice Settled!</h2>
+            <p class="settled-desc">
+              Thank you! This invoice has been paid in full. An official receipt has been dispatched to your email.
+            </p>
+            <% if (latestPayment && latestPayment.receipt_number) { %>
+              <div style="margin-bottom: 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 700; color: var(--slate-700);">
+                Receipt Number: <%= latestPayment.receipt_number %>
+              </div>
+            <% } %>
+            <a href="/pay/<%= invoice.public_token %>/receipt" class="btn-download-receipt">
+              <i class="uil uil-file-download-alt" style="font-size: 1.3rem;"></i>
+              <span>Download Official Receipt (PDF)</span>
+            </a>
+          </div>
+        <% } else { %>
+          <!-- Active Payment Methods -->
+          <div class="card-header">
+            <div class="card-title">
+              <i class="uil uil-credit-card" style="color: var(--mpesa-green);"></i>
+              <span>Select Payment Method</span>
+            </div>
+            <span style="font-size: 0.85rem; font-weight: 700; color: var(--primary);">
+              <%= formatKES(invoice.balance_due) %>
+            </span>
+          </div>
+
+          <div class="card-body">
+            <!-- Tabs -->
+            <div class="payment-tabs">
+              <button type="button" class="tab-btn active" onclick="switchTab('mpesa-stk')">
+                <i class="uil uil-mobile-android" style="color: var(--mpesa-green);"></i>
+                <span>M-Pesa Express</span>
+              </button>
+              <button type="button" class="tab-btn" onclick="switchTab('mpesa-paybill')">
+                <i class="uil uil-bill"></i>
+                <span>Paybill / C2B</span>
+              </button>
+              <% if (invoice.card_enabled) { %>
+                <button type="button" class="tab-btn" onclick="switchTab('card-pay')">
+                  <i class="uil uil-credit-card"></i>
+                  <span>Card Checkout</span>
+                </button>
+              <% } %>
+            </div>
+
+            <!-- Tab 1: M-Pesa STK Push -->
+            <div id="tab-mpesa-stk" class="tab-panel active">
+              <% if (invoice.daraja_environment === 'sandbox') { %>
+                <div class="sandbox-pill">
+                  <i class="uil uil-flask"></i> Sandbox Mode Active (Test Prompt Available)
+                </div>
+              <% } %>
+
+              <form id="stkForm" onsubmit="handleMpesaStk(event)">
+                <div class="form-group">
+                  <label class="form-label">Safaricom M-Pesa Phone Number</label>
+                  <div class="input-wrapper">
+                    <i class="uil uil-phone input-icon"></i>
+                    <input 
+                      type="tel" 
+                      id="mpesaPhone" 
+                      name="phoneNumber" 
+                      class="form-input" 
+                      placeholder="e.g. 0712 345 678" 
+                      value="<%= invoice.client_phone || '' %>"
+                      required
+                    >
+                  </div>
+                  <span style="font-size: 0.78rem; color: var(--slate-400); margin-top: 4px; display: block;">
+                    Enter the M-Pesa number that will receive the PIN prompt.
+                  </span>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Amount Payable (KES)</label>
+                  <div class="input-wrapper">
+                    <i class="uil uil-money-bill input-icon"></i>
+                    <input 
+                      type="number" 
+                      id="stkAmount" 
+                      class="form-input" 
+                      value="<%= Math.round(parseFloat(invoice.balance_due)) %>" 
+                      readonly
+                      style="background: var(--slate-50); font-weight: 700;"
+                    >
+                  </div>
+                </div>
+
+                <button type="submit" id="stkSubmitBtn" class="btn-pay-mpesa">
+                  <i class="uil uil-arrow-circle-right" style="font-size: 1.25rem;"></i>
+                  <span>Send M-Pesa Prompt</span>
+                </button>
+              </form>
+
+              <!-- Sandbox Quick Confirm Button -->
+              <div style="margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--slate-200); text-align: center;">
+                <p style="font-size: 0.78rem; color: var(--slate-500); margin-bottom: 8px;">
+                  Testing or Sandbox verification?
+                </p>
+                <button type="button" onclick="simulatePaymentConfirm('MPESA_STK')" style="background: none; border: 1px solid var(--slate-300); padding: 8px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: var(--slate-700); cursor: pointer;">
+                  <i class="uil uil-check-circle" style="color: var(--success);"></i> Simulate Instant Success (Sandbox)
+                </button>
+              </div>
+            </div>
+
+            <!-- Tab 2: M-Pesa Paybill / Manual C2B -->
+            <div id="tab-mpesa-paybill" class="tab-panel">
+              <div class="paybill-box">
+                <div class="instruction-step">
+                  <div class="step-number">1</div>
+                  <div>Open your <strong>M-Pesa menu</strong> or Safaricom App</div>
+                </div>
+                <div class="instruction-step">
+                  <div class="step-number">2</div>
+                  <div>Select <strong>Lipa na M-Pesa</strong> &rarr; <strong><%= invoice.daraja_shortcode_type === 'TILL' ? 'Buy Goods and Services' : 'Paybill' %></strong></div>
+                </div>
+                <div class="instruction-step">
+                  <div class="step-number">3</div>
+                  <div>
+                    Enter <%= invoice.daraja_shortcode_type === 'TILL' ? 'Till Number' : 'Business No.' %>: 
+                    <span class="copyable-field" onclick="copyText('<%= invoice.daraja_shortcode || '174379' %>')">
+                      <%= invoice.daraja_shortcode || '174379' %> <i class="uil uil-copy"></i>
+                    </span>
+                  </div>
+                </div>
+                <% if (invoice.daraja_shortcode_type !== 'TILL') { %>
+                  <div class="instruction-step">
+                    <div class="step-number">4</div>
+                    <div>
+                      Enter Account No: 
+                      <span class="copyable-field" onclick="copyText('<%= invoice.invoice_number %>')">
+                        <%= invoice.invoice_number %> <i class="uil uil-copy"></i>
+                      </span>
+                    </div>
+                  </div>
+                <% } %>
+                <div class="instruction-step">
+                  <div class="step-number"><%= invoice.daraja_shortcode_type === 'TILL' ? '4' : '5' %></div>
+                  <div>Enter Exact Amount: <strong><%= formatKES(invoice.balance_due) %></strong></div>
+                </div>
+                <div class="instruction-step">
+                  <div class="step-number"><%= invoice.daraja_shortcode_type === 'TILL' ? '5' : '6' %></div>
+                  <div>Enter your M-Pesa PIN and confirm payment.</div>
+                </div>
+              </div>
+
+              <!-- Form to enter code and complete -->
+              <form id="paybillVerifyForm" onsubmit="handlePaybillVerify(event)">
+                <div class="form-group">
+                  <label class="form-label">M-Pesa Confirmation Code (e.g. QGH47DX89K)</label>
+                  <div class="input-wrapper">
+                    <i class="uil uil-receipt input-icon"></i>
+                    <input 
+                      type="text" 
+                      id="mpesaReceiptCode" 
+                      class="form-input" 
+                      placeholder="Enter 10-character code" 
+                      required
+                      style="text-transform: uppercase; font-family: 'JetBrains Mono', monospace;"
+                    >
+                  </div>
+                </div>
+                <button type="submit" id="paybillSubmitBtn" class="btn-pay-mpesa" style="background: var(--dark);">
+                  <i class="uil uil-check-shield"></i>
+                  <span>Verify M-Pesa Code</span>
+                </button>
+              </form>
+            </div>
+
+            <!-- Tab 3: Card Checkout (if enabled) -->
+            <% if (invoice.card_enabled) { %>
+              <div id="tab-card-pay" class="tab-panel">
+                <div style="background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
+                  <div style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 8px;">
+                    Secured by <strong><%= invoice.card_gateway_provider || 'Stripe / Paystack' %></strong>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Card Number</label>
+                    <div class="input-wrapper">
+                      <i class="uil uil-credit-card input-icon"></i>
+                      <input type="text" id="cardNumber" class="form-input" placeholder="4242 &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; 4242">
+                    </div>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">MM / YY</label>
+                      <input type="text" id="cardExpiry" class="form-input" placeholder="12/28" style="padding-left: 14px;">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">CVC</label>
+                      <input type="text" id="cardCvc" class="form-input" placeholder="123" style="padding-left: 14px;">
+                    </div>
+                  </div>
+                </div>
+                <button type="button" onclick="simulatePaymentConfirm('CARD')" class="btn-pay-card">
+                  <i class="uil uil-lock"></i>
+                  <span>Pay <%= formatKES(invoice.balance_due) %> by Card</span>
+                </button>
+              </div>
+            <% } %>
+
+          </div>
+        <% } %>
+      </div>
+
+    </div>
+
+    <div class="footer-note">
+      Powered by <%= invoice.tenant_name %> &bull; All transactions are encrypted and audited.
+    </div>
+  </main>
+
+  <!-- STK Push Waiting Modal -->
+  <div id="stkOverlay" class="stk-overlay">
+    <div class="stk-modal">
+      <div class="pulse-ring">
+        <i class="uil uil-phone"></i>
+      </div>
+      <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--dark); margin-bottom: 8px;">
+        Check Your Phone!
+      </h3>
+      <p id="stkMessageText" style="font-size: 0.9rem; color: var(--slate-600); margin-bottom: 20px; line-height: 1.4;">
+        An M-Pesa payment prompt was sent to your phone. Please enter your PIN to complete the transaction.
+      </p>
+      <div style="font-size: 0.8rem; color: var(--slate-400); display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <i class="uil uil-spinner-alt" style="animation: spin 1s infinite linear;"></i>
+        <span>Waiting for payment confirmation...</span>
+      </div>
+
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--slate-100); display: flex; gap: 10px; justify-content: center;">
+        <button type="button" onclick="closeStkModal()" style="background: none; border: 1px solid var(--slate-200); padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; cursor: pointer; color: var(--slate-600);">
+          Cancel
+        </button>
+        <button type="button" onclick="simulatePaymentConfirm('MPESA_STK')" style="background: var(--mpesa-green); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer;">
+          I Have Paid (Simulate Verification)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+
+  <script>
+    const TOKEN = '<%= invoice.public_token %>';
+    let pollInterval = null;
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+      
+      const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+      if (targetBtn) targetBtn.classList.add('active');
+
+      const targetPanel = document.getElementById('tab-' + tabId);
+      if (targetPanel) targetPanel.classList.add('active');
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Copied to clipboard: ' + text);
+      }).catch(() => {
+        prompt('Copy this:', text);
+      });
+    }
+
+    async function handleMpesaStk(e) {
+      e.preventDefault();
+      const phone = document.getElementById('mpesaPhone').value.trim();
+      const btn = document.getElementById('stkSubmitBtn');
+      const origText = btn.innerHTML;
+
+      try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="uil uil-spinner-alt" style="animation: spin 1s infinite linear;"></i> <span>Sending Prompt...</span>';
+
+        const res = await fetch(`/pay/${TOKEN}/mpesa-stk`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: phone })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById('stkMessageText').textContent = data.message;
+          document.getElementById('stkOverlay').style.display = 'flex';
+          startPollingStatus();
+        } else {
+          alert(data.message || 'Could not initiate M-Pesa STK push.');
+        }
+      } catch (err) {
+        alert('Error sending M-Pesa request. Please try again.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+      }
+    }
+
+    function startPollingStatus() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/pay/${TOKEN}/status`);
+          const data = await res.json();
+          if (data.isPaid || data.invoiceStatus === 'PAID') {
+            clearInterval(pollInterval);
+            window.location.reload();
+          }
+        } catch {}
+      }, 3000);
+    }
+
+    function closeStkModal() {
+      if (pollInterval) clearInterval(pollInterval);
+      document.getElementById('stkOverlay').style.display = 'none';
+    }
+
+    async function handlePaybillVerify(e) {
+      e.preventDefault();
+      const code = document.getElementById('mpesaReceiptCode').value.trim();
+      if (!code) return;
+      await simulatePaymentConfirm('MPESA_C2B', code);
+    }
+
+    async function simulatePaymentConfirm(method, customRef) {
+      try {
+        const res = await fetch(`/pay/${TOKEN}/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paymentMethod: method,
+            transactionRef: customRef || ('MPESA_' + Math.random().toString(36).substring(2, 10).toUpperCase()),
+            phoneNumber: document.getElementById('mpesaPhone') ? document.getElementById('mpesaPhone').value : '254700000000'
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (pollInterval) clearInterval(pollInterval);
+          alert('Payment confirmed! Receipt ' + data.receiptNumber + ' generated and dispatched.');
+          window.location.reload();
+        } else {
+          alert(data.message || 'Payment confirmation failed');
+        }
+      } catch (err) {
+        alert('Payment verification failed. Please try again.');
+      }
+    }
+  </script>
+</body>
+</html>

@@ -15,3 +15,5 @@ export * from './quotation.model';
 export * from './invoice.model';
 export * from './payment.model';
 export * from './expense.model';
+export * from './errorLog.model';
+

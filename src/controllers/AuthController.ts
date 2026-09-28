@@ -17,6 +17,7 @@ import {
   SubscriptionStatus,
   AuditAction,
 } from '../models';
+import ActionLogService from '../services/actionLog.service';
 import logger from '../utils/logger';
 
 const authLogger = logger.child('AuthController');
@@ -106,6 +107,15 @@ export class AuthController {
         userId: user.id,
         email: user.email,
         role: user.role,
+      });
+
+      // Action Log
+      await ActionLogService.record(req, {
+        action: AuditAction.LOGIN,
+        entityType: 'USER',
+        entityId: user.id,
+        description: `User ${user.email} signed into workspace`,
+        metadata: { role: user.role, email: user.email },
       });
 
       // Redirect to intended page or dashboard
@@ -259,6 +269,15 @@ export class AuthController {
    */
   handleLogout = async (req: Request, res: Response): Promise<void> => {
     const userId = req.session?.userId;
+
+    if (userId) {
+      await ActionLogService.record(req, {
+        action: AuditAction.LOGOUT,
+        entityType: 'USER',
+        entityId: userId,
+        description: 'User signed out of workspace',
+      });
+    }
 
     req.session.destroy((err) => {
       if (err) {

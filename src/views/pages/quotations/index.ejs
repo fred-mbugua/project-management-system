@@ -16,7 +16,73 @@
     </div>
   </div>
 
+  <!-- Search & Date Filter Section -->
+  <div class="search-filter-section">
+    <form action="/quotations" method="GET" class="filter-form">
+      <div class="search-input-wrapper">
+        <i class="uil uil-search"></i>
+        <input type="text" name="q" class="form-input" placeholder="Search quote #, client, project, or title..." value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : '' %>">
+      </div>
+
+      <div class="date-filter-group">
+        <div class="date-filter-item">
+          <span>From:</span>
+          <input type="date" name="startDate" class="form-input" placeholder="e.g. 2026-09-01" value="<%= (typeof filters !== 'undefined' && filters.startDate) ? filters.startDate : '' %>">
+        </div>
+        <div class="date-filter-item">
+          <span>To:</span>
+          <input type="date" name="endDate" class="form-input" placeholder="e.g. 2026-09-30" value="<%= (typeof filters !== 'undefined' && filters.endDate) ? filters.endDate : '' %>">
+        </div>
+      </div>
+
+      <div class="filter-status-wrapper">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All Statuses</option>
+          <option value="DRAFT" <%= (typeof filters !== 'undefined' && filters.status === 'DRAFT') ? 'selected' : '' %>>Draft</option>
+          <option value="SENT" <%= (typeof filters !== 'undefined' && filters.status === 'SENT') ? 'selected' : '' %>>Sent</option>
+          <option value="APPROVED" <%= (typeof filters !== 'undefined' && filters.status === 'APPROVED') ? 'selected' : '' %>>Approved</option>
+          <option value="CONVERTED" <%= (typeof filters !== 'undefined' && filters.status === 'CONVERTED') ? 'selected' : '' %>>Converted</option>
+          <option value="REJECTED" <%= (typeof filters !== 'undefined' && filters.status === 'REJECTED') ? 'selected' : '' %>>Rejected</option>
+          <option value="EXPIRED" <%= (typeof filters !== 'undefined' && filters.status === 'EXPIRED') ? 'selected' : '' %>>Expired</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="uil uil-filter"></i>
+          <span>Filter</span>
+        </button>
+        <% if (typeof filters !== 'undefined' && (filters.search || filters.startDate || filters.endDate || filters.status)) { %>
+          <a href="/quotations" class="btn btn-sm btn-secondary" title="Clear all filters">
+            <i class="uil uil-times"></i>
+            <span>Clear</span>
+          </a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+
   <div class="card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-file-alt"></i>
+        </div>
+        <div>
+          <div class="flex-align-center gap-2">
+            <h2 class="card-title">Commercial Quotations</h2>
+            <span class="badge badge-subtle"><%= quotations ? quotations.length : 0 %> Listed</span>
+          </div>
+          <p class="card-subtitle">Generate client estimates, proposals, customize templates, and print</p>
+        </div>
+      </div>
+      <div class="flex-align-center gap-2">
+        <a href="/quotations/new" class="btn btn-sm btn-primary">
+          <i class="uil uil-plus"></i>
+          <span>New Quotation</span>
+        </a>
+      </div>
+    </div>
     <div class="card-body-table">
       <% if (quotations && quotations.length > 0) { %>
         <div class="table-scroll-hint">
@@ -67,6 +133,10 @@
                         <i class="uil uil-eye"></i>
                         <span>View</span>
                       </a>
+                      <a href="/quotations/<%= q.id %>/pdf" class="btn btn-sm btn-secondary" title="Download PDF" target="_blank">
+                        <i class="uil uil-file-download-alt"></i>
+                        <span>PDF</span>
+                      </a>
                     </div>
                   </td>
                 </tr>
@@ -74,10 +144,14 @@
             </tbody>
           </table>
         </div>
+
+        <% if (typeof pagination !== 'undefined' && pagination) { %>
+          <%- include('../../partials/pagination') %>
+        <% } %>
       <% } else { %>
         <div class="empty-state">
           <div class="empty-state-icon"><i class="uil uil-file-alt"></i></div>
-          <p class="empty-state-title">No quotations yet</p>
+          <p class="empty-state-title">No quotations found</p>
           <p class="empty-state-message">Prepare commercial estimates and client proposals with automatic VAT breakdown.</p>
           <a href="/quotations/new" class="btn btn-primary btn-sm mt-3">
             <i class="uil uil-plus"></i>

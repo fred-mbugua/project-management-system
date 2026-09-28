@@ -1,35 +1,43 @@
 <!-- ═══════════════════════════════════════════════════════════════════
-     Preventive Maintenance Schedules View
+     Recurring Invoices & Maintenance Contracts View
      ═══════════════════════════════════════════════════════════════════ -->
 
 <div class="maintenance-page">
-  <div class="page-header">
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
     <div class="page-title-group">
-      <h1 class="page-title">Maintenance & SLAs</h1>
-      <p class="page-subtitle">Schedule recurring technical inspections, preventative maintenance, and SLA retainers.</p>
+      <h1 class="page-title">Recurring Invoices & Maintenance Contracts</h1>
+      <p class="page-subtitle">Automate recurring client retainers, SLA maintenance, and generate auto-invoices with M-Pesa & Card payment links.</p>
+    </div>
+    <div class="page-actions-group" style="display: flex; gap: 10px; align-items: center;">
+      <form action="/maintenance/run-billing" method="POST" style="margin: 0;" onsubmit="return confirm('Run automated billing engine now? This will scan all active due contracts, generate sequential invoices, and email clients with payment links.')">
+        <button type="submit" class="btn btn-secondary" title="Manually execute the daily billing engine">
+          <i class="uil uil-bolt-alt" style="color: #f59e0b;"></i>
+          <span>Run Auto-Billing Now</span>
+        </button>
+      </form>
     </div>
   </div>
 
-  <!-- Summary Cards -->
+  <!-- Summary KPI Cards -->
   <div class="kpi-grid mb-6">
     <div class="kpi-card">
       <div class="kpi-icon kpi-icon-success">
-        <i class="uil uil-wrench"></i>
+        <i class="uil uil-sync"></i>
       </div>
       <div class="kpi-content">
-        <span class="kpi-label">Active Contracts</span>
+        <span class="kpi-label">Active Recurring Retainers</span>
         <div class="kpi-value"><%= stats.activeCount %></div>
-        <span class="text-xs text-muted mt-1 block">Ongoing service retainers</span>
+        <span class="text-xs text-muted mt-1 block">Scheduled for automated invoicing</span>
       </div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon kpi-icon-primary">
-        <i class="uil uil-sync"></i>
+        <i class="uil uil-money-bill"></i>
       </div>
       <div class="kpi-content">
-        <span class="kpi-label">Monthly Retainer (MRR)</span>
+        <span class="kpi-label">Total Monthly Recurring (MRR)</span>
         <div class="kpi-value text-primary"><%= formatKES(stats.totalMRR) %></div>
-        <span class="text-xs text-muted mt-1 block">Contracted recurring revenue</span>
+        <span class="text-xs text-muted mt-1 block">Contracted baseline recurring revenue</span>
       </div>
     </div>
     <div class="kpi-card">
@@ -39,7 +47,7 @@
       <div class="kpi-content">
         <span class="kpi-label">Total Contracts</span>
         <div class="kpi-value"><%= stats.totalSchedules %></div>
-        <span class="text-xs text-muted mt-1 block">All registered schedules</span>
+        <span class="text-xs text-muted mt-1 block">All registered SLA schedules</span>
       </div>
     </div>
   </div>
@@ -47,15 +55,23 @@
   <!-- Add Schedule Card -->
   <div class="card mb-6">
     <div class="card-header">
-      <h3 class="card-title">Add Service Contract / Inspection Schedule</h3>
-      <p class="text-xs text-muted">Register a new scheduled maintenance or recurring SLA contract</p>
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-calendar-alt"></i>
+        </div>
+        <div>
+          <h3 class="card-title">Setup Recurring Contract & Auto-Invoicing</h3>
+          <p class="text-xs text-muted">Set up recurring cadence, billing start date, and intervals. The system will automatically calculate invoice due dates and detect any accrued past intervals.</p>
+        </div>
+      </div>
     </div>
     <div class="card-body">
-      <form action="/maintenance/new" method="POST">
-        <div class="form-row-2-1-1">
+      <form action="/maintenance/new" method="POST" id="maintenanceForm">
+        <!-- Row 1: Basic Info -->
+        <div class="form-row-2-1-1" style="display: grid; grid-template-columns: 2fr 1.2fr 1fr; gap: 14px; margin-bottom: 16px;">
           <div class="form-group">
-            <label for="title" class="form-label">Contract Title *</label>
-            <input type="text" id="title" name="title" class="form-input" placeholder="e.g. Monthly Server & Security Patching" required>
+            <label for="title" class="form-label">Contract / Retainer Title *</label>
+            <input type="text" id="title" name="title" class="form-input" placeholder="e.g. Website Maintenance & Cloud Hosting SLA" required>
           </div>
           <div class="form-group">
             <label for="clientId" class="form-label">Client *</label>
@@ -67,9 +83,9 @@
             </select>
           </div>
           <div class="form-group">
-            <label for="projectId" class="form-label">Project (Optional)</label>
+            <label for="projectId" class="form-label">Linked Project (Optional)</label>
             <select id="projectId" name="projectId" class="form-select">
-              <option value="">None / Standalone</option>
+              <option value="">None / General Retainer</option>
               <% projects.forEach(function(p) { %>
                 <option value="<%= p.id %>"><%= p.name %> (<%= p.code %>)</option>
               <% }); %>
@@ -77,47 +93,215 @@
           </div>
         </div>
 
-        <div class="form-row-1-1-1-2">
-          <div class="form-group">
-            <label for="frequency" class="form-label">Cadence *</label>
-            <select id="frequency" name="frequency" class="form-select" required>
-              <% frequencies.forEach(function(f) { %>
-                <option value="<%= f %>"><%= f %></option>
-              <% }); %>
-            </select>
+        <!-- Row 2: Billing Cadence & Cycle Configuration -->
+        <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); padding: 18px 20px; margin-bottom: 18px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="uil uil-repeat" style="color: var(--primary); font-size: 1.25rem;"></i>
+              <strong style="font-size: 0.95rem;">Recurring Cadence & Billing Schedule</strong>
+            </div>
+            <span class="text-xs text-muted" id="cadenceSummaryBadge">Intervals & past accrued invoices auto-calculate</span>
           </div>
-          <div class="form-group">
-            <label for="chargeAmount" class="form-label">Retainer Amount (KES) *</label>
-            <input type="number" id="chargeAmount" name="chargeAmount" class="form-input" placeholder="0.00" step="any" min="0" required>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;" id="cadenceRowGrid">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="frequency" class="form-label" style="font-weight: 600;">Billing Cadence *</label>
+              <select id="frequency" name="frequency" class="form-select" onchange="handleFrequencyChange(this.value)" required>
+                <option value="MONTHLY" selected>Monthly (Every 1 Month)</option>
+                <option value="QUARTERLY">Quarterly (Every 3 Months)</option>
+                <option value="BIANNUAL">Biannually (Every 6 Months)</option>
+                <option value="ANNUAL">Annually (Every 12 Months)</option>
+                <option value="CUSTOM">Custom Months Interval...</option>
+                <option value="WEEKLY">Weekly (Every 7 Days)</option>
+                <option value="BIWEEKLY">Bi-Weekly (Every 14 Days)</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="customIntervalGroup" style="margin-bottom: 0; display: none; background: rgba(79, 70, 229, 0.08); padding: 10px 14px; border-radius: var(--border-radius-md); border: 1.5px solid var(--primary);">
+              <label for="intervalMonths" class="form-label" style="font-weight: 700; color: var(--primary);">
+                <i class="uil uil-sliders-v-alt"></i> Interval (Months) *
+              </label>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">Every</span>
+                <input type="number" id="intervalMonths" name="intervalMonths" class="form-input" value="2" min="1" max="120" style="font-weight: 700; font-size: 1rem; width: 85px; text-align: center;" placeholder="e.g. 2, 4, 5" oninput="recalculateBillingTimeline()">
+                <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">Month(s)</span>
+              </div>
+              <small class="text-xs" style="color: var(--primary); display: block; margin-top: 4px;">Generates invoice every X months</small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="startDate" class="form-label" style="font-weight: 600;">Billing Start Date *</label>
+              <input type="date" id="startDate" name="startDate" class="form-input flatpickr-date" placeholder="e.g. 2026-09-01" required onchange="recalculateBillingTimeline()">
+              <small class="text-xs text-muted">When billing starts running</small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="endDate" class="form-label">Contract End Date (Optional)</label>
+              <input type="date" id="endDate" name="endDate" class="form-input flatpickr-date" placeholder="e.g. 2026-12-31" onchange="recalculateBillingTimeline()">
+              <small class="text-xs text-muted">Leave empty for perpetual</small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="chargeAmount" class="form-label" style="font-weight: 600;">Retainer Amount (KES) *</label>
+              <input type="number" id="chargeAmount" name="chargeAmount" class="form-input" placeholder="e.g. 25000" step="any" min="0" required oninput="recalculateBillingTimeline()">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="taxRate" class="form-label">Tax / VAT (%)</label>
+              <input type="number" id="taxRate" name="taxRate" class="form-input" value="16" min="0" max="100" oninput="recalculateBillingTimeline()">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="nextDueDate" class="form-label" style="font-weight: 600;">Next Invoice Due Date *</label>
+              <input type="date" id="nextDueDate" name="nextDueDate" class="form-input flatpickr-date" placeholder="e.g. 2026-10-01" required>
+              <small class="text-xs text-muted">Auto-calculated cycle date</small>
+            </div>
           </div>
+        </div>
+
+        <!-- Row 3: Notes -->
+        <div style="margin-bottom: 16px;">
           <div class="form-group">
-            <label for="nextDueDate" class="form-label">Next Due Date *</label>
-            <input type="date" id="nextDueDate" name="nextDueDate" class="form-input" required>
+            <label for="notes" class="form-label">SLA Scope / Deliverables</label>
+            <input type="text" id="notes" name="notes" class="form-input" placeholder="e.g. 24/7 Server uptime monitoring, monthly security patch, 5hrs minor changes">
           </div>
-          <div class="form-group">
-            <label for="notes" class="form-label">SLA Scope Notes</label>
-            <input type="text" id="notes" name="notes" class="form-input" placeholder="e.g. 4-hour critical response time">
+        </div>
+
+        <!-- Dynamic Accrued Invoices Alert Banner -->
+        <div id="accruedNoticeBanner" style="display: none; background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05)); border: 1.5px solid rgba(245, 158, 11, 0.5); border-radius: var(--border-radius-lg); padding: 18px 22px; margin-bottom: 20px;">
+          <div style="display: flex; gap: 16px; align-items: flex-start;">
+            <div style="width: 42px; height: 42px; border-radius: 50%; background: rgba(245, 158, 11, 0.22); color: #b45309; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0;">
+              <i class="uil uil-exclamation-triangle"></i>
+            </div>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <h4 style="margin: 0; font-size: 1.02rem; font-weight: 700; color: #b45309;">
+                  Past Billing Intervals Accrued (<span id="noticeElapsedCountBadge">0</span> Invoices)
+                </h4>
+                <span class="badge badge-warning" id="noticeTotalAccruedPill">KES 0.00 Due</span>
+              </div>
+              <p style="margin: 6px 0 12px 0; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5;">
+                You selected a start date in the past (<strong id="noticeStartDateText" style="color: var(--text-primary);">...</strong>). Based on your <strong id="noticeCadenceText" style="color: var(--text-primary);">Monthly</strong> cadence, 
+                <strong style="color: #b45309;"><span id="noticeElapsedCount">0</span> billing intervals have already elapsed</strong> between the start date and today. Unless an earlier end date was set, these invoices are due for issuance.
+              </p>
+              <div style="background: rgba(255, 255, 255, 0.7); dark:background: rgba(0,0,0,0.2); padding: 10px 14px; border-radius: var(--border-radius-md); border: 1px solid rgba(245, 158, 11, 0.25);">
+                <label style="display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">
+                  <input type="checkbox" id="generatePastInvoices" name="generatePastInvoices" value="true" checked style="width: 19px; height: 19px; accent-color: var(--primary);">
+                  <span>Automatically generate and dispatch all <strong id="noticeCheckCount" style="color: #b45309;">0</strong> accrued past invoices now upon scheduling</span>
+                </label>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <!-- Real-time Live Projected Invoices Schedule & Due Dates Table -->
+        <div id="projectedScheduleCard" style="display: none; margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); background: var(--bg-secondary); overflow: hidden;">
+          <div style="padding: 12px 18px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleProjectedTimeline()">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="uil uil-schedule" style="color: var(--primary); font-size: 1.15rem;"></i>
+              <strong style="font-size: 0.9rem;">Calculated Invoices Schedule & Due Dates Preview</strong>
+              <span class="badge badge-subtle" id="projectedCycleCountBadge">0 Cycles</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="text-xs text-muted" id="timelineToggleHint">Click to collapse</span>
+              <i class="uil uil-angle-down" id="timelineToggleIcon"></i>
+            </div>
+          </div>
+          <div id="projectedScheduleBody" style="padding: 14px 18px; max-height: 280px; overflow-y: auto;">
+            <table class="table" style="font-size: 0.85rem; margin: 0;">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">Cycle</th>
+                  <th>Calculated Due Date</th>
+                  <th>Billing Coverage Period</th>
+                  <th>Projected Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="projectedScheduleTbody">
+                <!-- Injected via JavaScript calculation -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Email Delivery Checkbox -->
+        <div style="margin-bottom: 20px;">
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer;">
+            <input type="checkbox" name="autoSendEmail" checked style="width: 17px; height: 17px; accent-color: var(--primary);">
+            <span>Automatically email generated invoice with PDF & online payment link to client</span>
+          </label>
         </div>
 
         <div class="form-actions">
           <button type="submit" class="btn btn-primary" id="btn-save-maintenance">
             <i class="uil uil-plus"></i>
-            <span>Schedule Contract</span>
+            <span>Schedule Recurring Contract</span>
           </button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Search & Date Filter Section -->
+  <div class="search-filter-section">
+    <form action="/maintenance" method="GET" class="filter-form">
+      <div class="search-input-wrapper">
+        <i class="uil uil-search"></i>
+        <input type="text" name="q" class="form-input" placeholder="Search contract title, notes, client, or project..." value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : '' %>">
+      </div>
+
+      <div class="date-filter-group">
+        <div class="date-filter-item">
+          <span>From:</span>
+          <input type="date" name="startDate" class="form-input flatpickr-date" placeholder="e.g. 2026-09-01" value="<%= (typeof filters !== 'undefined' && filters.startDate) ? filters.startDate : '' %>">
+        </div>
+        <div class="date-filter-item">
+          <span>To:</span>
+          <input type="date" name="endDate" class="form-input flatpickr-date" placeholder="e.g. 2026-09-30" value="<%= (typeof filters !== 'undefined' && filters.endDate) ? filters.endDate : '' %>">
+        </div>
+      </div>
+
+      <div class="filter-status-wrapper">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All Statuses</option>
+          <option value="ACTIVE" <%= (typeof filters !== 'undefined' && filters.status === 'ACTIVE') ? 'selected' : '' %>>Active</option>
+          <option value="PAUSED" <%= (typeof filters !== 'undefined' && filters.status === 'PAUSED') ? 'selected' : '' %>>Paused</option>
+          <option value="EXPIRED" <%= (typeof filters !== 'undefined' && filters.status === 'EXPIRED') ? 'selected' : '' %>>Expired</option>
+          <option value="CANCELLED" <%= (typeof filters !== 'undefined' && filters.status === 'CANCELLED') ? 'selected' : '' %>>Cancelled</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="uil uil-filter"></i>
+          <span>Filter</span>
+        </button>
+        <% if (typeof filters !== 'undefined' && (filters.search || filters.startDate || filters.endDate || filters.status)) { %>
+          <a href="/maintenance" class="btn btn-sm btn-secondary" title="Clear all filters">
+            <i class="uil uil-times"></i>
+            <span>Clear</span>
+          </a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+
   <!-- Contracts Table -->
   <div class="card">
-    <div class="card-header card-header-flex">
-      <div>
-        <h3 class="card-title">Active Maintenance Retainers</h3>
-        <p class="text-xs text-muted">Overview of current service level agreements</p>
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-list-ul"></i>
+        </div>
+        <div>
+          <div class="flex-align-center gap-2">
+            <h2 class="card-title">Recurring Maintenance Contracts</h2>
+            <span class="badge badge-subtle"><%= schedules ? schedules.length : 0 %> Listed</span>
+          </div>
+          <p class="card-subtitle">Active billing schedules, last generated invoices, and instant generation controls.</p>
+        </div>
       </div>
-      <span class="badge badge-subtle"><%= schedules ? schedules.length : 0 %> Contracts</span>
     </div>
     <div class="card-body-table">
       <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
@@ -126,27 +310,92 @@
           <table class="table">
             <thead>
               <tr>
-                <th>Title</th>
+                <th>Contract & Scope</th>
                 <th>Client</th>
-                <th>Project</th>
                 <th>Cadence</th>
                 <th>Retainer</th>
                 <th>Next Due Date</th>
+                <th>Invoices</th>
+                <th>Last Invoice</th>
                 <th>Status</th>
+                <th style="text-align: right;">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <% schedules.forEach(function(s) { %>
-                <tr>
-                  <td><strong><%= s.title %></strong></td>
+              <% schedules.forEach(function(s) { 
+                 const isDue = new Date(s.next_due_date) <= new Date();
+                 const invoiceCount = s.invoice_count || 0;
+                 const rawInvoices = s.schedule_invoices ? JSON.stringify(s.schedule_invoices) : '[]';
+              %>
+                <tr id="contract-row-<%= s.id %>">
                   <td>
-                    <div><%= s.client_name %></div>
-                    <% if (s.client_phone) { %><small class="text-xs text-muted"><%= s.client_phone %></small><% } %>
+                    <strong><%= s.title %></strong>
+                    <% if (s.project_name) { %>
+                      <div class="text-xs text-muted">Project: <%= s.project_name %> (<%= s.project_code %>)</div>
+                    <% } %>
+                    <% if (s.notes) { %>
+                      <div class="text-xs text-muted" style="max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><%= s.notes %></div>
+                    <% } %>
                   </td>
-                  <td><%= s.project_code || 'Standalone' %></td>
-                  <td><span class="badge badge-info"><%= s.frequency %></span></td>
-                  <td class="font-bold"><%= formatKES(parseFloat(s.charge_amount)) %></td>
-                  <td><%= new Date(s.next_due_date).toLocaleDateString() %></td>
+                  <td>
+                    <div><strong><%= s.client_name %></strong></div>
+                    <% if (s.client_email) { %><div class="text-xs text-muted"><i class="uil uil-envelope"></i> <%= s.client_email %></div><% } %>
+                    <% if (s.client_phone) { %><div class="text-xs text-muted"><i class="uil uil-phone"></i> <%= s.client_phone %></div><% } %>
+                  </td>
+                  <td>
+                    <span class="badge badge-info"><%= s.frequency %></span>
+                    <% if (s.interval_months && s.interval_months > 1) { %>
+                      <div class="text-xs text-muted mt-1">Every <%= s.interval_months %> months</div>
+                    <% } %>
+                    <% if (s.startdate) { %>
+                      <div class="text-xs text-muted mt-0.5">Start: <%= new Date(s.startdate).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' }) %></div>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div class="font-bold"><%= formatKES(parseFloat(s.charge_amount)) %></div>
+                    <% if (s.tax_rate > 0) { %>
+                      <small class="text-xs text-muted">+<%= s.tax_rate %>% VAT</small>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div style="font-weight: <%= isDue ? '700' : 'normal' %>; color: <%= isDue ? 'var(--danger, #ef4444)' : 'inherit' %>;">
+                      <%= new Date(s.next_due_date).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                    </div>
+                    <% if (isDue && s.status === 'ACTIVE') { %>
+                      <span class="badge badge-warning" style="font-size: 0.7rem; padding: 2px 6px;">Due for Invoicing</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <button type="button" class="btn btn-xs btn-outline-primary" 
+                            onclick='openScheduleInvoicesModal("<%= s.id %>", "<%= s.title.replace(/"/g, "&quot;") %>", "<%= s.client_name.replace(/"/g, "&quot;") %>", "<%= s.frequency %>", <%= rawInvoices %>)'
+                            title="List all invoices for this contract with due dates, view, download, print, & customize">
+                      <i class="uil uil-receipt-alt"></i>
+                      <span><strong><%= invoiceCount %></strong> Invoices</span>
+                    </button>
+                  </td>
+                  <td>
+                    <% if (s.last_invoice_number) { %>
+                      <div>
+                        <a href="/invoices" style="font-family: monospace; font-weight: 700; color: var(--primary);">
+                          <%= s.last_invoice_number %>
+                        </a>
+                      </div>
+                      <div class="text-xs mt-1">
+                        <% if (s.last_invoice_status === 'PAID') { %>
+                          <span class="badge badge-success" style="font-size: 0.68rem;">PAID</span>
+                        <% } else { %>
+                          <span class="badge badge-warning" style="font-size: 0.68rem;"><%= s.last_invoice_status %></span>
+                        <% } %>
+                        <% if (s.last_invoice_token) { %>
+                          <a href="/pay/<%= s.last_invoice_token %>" target="_blank" title="View Public Checkout Portal" style="margin-left: 4px; color: var(--slate-500);">
+                            <i class="uil uil-external-link-alt"></i>
+                          </a>
+                        <% } %>
+                      </div>
+                    <% } else { %>
+                      <span class="text-xs text-muted">None generated</span>
+                    <% } %>
+                  </td>
                   <td>
                     <% if (s.status === 'ACTIVE') { %>
                       <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
@@ -154,20 +403,695 @@
                       <span class="badge badge-subtle"><%= s.status %></span>
                     <% } %>
                   </td>
+                  <td style="text-align: right;">
+                    <div style="display: inline-flex; gap: 6px; align-items: center;">
+                      <form action="/maintenance/<%= s.id %>/generate-now" method="POST" style="margin: 0;" onsubmit="return confirm('Generate and dispatch invoice for <%= s.title %> right now?')">
+                        <button type="submit" class="btn btn-xs btn-primary" title="Generate invoice & email client now">
+                          <i class="uil uil-file-plus-alt"></i>
+                          <span>Invoice Now</span>
+                        </button>
+                      </form>
+                      <form action="/maintenance/<%= s.id %>/toggle-status" method="POST" style="margin: 0;">
+                        <button type="submit" class="btn btn-xs btn-secondary" title="<%= s.status === 'ACTIVE' ? 'Pause Auto-Invoicing' : 'Resume Auto-Invoicing' %>">
+                          <i class="uil <%= s.status === 'ACTIVE' ? 'uil-pause' : 'uil-play' %>"></i>
+                        </button>
+                      </form>
+                      <form action="/maintenance/<%= s.id %>/delete" method="POST" style="margin: 0;" onsubmit="return confirm('Are you sure you want to delete this maintenance contract schedule?')">
+                        <button type="submit" class="btn btn-xs btn-danger" title="Delete Contract">
+                          <i class="uil uil-trash-alt"></i>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
                 </tr>
               <% }); %>
             </tbody>
           </table>
         </div>
+
+        <% if (typeof pagination !== 'undefined' && pagination) { %>
+          <%- include('../../partials/pagination') %>
+        <% } %>
       <% } else { %>
         <div class="empty-state">
           <div class="empty-state-icon">
-            <i class="uil uil-wrench"></i>
+            <i class="uil uil-sync"></i>
           </div>
-          <h4 class="empty-state-title">No maintenance schedules configured</h4>
-          <p class="empty-state-text">Add your recurring SLAs or maintenance contracts using the form above.</p>
+          <h4 class="empty-state-title">No recurring contracts found</h4>
+          <p class="empty-state-text">Set up your client maintenance retainers or recurring contracts using the form above.</p>
         </div>
       <% } %>
     </div>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     Modal 1: Contract Invoices Modal (List with View, Download, Print, Customize)
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="contractInvoicesModal">
+  <div class="modal" style="max-width: 980px;">
+    <div class="modal-header">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <h3 class="modal-title" id="modalContractTitle">Contract Invoices</h3>
+          <span class="badge badge-info" id="modalContractCadence">Monthly</span>
+        </div>
+        <p class="text-xs text-muted" id="modalContractSubtitle">Client invoices with due dates, PDF downloads, printing, and customization.</p>
+      </div>
+      <button type="button" class="modal-close" onclick="closeScheduleInvoicesModal()" aria-label="Close Modal">
+        <i class="uil uil-multiply" style="font-size: 1.25rem;"></i>
+      </button>
+    </div>
+    <div class="modal-body" style="padding: 16px 24px;">
+      <div id="modalInvoicesLoading" style="display: none; text-align: center; padding: 30px;">
+        <i class="uil uil-spinner-alt spin text-primary" style="font-size: 2rem;"></i>
+        <p class="text-sm text-muted mt-2">Loading contract invoices...</p>
+      </div>
+      <div id="modalInvoicesEmpty" style="display: none; text-align: center; padding: 40px 20px;">
+        <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--bg-tertiary); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; color: var(--text-tertiary);">
+          <i class="uil uil-receipt" style="font-size: 1.5rem;"></i>
+        </div>
+        <h4 style="margin: 0 0 6px 0;">No Invoices Generated Yet</h4>
+        <p class="text-xs text-muted" style="max-width: 380px; margin: 0 auto 16px auto;">
+          Invoices will be auto-generated when due, or you can trigger an immediate invoice generation using the "Invoice Now" button.
+        </p>
+      </div>
+      <div id="modalInvoicesTableContainer" class="table-responsive" style="max-height: 440px; overflow-y: auto;">
+        <table class="table" style="font-size: 0.88rem; width: 100%;">
+          <thead>
+            <tr>
+              <th>Invoice #</th>
+              <th>Due Date</th>
+              <th>Period / Scope</th>
+              <th>Total (KES)</th>
+              <th>Status</th>
+              <th style="text-align: right; min-width: 320px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="modalInvoicesTbody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="text-xs text-muted">
+        Tip: Click <strong>Customize</strong> to change the design template, brand colors, notes, or payment terms.
+      </div>
+      <button type="button" class="btn btn-secondary" onclick="closeScheduleInvoicesModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     Modal 2: Invoice Customization Modal
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="customizeInvoiceModal">
+  <div class="modal" style="max-width: 640px;">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title" id="custModalTitle">Customize Invoice</h3>
+        <p class="text-xs text-muted">Customize presentation template, brand theme colors, due date, and terms.</p>
+      </div>
+      <button type="button" class="modal-close" onclick="closeCustomizeModal()" aria-label="Close Modal">
+        <i class="uil uil-multiply" style="font-size: 1.25rem;"></i>
+      </button>
+    </div>
+    <form id="customizeInvoiceForm" onsubmit="submitInvoiceCustomization(event)">
+      <div class="modal-body" style="padding: 20px 24px;">
+        <input type="hidden" id="custInvoiceId" name="invoiceId">
+
+        <!-- Template Selector -->
+        <div class="form-group mb-4">
+          <label class="form-label" style="font-weight: 700; margin-bottom: 8px;">Design Template</label>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;" id="custTemplateGroup">
+            <button type="button" class="btn btn-xs btn-outline-secondary cust-tpl-btn" data-tpl="modern" onclick="selectCustTemplate('modern')">
+              <i class="uil uil-layer-group"></i> Modern
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary cust-tpl-btn" data-tpl="corporate" onclick="selectCustTemplate('corporate')">
+              <i class="uil uil-building"></i> Corporate
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary cust-tpl-btn" data-tpl="classic" onclick="selectCustTemplate('classic')">
+              <i class="uil uil-file-alt"></i> Classic
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary cust-tpl-btn" data-tpl="creative" onclick="selectCustTemplate('creative')">
+              <i class="uil uil-palette"></i> Creative
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary cust-tpl-btn" data-tpl="executive" onclick="selectCustTemplate('executive')">
+              <i class="uil uil-award"></i> Executive
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary cust-tpl-btn" data-tpl="compact" onclick="selectCustTemplate('compact')">
+              <i class="uil uil-table"></i> Compact
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary cust-tpl-btn" data-tpl="minimal" onclick="selectCustTemplate('minimal')">
+              <i class="uil uil-minus"></i> Minimal
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary cust-tpl-btn" data-tpl="bold" onclick="selectCustTemplate('bold')">
+              <i class="uil uil-brush-alt"></i> Bold
+            </button>
+          </div>
+          <input type="hidden" id="custSelectedTemplate" name="template" value="modern">
+        </div>
+
+        <!-- Brand Color Selector -->
+        <div class="form-group mb-4">
+          <label class="form-label" style="font-weight: 700; margin-bottom: 8px;">Brand Accent Color</label>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 6px; align-items: center;" id="custColorSwatches">
+              <button type="button" class="cust-swatch" data-c="#4F46E5" style="background:#4F46E5; width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;" onclick="selectCustColor('#4F46E5')"></button>
+              <button type="button" class="cust-swatch" data-c="#059669" style="background:#059669; width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;" onclick="selectCustColor('#059669')"></button>
+              <button type="button" class="cust-swatch" data-c="#2563EB" style="background:#2563EB; width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;" onclick="selectCustColor('#2563EB')"></button>
+              <button type="button" class="cust-swatch" data-c="#DC2626" style="background:#DC2626; width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;" onclick="selectCustColor('#DC2626')"></button>
+              <button type="button" class="cust-swatch" data-c="#D97706" style="background:#D97706; width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;" onclick="selectCustColor('#D97706')"></button>
+              <button type="button" class="cust-swatch" data-c="#475569" style="background:#475569; width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;" onclick="selectCustColor('#475569')"></button>
+              <button type="button" class="cust-swatch" data-c="#9333EA" style="background:#9333EA; width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;" onclick="selectCustColor('#9333EA')"></button>
+              <button type="button" class="cust-swatch" data-c="#0891B2" style="background:#0891B2; width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;" onclick="selectCustColor('#0891B2')"></button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px;">
+              <span class="text-xs text-muted">Custom:</span>
+              <input type="color" id="custColorPicker" style="width: 32px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer;" onchange="selectCustColor(this.value)">
+              <input type="hidden" id="custSelectedColor" name="customColor" value="#4F46E5">
+            </div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+          <div class="form-group">
+            <label for="custDueDate" class="form-label">Due Date</label>
+            <input type="date" id="custDueDate" name="dueDate" class="form-input flatpickr-date" placeholder="e.g. 2026-10-15">
+          </div>
+          <div class="form-group">
+            <label for="custDocTitle" class="form-label">Invoice Title</label>
+            <input type="text" id="custDocTitle" name="title" class="form-input" placeholder="Invoice Title">
+          </div>
+        </div>
+
+        <div class="form-group mb-3">
+          <label for="custNotes" class="form-label">Notes</label>
+          <textarea id="custNotes" name="notes" class="form-input" rows="2" placeholder="Custom notes or period description"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="custTerms" class="form-label">Payment Terms</label>
+          <input type="text" id="custTerms" name="terms" class="form-input" placeholder="e.g. Payment due upon receipt.">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="#" id="custFullViewLink" class="btn btn-secondary" target="_blank">
+          <i class="uil uil-external-link-alt"></i> Open Full Invoice
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="closeCustomizeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSaveCustomization">
+          <i class="uil uil-check"></i> Save Customization
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  // 1. Cadence & Custom Months Handling
+  // ─────────────────────────────────────────────────────────────
+  function handleFrequencyChange(val) {
+    const customGroup = document.getElementById('customIntervalGroup');
+    const intervalInput = document.getElementById('intervalMonths');
+
+    if (val === 'CUSTOM') {
+      customGroup.style.display = 'block';
+      if (!intervalInput.value || parseInt(intervalInput.value, 10) < 1) {
+        intervalInput.value = 2;
+      }
+      setTimeout(() => {
+        intervalInput.focus();
+        intervalInput.select();
+      }, 50);
+    } else {
+      customGroup.style.display = 'none';
+      if (val === 'MONTHLY') intervalInput.value = 1;
+      else if (val === 'QUARTERLY') intervalInput.value = 3;
+      else if (val === 'BIANNUAL') intervalInput.value = 6;
+      else if (val === 'ANNUAL') intervalInput.value = 12;
+      else if (val === 'WEEKLY') intervalInput.value = 1;
+      else if (val === 'BIWEEKLY') intervalInput.value = 1;
+    }
+
+    recalculateBillingTimeline();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 2. Real-time Calculation of Elapsed Intervals & Timeline
+  // ─────────────────────────────────────────────────────────────
+  function calculateBillingCycles(startDateVal, frequencyVal, intervalMonthsVal, endDateVal) {
+    if (!startDateVal) return { elapsed: [], upcoming: [], nextDueDate: null };
+
+    const start = new Date(startDateVal + 'T00:00:00');
+    if (isNaN(start.getTime())) return { elapsed: [], upcoming: [], nextDueDate: null };
+
+    const end = endDateVal ? new Date(endDateVal + 'T23:59:59') : null;
+    const now = new Date();
+    // Reference date is end of current day
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    let interval = parseInt(intervalMonthsVal, 10) || 1;
+    if (interval < 1) interval = 1;
+
+    let current = new Date(start);
+    const elapsed = [];
+    const upcoming = [];
+
+    let idx = 1;
+    while (idx <= 180) {
+      if (end && current > end) break;
+
+      const dueDate = new Date(current);
+
+      // Compute next cycle start
+      const nextStart = new Date(current);
+      if (frequencyVal === 'WEEKLY') {
+        nextStart.setDate(nextStart.getDate() + 7);
+      } else if (frequencyVal === 'BIWEEKLY') {
+        nextStart.setDate(nextStart.getDate() + 14);
+      } else if (frequencyVal === 'QUARTERLY') {
+        nextStart.setMonth(nextStart.getMonth() + 3);
+      } else if (frequencyVal === 'BIANNUAL') {
+        nextStart.setMonth(nextStart.getMonth() + 6);
+      } else if (frequencyVal === 'ANNUAL') {
+        nextStart.setFullYear(nextStart.getFullYear() + 1);
+      } else { // MONTHLY or CUSTOM
+        nextStart.setMonth(nextStart.getMonth() + interval);
+      }
+
+      const periodEnd = new Date(nextStart);
+      periodEnd.setDate(periodEnd.getDate() - 1);
+
+      const isElapsed = dueDate <= today;
+
+      const item = {
+        index: idx,
+        dueDate: dueDate,
+        dueDateStr: dueDate.toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' }),
+        periodStr: dueDate.toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' }) + ' - ' + periodEnd.toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' }),
+        isElapsed: isElapsed
+      };
+
+      if (isElapsed) {
+        elapsed.push(item);
+      } else {
+        upcoming.push(item);
+        if (!end && upcoming.length >= 6) break;
+      }
+
+      current = nextStart;
+      idx++;
+    }
+
+    const nextDue = upcoming.length > 0 ? upcoming[0].dueDate : (elapsed.length > 0 ? elapsed[elapsed.length - 1].dueDate : start);
+
+    return { elapsed, upcoming, nextDueDate: nextDue };
+  }
+
+  function recalculateBillingTimeline() {
+    const startDateInput = document.getElementById('startDate');
+    const frequencyInput = document.getElementById('frequency');
+    const intervalInput = document.getElementById('intervalMonths');
+    const endDateInput = document.getElementById('endDate');
+    const amountInput = document.getElementById('chargeAmount');
+    const taxRateInput = document.getElementById('taxRate');
+    const nextDueInput = document.getElementById('nextDueDate');
+
+    if (!startDateInput) return;
+
+    const startVal = startDateInput.value;
+    const freqVal = frequencyInput ? frequencyInput.value : 'MONTHLY';
+    const intervalVal = intervalInput ? intervalInput.value : '1';
+    const endVal = endDateInput ? endDateInput.value : '';
+
+    if (!startVal) {
+      document.getElementById('accruedNoticeBanner').style.display = 'none';
+      document.getElementById('projectedScheduleCard').style.display = 'none';
+      return;
+    }
+
+    const result = calculateBillingCycles(startVal, freqVal, intervalVal, endVal);
+    const amount = parseFloat(amountInput.value || 0) || 0;
+    const taxRate = parseFloat(taxRateInput.value || 16) || 0;
+    const totalPerInvoice = amount + (amount * (taxRate / 100));
+
+    // Auto-update Next Invoice Due Date field if upcoming exists or computed
+    if (result.nextDueDate && nextDueInput) {
+      const formattedNext = result.nextDueDate.toISOString().split('T')[0];
+      if (nextDueInput._flatpickr) {
+        nextDueInput._flatpickr.setDate(formattedNext, false);
+      } else {
+        nextDueInput.value = formattedNext;
+      }
+    }
+
+    // 1. Accrued Banner update
+    const banner = document.getElementById('accruedNoticeBanner');
+    if (result.elapsed.length > 0) {
+      banner.style.display = 'block';
+      const formattedStart = new Date(startVal).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' });
+      document.getElementById('noticeStartDateText').textContent = formattedStart;
+      
+      let cadenceLabel = freqVal;
+      if (freqVal === 'CUSTOM') cadenceLabel = `Every ${intervalVal} Months`;
+      else if (freqVal === 'MONTHLY') cadenceLabel = 'Monthly';
+      else if (freqVal === 'QUARTERLY') cadenceLabel = 'Quarterly';
+      else if (freqVal === 'BIANNUAL') cadenceLabel = 'Biannual';
+      else if (freqVal === 'ANNUAL') cadenceLabel = 'Annual';
+      document.getElementById('noticeCadenceText').textContent = cadenceLabel;
+
+      const elapsedCount = result.elapsed.length;
+      document.getElementById('noticeElapsedCount').textContent = elapsedCount;
+      document.getElementById('noticeElapsedCountBadge').textContent = elapsedCount;
+      document.getElementById('noticeCheckCount').textContent = elapsedCount;
+
+      const totalAccrued = elapsedCount * totalPerInvoice;
+      const formattedTotal = 'KES ' + totalAccrued.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('noticeElapsedTotal').textContent = formattedTotal;
+      document.getElementById('noticeTotalAccruedPill').textContent = formattedTotal + ' Due';
+    } else {
+      banner.style.display = 'none';
+    }
+
+    // 2. Projected Schedule Table update
+    const previewCard = document.getElementById('projectedScheduleCard');
+    const tbody = document.getElementById('projectedScheduleTbody');
+    const allCycles = [...result.elapsed, ...result.upcoming];
+
+    if (allCycles.length > 0) {
+      previewCard.style.display = 'block';
+      document.getElementById('projectedCycleCountBadge').textContent = `${allCycles.length} Cycles (${result.elapsed.length} Accrued, ${result.upcoming.length} Upcoming)`;
+
+      let html = '';
+      allCycles.forEach((c) => {
+        let badgeHtml = '';
+        if (c.isElapsed) {
+          badgeHtml = '<span class="badge badge-warning" style="font-size: 0.72rem; padding: 2px 7px;"><i class="uil uil-clock-eight"></i> Accrued (Past Due)</span>';
+        } else if (result.upcoming.length > 0 && c.index === result.upcoming[0].index) {
+          badgeHtml = '<span class="badge badge-info" style="font-size: 0.72rem; padding: 2px 7px;"><i class="uil uil-star"></i> Next Invoice Due</span>';
+        } else {
+          badgeHtml = '<span class="badge badge-subtle" style="font-size: 0.72rem; padding: 2px 7px;">Future Scheduled</span>';
+        }
+
+        const formattedAmount = totalPerInvoice > 0
+          ? 'KES ' + totalPerInvoice.toLocaleString('en-KE', { minimumFractionDigits: 2 })
+          : '<span class="text-muted">Set Amount</span>';
+
+        html += `
+          <tr style="${c.isElapsed ? 'background: rgba(245, 158, 11, 0.04);' : ''}">
+            <td><strong>#${c.index}</strong></td>
+            <td><strong style="color: ${c.isElapsed ? '#b45309' : 'inherit'};">${c.dueDateStr}</strong></td>
+            <td><span class="text-xs text-muted">${c.periodStr}</span></td>
+            <td><strong>${formattedAmount}</strong></td>
+            <td>${badgeHtml}</td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    } else {
+      previewCard.style.display = 'none';
+    }
+  }
+
+  function toggleProjectedTimeline() {
+    const body = document.getElementById('projectedScheduleBody');
+    const icon = document.getElementById('timelineToggleIcon');
+    const hint = document.getElementById('timelineToggleHint');
+    if (body.style.display === 'none') {
+      body.style.display = 'block';
+      icon.className = 'uil uil-angle-down';
+      hint.textContent = 'Click to collapse';
+    } else {
+      body.style.display = 'none';
+      icon.className = 'uil uil-angle-right';
+      hint.textContent = 'Click to expand';
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 3. Contract Invoices Modal & Actions
+  // ─────────────────────────────────────────────────────────────
+  let currentContractInvoices = [];
+
+  function openScheduleInvoicesModal(scheduleId, title, clientName, cadence, embeddedInvoices) {
+    const modal = document.getElementById('contractInvoicesModal');
+    document.getElementById('modalContractTitle').textContent = title || 'Contract Invoices';
+    document.getElementById('modalContractCadence').textContent = cadence || 'Recurring';
+    document.getElementById('modalContractSubtitle').innerHTML = `Client: <strong>${clientName}</strong> &bull; Generated Billing Invoices`;
+
+    modal.classList.add('active');
+
+    if (embeddedInvoices && embeddedInvoices.length > 0) {
+      currentContractInvoices = embeddedInvoices;
+      renderModalInvoices(embeddedInvoices);
+    } else {
+      // Fetch dynamically
+      document.getElementById('modalInvoicesLoading').style.display = 'block';
+      document.getElementById('modalInvoicesTableContainer').style.display = 'none';
+      document.getElementById('modalInvoicesEmpty').style.display = 'none';
+
+      fetch('/maintenance/' + scheduleId + '/invoices')
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById('modalInvoicesLoading').style.display = 'none';
+          if (data.success && data.invoices && data.invoices.length > 0) {
+            currentContractInvoices = data.invoices;
+            renderModalInvoices(data.invoices);
+          } else {
+            document.getElementById('modalInvoicesEmpty').style.display = 'block';
+          }
+        })
+        .catch(err => {
+          document.getElementById('modalInvoicesLoading').style.display = 'none';
+          document.getElementById('modalInvoicesEmpty').style.display = 'block';
+        });
+    }
+  }
+
+  function renderModalInvoices(invoices) {
+    const tbody = document.getElementById('modalInvoicesTbody');
+    const tableContainer = document.getElementById('modalInvoicesTableContainer');
+    const emptyState = document.getElementById('modalInvoicesEmpty');
+
+    if (!invoices || invoices.length === 0) {
+      tableContainer.style.display = 'none';
+      emptyState.style.display = 'block';
+      return;
+    }
+
+    tableContainer.style.display = 'block';
+    emptyState.style.display = 'none';
+
+    let html = '';
+    invoices.forEach(inv => {
+      const isPaid = inv.status === 'PAID';
+      const isOverdue = !isPaid && (new Date(inv.due_date) < new Date());
+      let badgeClass = isPaid ? 'badge-success' : (isOverdue ? 'badge-danger' : 'badge-info');
+      let statusLabel = isPaid ? 'PAID' : (isOverdue ? 'OVERDUE' : inv.status);
+
+      const dueDateStr = new Date(inv.due_date).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' });
+      const amountStr = 'KES ' + parseFloat(inv.total_amount || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 });
+
+      html += `
+        <tr id="modal-inv-row-${inv.id}">
+          <td>
+            <a href="/invoices/${inv.id}" target="_blank" style="font-family: monospace; font-weight: 700; color: var(--primary);">
+              ${inv.invoice_number}
+            </a>
+          </td>
+          <td>
+            <div style="font-weight: 600; color: ${isOverdue ? 'var(--danger, #ef4444)' : 'inherit'};">${dueDateStr}</div>
+          </td>
+          <td>
+            <div class="text-xs text-muted" style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${inv.notes || ''}">
+              ${inv.title || inv.notes || 'Recurring Retainer'}
+            </div>
+          </td>
+          <td><strong>${amountStr}</strong></td>
+          <td><span class="badge ${badgeClass}" style="font-size: 0.7rem; padding: 2px 6px;">${statusLabel}</span></td>
+          <td style="text-align: right;">
+            <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end;">
+              <!-- 1. View -->
+              <a href="/invoices/${inv.id}" target="_blank" class="btn btn-xs btn-secondary" title="View Full Invoice Details">
+                <i class="uil uil-eye"></i> <span>View</span>
+              </a>
+
+              <!-- 2. Download PDF -->
+              <a href="/invoices/${inv.id}/pdf" target="_blank" class="btn btn-xs btn-secondary" title="Download Official PDF">
+                <i class="uil uil-file-download-alt"></i> <span>PDF</span>
+              </a>
+
+              <!-- 3. Print -->
+              <button type="button" class="btn btn-xs btn-secondary" onclick="printInvoice('${inv.id}')" title="Print Invoice Directly">
+                <i class="uil uil-print"></i> <span>Print</span>
+              </button>
+
+              <!-- 4. Customize -->
+              <button type="button" class="btn btn-xs btn-primary" onclick="openCustomizeModal('${inv.id}')" title="Customize template, brand colors, due date & notes">
+                <i class="uil uil-palette"></i> <span>Customize</span>
+              </button>
+
+              <!-- 5. Public Pay Link -->
+              ${inv.public_token ? `
+                <a href="/pay/${inv.public_token}" target="_blank" class="btn btn-xs btn-outline-info" title="Open Client Payment Portal">
+                  <i class="uil uil-external-link-alt"></i>
+                </a>
+              ` : ''}
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  function closeScheduleInvoicesModal() {
+    const modal = document.getElementById('contractInvoicesModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  function printInvoice(id) {
+    const printWin = window.open('/invoices/' + id + '?print=1', '_blank');
+    if (printWin) {
+      printWin.focus();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 4. Customize Invoice Modal Handling
+  // ─────────────────────────────────────────────────────────────
+  function openCustomizeModal(invoiceId) {
+    const inv = currentContractInvoices.find(i => i.id === invoiceId);
+    if (!inv) return;
+
+    document.getElementById('custInvoiceId').value = inv.id;
+    document.getElementById('custModalTitle').textContent = `Customize Invoice: ${inv.invoice_number}`;
+    document.getElementById('custDocTitle').value = inv.title || '';
+    document.getElementById('custNotes').value = inv.notes || '';
+    document.getElementById('custTerms').value = inv.terms || '';
+    document.getElementById('custFullViewLink').href = `/invoices/${inv.id}`;
+
+    if (inv.due_date) {
+      const d = new Date(inv.due_date).toISOString().split('T')[0];
+      const dueDateInput = document.getElementById('custDueDate');
+      if (dueDateInput._flatpickr) {
+        dueDateInput._flatpickr.setDate(d, false);
+      } else {
+        dueDateInput.value = d;
+      }
+    }
+
+    selectCustTemplate(inv.template || 'modern');
+    selectCustColor(inv.custom_color || '#4F46E5');
+
+    document.getElementById('customizeInvoiceModal').classList.add('active');
+  }
+
+  function closeCustomizeModal() {
+    const modal = document.getElementById('customizeInvoiceModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  function selectCustTemplate(tpl) {
+    document.getElementById('custSelectedTemplate').value = tpl;
+    document.querySelectorAll('.cust-tpl-btn').forEach(btn => {
+      if (btn.getAttribute('data-tpl') === tpl) {
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-primary');
+      } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-secondary');
+      }
+    });
+  }
+
+  function selectCustColor(color) {
+    document.getElementById('custSelectedColor').value = color;
+    document.getElementById('custColorPicker').value = color;
+    document.querySelectorAll('.cust-swatch').forEach(sw => {
+      if (sw.getAttribute('data-c').toLowerCase() === color.toLowerCase()) {
+        sw.style.borderColor = 'var(--text-primary, #000)';
+        sw.style.transform = 'scale(1.15)';
+      } else {
+        sw.style.borderColor = 'transparent';
+        sw.style.transform = 'scale(1)';
+      }
+    });
+  }
+
+  function submitInvoiceCustomization(e) {
+    e.preventDefault();
+    const id = document.getElementById('custInvoiceId').value;
+    const form = document.getElementById('customizeInvoiceForm');
+    const saveBtn = document.getElementById('btnSaveCustomization');
+
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="uil uil-spinner-alt spin"></i> Saving...';
+
+    const payload = {
+      template: document.getElementById('custSelectedTemplate').value,
+      customColor: document.getElementById('custSelectedColor').value,
+      title: document.getElementById('custDocTitle').value,
+      dueDate: document.getElementById('custDueDate').value,
+      notes: document.getElementById('custNotes').value,
+      terms: document.getElementById('custTerms').value,
+    };
+
+    fetch('/invoices/' + id + '/customize', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(res => {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="uil uil-check"></i> Save Customization';
+      closeCustomizeModal();
+
+      // Update in local array
+      const idx = currentContractInvoices.findIndex(i => i.id === id);
+      if (idx !== -1) {
+        currentContractInvoices[idx] = { ...currentContractInvoices[idx], ...payload };
+        renderModalInvoices(currentContractInvoices);
+      }
+
+      alert('Invoice ' + (payload.title || '') + ' customized successfully!');
+    })
+    .catch(err => {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="uil uil-check"></i> Save Customization';
+      alert('Error updating invoice customization.');
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 5. DOM Initialization & Event Listeners
+  // ─────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    // Set default startDate to today if empty
+    const startDateInput = document.getElementById('startDate');
+    if (startDateInput && !startDateInput.value) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      startDateInput.value = todayStr;
+    }
+
+    // Attach listeners to trigger recalculations
+    ['startDate', 'frequency', 'intervalMonths', 'endDate', 'chargeAmount', 'taxRate'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', recalculateBillingTimeline);
+        el.addEventListener('input', recalculateBillingTimeline);
+      }
+    });
+
+    // Run initial calculation
+    setTimeout(recalculateBillingTimeline, 300);
+  });
+</script>

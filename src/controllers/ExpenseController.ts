@@ -6,6 +6,7 @@ import { Request, Response, NextFunction } from 'express';
 import { query } from '../config/database';
 import { ExpenseModel } from '../models/expense.model';
 import { ExpenseCategory } from '../models/types';
+import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import { formatKES } from '../utils/taxCalculator';
 import logger from '../utils/logger';
 
@@ -21,21 +22,68 @@ export class ExpenseController {
         return;
       }
 
+      const params = extractPaginationParams(req, 10);
+      const conditions: string[] = [];
+      const values: any[] = [];
+      let paramIdx = 1;
+
+      if (tenantId && !isSuper) {
+        conditions.push(`e.tenant_id = $${paramIdx++}`);
+        values.push(tenantId);
+      }
+
+      if (params.search) {
+        conditions.push(`(
+          e.description ILIKE $${paramIdx} OR
+          e.vendor ILIKE $${paramIdx} OR
+          e.reference_no ILIKE $${paramIdx} OR
+          p.name ILIKE $${paramIdx} OR
+          p.code ILIKE $${paramIdx}
+        )`);
+        values.push(`%${params.search}%`);
+        paramIdx++;
+      }
+
+      if (params.startDate) {
+        conditions.push(`e.expense_date >= $${paramIdx++}::date`);
+        values.push(params.startDate);
+      }
+
+      if (params.endDate) {
+        conditions.push(`e.expense_date <= $${paramIdx++}::date`);
+        values.push(params.endDate);
+      }
+
+      if (req.query.category) {
+        conditions.push(`e.category = $${paramIdx++}`);
+        values.push(req.query.category);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // Count query
+      const countSql = `
+        SELECT COUNT(*)::int as total
+        FROM expenses e
+        LEFT JOIN projects p ON e.project_id = p.id
+        ${whereClause}
+      `;
+      const countRes = await query(countSql, values);
+      const total = countRes.rows[0]?.total || 0;
+
+      // Data query with pagination, newest first
+      const dataSql = `
+        SELECT e.*, p.name as project_name, p.code as project_code
+        FROM expenses e
+        LEFT JOIN projects p ON e.project_id = p.id
+        ${whereClause}
+        ORDER BY e.expense_date DESC, e.created_at DESC
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+      `;
+      const dataValues = [...values, params.limit, params.offset];
+
       const [expensesRes, projectsRes, statsRes] = await Promise.all([
-        tenantId
-          ? query(`
-              SELECT e.*, p.name as project_name, p.code as project_code
-              FROM expenses e
-              LEFT JOIN projects p ON e.project_id = p.id
-              WHERE e.tenant_id = $1
-              ORDER BY e.expense_date DESC
-            `, [tenantId])
-          : query(`
-              SELECT e.*, p.name as project_name, p.code as project_code
-              FROM expenses e
-              LEFT JOIN projects p ON e.project_id = p.id
-              ORDER BY e.expense_date DESC
-            `),
+        query(dataSql, dataValues),
         tenantId
           ? query(`SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' ORDER BY name ASC`, [tenantId])
           : query(`SELECT id, name, code FROM projects WHERE status != 'CANCELLED' ORDER BY name ASC`),
@@ -57,12 +105,16 @@ export class ExpenseController {
             `),
       ]);
 
+      const pagination = calculatePagination(total, params, req);
+
       res.render('pages/expenses/index', {
         title: 'Expenses',
         expenses: expensesRes.rows,
         projects: projectsRes.rows,
         categories: Object.values(ExpenseCategory),
         stats: statsRes.rows[0],
+        pagination,
+        filters: { ...params, category: req.query.category },
         formatKES,
       });
     } catch (error) {

@@ -1,52 +1,408 @@
 <!-- ═══════════════════════════════════════════════════════════════════
-     Platform Admin - Subscription Plans View
+     Platform Admin - Subscription Plans View & Management
      ═══════════════════════════════════════════════════════════════════ -->
 
 <div class="admin-plans-page">
-  <div class="page-header">
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 14px;">
     <div class="page-title-group">
-      <h1 class="page-title">Subscription Plans</h1>
-      <p class="page-subtitle">Configure SaaS pricing tiers, limits, and active recurring subscriptions.</p>
+      <h1 class="page-title" style="margin: 0 0 6px 0;">Subscription Plans & Packages</h1>
+      <p class="page-subtitle" style="margin: 0; color: var(--text-secondary);">Configure system SaaS pricing tiers, custom cadence intervals, and customer quotas.</p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" id="btnOpenCreatePlan">
+        <i class="uil uil-plus"></i>
+        <span>Create Subscription Plan</span>
+      </button>
     </div>
   </div>
 
-  <div class="plan-grid">
+  <div class="plan-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
     <% if (plans && plans.length > 0) { %>
       <% plans.forEach(function(p) { %>
-        <div class="card plan-card">
-          <div class="card-header">
-            <span class="badge badge-primary"><%= p.tier %></span>
-            <h2 class="card-title mt-2"><%= p.name %></h2>
-            <div class="plan-price-group">
-              <span class="plan-price"><%= formatKES(parseFloat(p.monthly_price)) %></span>
-              <span class="plan-period">/ month</span>
+        <% 
+          const currentPrice = parseFloat(p.price) > 0 ? parseFloat(p.price) : parseFloat(p.monthly_price || 0);
+          let freqLabel = 'Monthly';
+          if (p.frequency === 'QUARTERLY') freqLabel = 'Quarterly (3 Mo)';
+          else if (p.frequency === 'BIANNUAL') freqLabel = 'Biannual (6 Mo)';
+          else if (p.frequency === 'ANNUAL') freqLabel = 'Annual (12 Mo)';
+          else if (p.frequency === 'CUSTOM') freqLabel = `Every ${p.interval_months || 1} Months`;
+        %>
+        <div class="card plan-card" style="border: <%= p.is_active ? '1px solid var(--border-color)' : '1.5px dashed var(--danger)' %>; position: relative; display: flex; flex-direction: column;">
+          <% if (!p.is_active) { %>
+            <div style="position: absolute; top: 12px; right: 14px; background: rgba(239, 68, 68, 0.12); color: var(--danger); font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+              INACTIVE
             </div>
-            <div class="plan-annual">
-              or <%= formatKES(parseFloat(p.annual_price)) %> / year
+          <% } %>
+
+          <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding: 20px 24px 16px 24px;">
+            <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 10px;">
+              <span class="badge badge-primary"><%= p.tier %></span>
+              <span class="badge badge-info"><%= freqLabel %></span>
+            </div>
+
+            <h2 class="card-title" style="margin: 0 0 6px 0; font-size: 1.25rem;"><%= p.name %></h2>
+
+            <% if (p.description) { %>
+              <p class="text-xs text-muted" style="margin: 0 0 12px 0; line-height: 1.4;"><%= p.description %></p>
+            <% } %>
+
+            <div class="plan-price-group" style="margin-top: 10px;">
+              <span class="plan-price" style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary);"><%= formatKES(currentPrice) %></span>
+              <span class="plan-period" style="color: var(--text-secondary); font-size: 0.9rem;">
+                / <%= p.frequency === 'CUSTOM' ? `${p.interval_months} mo` : (p.frequency ? p.frequency.toLowerCase() : 'month') %>
+              </span>
             </div>
           </div>
-          <div class="card-body">
-            <ul class="plan-features">
-              <li class="plan-feature-item">
-                <i class="uil uil-check text-success"></i>
+
+          <div class="card-body" style="padding: 20px 24px; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+            <ul class="plan-features" style="list-style: none; padding: 0; margin: 0 0 20px 0; display: flex; flex-direction: column; gap: 12px;">
+              <li class="plan-feature-item" style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem;">
+                <i class="uil uil-users-alt text-primary" style="font-size: 1.15rem;"></i>
                 <span><strong><%= p.max_users %></strong> Team Members</span>
               </li>
-              <li class="plan-feature-item">
-                <i class="uil uil-check text-success"></i>
+              <li class="plan-feature-item" style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem;">
+                <i class="uil uil-folder-check text-primary" style="font-size: 1.15rem;"></i>
                 <span><strong><%= p.max_projects %></strong> Active Projects</span>
               </li>
-              <li class="plan-feature-item">
-                <i class="uil uil-check text-success"></i>
+              <li class="plan-feature-item" style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem;">
+                <i class="uil uil-cloud-upload text-primary" style="font-size: 1.15rem;"></i>
                 <span><strong><%= p.max_storage_mb %> MB</strong> Storage Space</span>
               </li>
-              <li class="plan-feature-item">
-                <i class="uil uil-users-alt text-primary"></i>
-                <span>Active Subscriptions: <strong class="text-success"><%= p.active_count %></strong></span>
+              <li class="plan-feature-item" style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem;">
+                <i class="uil uil-shield-check text-success" style="font-size: 1.15rem;"></i>
+                <span>Active Subscriptions: <strong class="text-success"><%= p.active_count || 0 %></strong></span>
               </li>
             </ul>
+
+            <div style="display: flex; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+              <button type="button" 
+                class="btn btn-sm btn-secondary btn-edit-plan" 
+                style="flex: 1;"
+                data-id="<%= p.id %>"
+                data-name="<%= p.name %>"
+                data-tier="<%= p.tier %>"
+                data-price="<%= currentPrice %>"
+                data-frequency="<%= p.frequency || 'MONTHLY' %>"
+                data-interval="<%= p.interval_months || 1 %>"
+                data-users="<%= p.max_users %>"
+                data-projects="<%= p.max_projects %>"
+                data-storage="<%= p.max_storage_mb %>"
+                data-description="<%= p.description || '' %>">
+                <i class="uil uil-edit"></i>
+                <span>Edit</span>
+              </button>
+
+              <form action="/admin/plans/<%= p.id %>/toggle" method="POST" style="margin: 0;">
+                <button type="submit" class="btn btn-sm <%= p.is_active ? 'btn-subtle' : 'btn-success' %>" title="<%= p.is_active ? 'Deactivate Plan' : 'Activate Plan' %>">
+                  <i class="uil <%= p.is_active ? 'uil-pause' : 'uil-play' %>"></i>
+                  <span><%= p.is_active ? 'Disable' : 'Enable' %></span>
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       <% }); %>
+    <% } else { %>
+      <div class="empty-state" style="grid-column: 1 / -1; padding: 48px; text-align: center;">
+        <div class="empty-state-icon" style="font-size: 3rem; margin-bottom: 12px; color: var(--text-tertiary);"><i class="uil uil-package"></i></div>
+        <h4 style="margin: 0 0 8px 0;">No subscription plans configured</h4>
+        <p style="color: var(--text-secondary); margin: 0 0 16px 0;">Click "Create Subscription Plan" to add pricing tiers.</p>
+        <button type="button" class="btn btn-primary btn-open-create-plan">
+          <i class="uil uil-plus"></i>
+          <span>Create Subscription Plan</span>
+        </button>
+      </div>
     <% } %>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     Create Subscription Plan Modal
+     ═══════════════════════════════════════════════════════════════════ -->
+<div id="modalCreatePlan" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+  <div class="modal" style="width: 100%; max-width: 600px; background: var(--bg-elevated); border-radius: var(--border-radius-xl); box-shadow: var(--shadow-2xl); border: 1px solid var(--border-color); max-height: 90vh; overflow-y: auto;">
+    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 18px 24px;">
+      <h3 class="modal-title" style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.15rem; font-weight: 700;">
+        <i class="uil uil-plus-circle text-primary"></i>
+        <span>Create Subscription Plan</span>
+      </h3>
+      <button type="button" class="modal-close" data-close-modal="modalCreatePlan" aria-label="Close" style="background: none; border: none; cursor: pointer; color: var(--text-tertiary); font-size: 1.3rem;">
+        <i class="uil uil-times"></i>
+      </button>
+    </div>
+
+    <form id="createPlanForm" action="/admin/plans" method="POST">
+      <div class="modal-body" style="padding: 24px;">
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-bottom: 16px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="planName" class="form-label" style="font-weight: 600;">Plan Name *</label>
+            <input type="text" id="planName" name="name" class="form-input" placeholder="e.g. Starter, Growth Pro, Enterprise" required>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="planTier" class="form-label" style="font-weight: 600;">System Tier *</label>
+            <select id="planTier" name="tier" class="form-select" required>
+              <option value="STARTER">STARTER</option>
+              <option value="PROFESSIONAL" selected>PROFESSIONAL</option>
+              <option value="ENTERPRISE">ENTERPRISE</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Frequency & Custom Months Interval -->
+        <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 16px; margin-bottom: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="planFrequency" class="form-label" style="font-weight: 600;">Billing Cadence *</label>
+              <select id="planFrequency" name="frequency" class="form-select" required>
+                <option value="MONTHLY" selected>Monthly (1 Month)</option>
+                <option value="QUARTERLY">Quarterly (3 Months)</option>
+                <option value="BIANNUAL">Biannually (6 Months)</option>
+                <option value="ANNUAL">Annually (12 Months)</option>
+                <option value="CUSTOM">Custom Months Interval...</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="planPrice" class="form-label" style="font-weight: 600;">Package Price (KES) *</label>
+              <input type="number" id="planPrice" name="price" class="form-input" placeholder="e.g. 5000" min="0" step="any" required style="font-weight: 700;">
+            </div>
+          </div>
+
+          <!-- Custom Months Interval Input -->
+          <div id="createPlanIntervalGroup" style="display: none; margin-top: 14px; background: rgba(79, 70, 229, 0.08); padding: 12px 14px; border-radius: 6px; border: 1px solid var(--primary);">
+            <label for="planIntervalMonths" class="form-label" style="font-weight: 700; color: var(--primary); margin-bottom: 6px;">
+              <i class="uil uil-sliders-v-alt"></i> Custom Months Interval *
+            </label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 0.85rem; color: var(--text-secondary);">Charge client every</span>
+              <input type="number" id="planIntervalMonths" name="intervalMonths" class="form-input" value="2" min="1" max="60" style="width: 85px; text-align: center; font-weight: 700;">
+              <span style="font-size: 0.85rem; color: var(--text-secondary);">Month(s)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quotas & Limits -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="planUsers" class="form-label" style="font-size: 0.85rem; font-weight: 600;">Max Users</label>
+            <input type="number" id="planUsers" name="maxUsers" class="form-input" value="10" min="1">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="planProjects" class="form-label" style="font-size: 0.85rem; font-weight: 600;">Max Projects</label>
+            <input type="number" id="planProjects" name="maxProjects" class="form-input" value="25" min="1">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="planStorage" class="form-label" style="font-size: 0.85rem; font-weight: 600;">Storage (MB)</label>
+            <input type="number" id="planStorage" name="maxStorageMb" class="form-input" value="2000" min="100">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="planDescription" class="form-label" style="font-weight: 600;">Description & Features</label>
+          <textarea id="planDescription" name="description" class="form-input" rows="2" placeholder="e.g. Includes automated invoicing, eTIMS tax compliance, and M-Pesa STK push."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-color); padding: 16px 24px;">
+        <button type="button" class="btn btn-secondary" data-close-modal="modalCreatePlan">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSaveCreatePlan">Save Subscription Plan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     Edit Subscription Plan Modal
+     ═══════════════════════════════════════════════════════════════════ -->
+<div id="modalEditPlan" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+  <div class="modal" style="width: 100%; max-width: 600px; background: var(--bg-elevated); border-radius: var(--border-radius-xl); box-shadow: var(--shadow-2xl); border: 1px solid var(--border-color); max-height: 90vh; overflow-y: auto;">
+    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 18px 24px;">
+      <h3 class="modal-title" style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.15rem; font-weight: 700;">
+        <i class="uil uil-edit text-primary"></i>
+        <span>Edit Subscription Plan</span>
+      </h3>
+      <button type="button" class="modal-close" data-close-modal="modalEditPlan" aria-label="Close" style="background: none; border: none; cursor: pointer; color: var(--text-tertiary); font-size: 1.3rem;">
+        <i class="uil uil-times"></i>
+      </button>
+    </div>
+
+    <form id="editPlanForm" action="" method="POST">
+      <div class="modal-body" style="padding: 24px;">
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-bottom: 16px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="editPlanName" class="form-label" style="font-weight: 600;">Plan Name *</label>
+            <input type="text" id="editPlanName" name="name" class="form-input" required>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="editPlanTier" class="form-label" style="font-weight: 600;">System Tier *</label>
+            <select id="editPlanTier" name="tier" class="form-select" required>
+              <option value="STARTER">STARTER</option>
+              <option value="PROFESSIONAL">PROFESSIONAL</option>
+              <option value="ENTERPRISE">ENTERPRISE</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 16px; margin-bottom: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="editPlanFrequency" class="form-label" style="font-weight: 600;">Billing Cadence *</label>
+              <select id="editPlanFrequency" name="frequency" class="form-select" required>
+                <option value="MONTHLY">Monthly (1 Month)</option>
+                <option value="QUARTERLY">Quarterly (3 Months)</option>
+                <option value="BIANNUAL">Biannually (6 Months)</option>
+                <option value="ANNUAL">Annually (12 Months)</option>
+                <option value="CUSTOM">Custom Months Interval...</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="editPlanPrice" class="form-label" style="font-weight: 600;">Package Price (KES) *</label>
+              <input type="number" id="editPlanPrice" name="price" class="form-input" step="any" min="0" required style="font-weight: 700;">
+            </div>
+          </div>
+
+          <div id="editPlanIntervalGroup" style="display: none; margin-top: 14px; background: rgba(79, 70, 229, 0.08); padding: 12px 14px; border-radius: 6px; border: 1px solid var(--primary);">
+            <label for="editPlanIntervalMonths" class="form-label" style="font-weight: 700; color: var(--primary); margin-bottom: 6px;">
+              <i class="uil uil-sliders-v-alt"></i> Custom Months Interval *
+            </label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 0.85rem; color: var(--text-secondary);">Charge client every</span>
+              <input type="number" id="editPlanIntervalMonths" name="intervalMonths" class="form-input" value="2" min="1" max="60" style="width: 85px; text-align: center; font-weight: 700;">
+              <span style="font-size: 0.85rem; color: var(--text-secondary);">Month(s)</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="editPlanUsers" class="form-label" style="font-size: 0.85rem; font-weight: 600;">Max Users</label>
+            <input type="number" id="editPlanUsers" name="maxUsers" class="form-input" min="1">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="editPlanProjects" class="form-label" style="font-size: 0.85rem; font-weight: 600;">Max Projects</label>
+            <input type="number" id="editPlanProjects" name="maxProjects" class="form-input" min="1">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="editPlanStorage" class="form-label" style="font-size: 0.85rem; font-weight: 600;">Storage (MB)</label>
+            <input type="number" id="editPlanStorage" name="maxStorageMb" class="form-input" min="100">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="editPlanDescription" class="form-label" style="font-weight: 600;">Description & Features</label>
+          <textarea id="editPlanDescription" name="description" class="form-input" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-color); padding: 16px 24px;">
+        <button type="button" class="btn btn-secondary" data-close-modal="modalEditPlan">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSaveEditPlan">Update Plan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (el) {
+      el.classList.add('active');
+      el.style.display = 'flex';
+    }
+  }
+
+  function closeModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (el) {
+      el.classList.remove('active');
+      el.style.display = 'none';
+    }
+  }
+
+  function toggleCustomPlanInterval(freq, groupId) {
+    const group = document.getElementById(groupId);
+    if (group) {
+      group.style.display = freq === 'CUSTOM' ? 'block' : 'none';
+    }
+  }
+
+  function handleEditPlanClick(btn) {
+    const planId = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name') || '';
+    const tier = btn.getAttribute('data-tier') || 'PROFESSIONAL';
+    const price = btn.getAttribute('data-price') || '0';
+    const frequency = btn.getAttribute('data-frequency') || 'MONTHLY';
+    const interval = btn.getAttribute('data-interval') || '1';
+    const users = btn.getAttribute('data-users') || '5';
+    const projects = btn.getAttribute('data-projects') || '10';
+    const storage = btn.getAttribute('data-storage') || '500';
+    const description = btn.getAttribute('data-description') || '';
+
+    const form = document.getElementById('editPlanForm');
+    form.action = '/admin/plans/' + encodeURIComponent(planId);
+
+    document.getElementById('editPlanName').value = name;
+    document.getElementById('editPlanTier').value = tier;
+    document.getElementById('editPlanPrice').value = price;
+    document.getElementById('editPlanFrequency').value = frequency;
+    document.getElementById('editPlanIntervalMonths').value = interval;
+    document.getElementById('editPlanUsers').value = users;
+    document.getElementById('editPlanProjects').value = projects;
+    document.getElementById('editPlanStorage').value = storage;
+    document.getElementById('editPlanDescription').value = description;
+
+    toggleCustomPlanInterval(frequency, 'editPlanIntervalGroup');
+    openModal('modalEditPlan');
+  }
+
+  // Strict CSP-compliant event bindings (Zero inline event handler attributes)
+  document.addEventListener('DOMContentLoaded', function() {
+    // Open Create Modal buttons
+    document.querySelectorAll('#btnOpenCreatePlan, .btn-open-create-plan').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        openModal('modalCreatePlan');
+      });
+    });
+
+    // Global click listener for Edit buttons, Close buttons, and Backdrop clicks
+    document.addEventListener('click', function(e) {
+      const editBtn = e.target.closest('.btn-edit-plan');
+      if (editBtn) {
+        e.preventDefault();
+        handleEditPlanClick(editBtn);
+        return;
+      }
+
+      const closeBtn = e.target.closest('[data-close-modal]');
+      if (closeBtn) {
+        e.preventDefault();
+        const targetId = closeBtn.getAttribute('data-close-modal');
+        closeModal(targetId);
+        return;
+      }
+
+      if (e.target.classList && e.target.classList.contains('modal-overlay')) {
+        closeModal(e.target.id);
+      }
+    });
+
+    // Billing Cadence change handlers
+    const planFreqSelect = document.getElementById('planFrequency');
+    if (planFreqSelect) {
+      planFreqSelect.addEventListener('change', function() {
+        toggleCustomPlanInterval(this.value, 'createPlanIntervalGroup');
+      });
+    }
+
+    const editPlanFreqSelect = document.getElementById('editPlanFrequency');
+    if (editPlanFreqSelect) {
+      editPlanFreqSelect.addEventListener('change', function() {
+        toggleCustomPlanInterval(this.value, 'editPlanIntervalGroup');
+      });
+    }
+  });
+</script>

@@ -1,14 +1,22 @@
 <!-- ═══════════════════════════════════════════════════════════════════
-     Platform Admin - Organizations List
+     Platform Admin - Organizations List & Account Control
      ═══════════════════════════════════════════════════════════════════ -->
 
 <div class="admin-tenants-page">
   <div class="page-header">
     <div class="page-title-group">
-      <h1 class="page-title">Organizations</h1>
-      <p class="page-subtitle">Manage registered businesses, their active subscriptions, and user limits.</p>
+      <h1 class="page-title">Organizations & Tenancy Control</h1>
+      <p class="page-subtitle">Manage customer workspaces, manually suspend/activate accounts, and assign subscription packages.</p>
     </div>
-    <div class="page-actions">
+    <div class="page-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <!-- Scan & Enforce Expired Subscriptions -->
+      <form action="/admin/tenants/scan-subscriptions" method="POST" style="margin: 0;">
+        <button type="submit" class="btn btn-secondary" title="Check all accounts for expired subscription dates and auto-deactivate them" onclick="return confirm('Run subscription expiration check now? Expired accounts will be deactivated and renewal invoices emailed to owners.');">
+          <i class="uil uil-sync text-primary"></i>
+          <span>Scan Expired Subscriptions</span>
+        </button>
+      </form>
+
       <a href="/admin/tenants/new" class="btn btn-primary" id="btn-add-tenant">
         <i class="uil uil-plus"></i>
         <span>Add Organization</span>
@@ -16,13 +24,54 @@
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header card-header-flex">
-      <div>
-        <h3 class="card-title">Tenant Workspaces</h3>
-        <p class="text-xs text-muted">All registered SaaS tenant organizations</p>
+  <!-- Search & Date Filter Section -->
+  <div class="search-filter-section">
+    <form action="/admin/tenants" method="GET" class="filter-form">
+      <div class="search-input-wrapper">
+        <i class="uil uil-search"></i>
+        <input type="text" name="q" class="form-input" placeholder="Search organization name, slug, email, PIN, city..." value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : '' %>">
       </div>
-      <span class="badge badge-subtle"><%= tenants ? tenants.length : 0 %> Tenants</span>
+
+      <div class="date-filter-group">
+        <div class="date-filter-item">
+          <span>From:</span>
+          <input type="date" name="startDate" class="form-input" placeholder="e.g. 2026-09-01" value="<%= (typeof filters !== 'undefined' && filters.startDate) ? filters.startDate : '' %>">
+        </div>
+        <div class="date-filter-item">
+          <span>To:</span>
+          <input type="date" name="endDate" class="form-input" placeholder="e.g. 2026-09-30" value="<%= (typeof filters !== 'undefined' && filters.endDate) ? filters.endDate : '' %>">
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="uil uil-filter"></i>
+          <span>Filter</span>
+        </button>
+        <% if (typeof filters !== 'undefined' && (filters.search || filters.startDate || filters.endDate)) { %>
+          <a href="/admin/tenants" class="btn btn-sm btn-secondary" title="Clear all filters">
+            <i class="uil uil-times"></i>
+            <span>Clear</span>
+          </a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-building"></i>
+        </div>
+        <div>
+          <div class="flex-align-center gap-2">
+            <h2 class="card-title">Tenant Workspaces</h2>
+            <span class="badge badge-primary"><%= tenants ? tenants.length : 0 %> Organizations</span>
+          </div>
+          <p class="card-subtitle">Active, suspended, and expired multi-tenant customer workspaces</p>
+        </div>
+      </div>
     </div>
     <div class="card-body-table">
       <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
@@ -34,11 +83,12 @@
                 <th>Company Name</th>
                 <th>Slug</th>
                 <th>Contact</th>
-                <th>Plan</th>
+                <th>Current Plan</th>
                 <th>Users</th>
                 <th>Projects</th>
-                <th>Status</th>
+                <th>Account Status</th>
                 <th>Created</th>
+                <th style="text-align: right;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -63,33 +113,156 @@
                     <div><%= t.email %></div>
                     <small class="text-xs text-muted"><%= t.phone || 'No phone' %></small>
                   </td>
+
                   <td>
-                    <span class="badge badge-info"><%= t.plan_name || 'Trial' %></span>
+                    <div>
+                      <span class="badge badge-info"><%= t.plan_name || 'Standard' %></span>
+                    </div>
+                    <% if (t.subscription_status) { %>
+                      <small class="text-xs" style="color: var(--text-secondary); display: block; margin-top: 2px;">
+                        Sub: <strong><%= t.subscription_status %></strong>
+                      </small>
+                    <% } %>
                   </td>
+
                   <td><%= t.user_count %></td>
                   <td><%= t.project_count %></td>
+
                   <td>
                     <% if (t.is_active) { %>
                       <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
+                    <% } else if (t.subscription_status === 'SUSPENDED') { %>
+                      <span class="badge badge-warning">Suspended</span>
+                    <% } else if (t.subscription_status === 'EXPIRED') { %>
+                      <span class="badge badge-danger">Expired</span>
                     <% } else { %>
-                      <span class="badge badge-danger">Inactive</span>
+                      <span class="badge badge-danger">Deactivated</span>
                     <% } %>
                   </td>
+
                   <td><%= new Date(t.created_at).toLocaleDateString() %></td>
+
+                  <!-- Account Actions -->
+                  <td style="text-align: right;">
+                    <div style="display: inline-flex; gap: 6px; align-items: center;">
+                      <!-- Change Plan Modal Button -->
+                      <button type="button" class="btn btn-xs btn-secondary" onclick='openChangePlanModal("<%= t.id %>", "<%= t.name %>", "<%= t.plan_id || "" %>")' title="Assign or renew subscription package">
+                        <i class="uil uil-package"></i>
+                        <span>Plan</span>
+                      </button>
+
+                      <% if (t.is_active) { %>
+                        <!-- Suspend Button -->
+                        <form action="/admin/tenants/<%= t.id %>/suspend" method="POST" style="margin: 0;" onsubmit="return confirm('Are you sure you want to suspend organization <%= t.name %>? Users will be locked out until reactivated.');">
+                          <button type="submit" class="btn btn-xs btn-outline-warning" title="Suspend account manually">
+                            <i class="uil uil-pause"></i>
+                            <span>Suspend</span>
+                          </button>
+                        </form>
+                      <% } else { %>
+                        <!-- Activate Button -->
+                        <form action="/admin/tenants/<%= t.id %>/activate" method="POST" style="margin: 0;" onsubmit="return confirm('Reactivate organization <%= t.name %>?');">
+                          <button type="submit" class="btn btn-xs btn-success" title="Activate account manually">
+                            <i class="uil uil-play"></i>
+                            <span>Activate</span>
+                          </button>
+                        </form>
+                      <% } %>
+                    </div>
+                  </td>
                 </tr>
               <% }); %>
             </tbody>
           </table>
         </div>
+
+        <% if (typeof pagination !== 'undefined' && pagination) { %>
+          <%- include('../../partials/pagination') %>
+        <% } %>
       <% } else { %>
         <div class="empty-state">
           <div class="empty-state-icon">
             <i class="uil uil-building"></i>
           </div>
-          <h4 class="empty-state-title">No organizations registered yet</h4>
+          <h4 class="empty-state-title">No organizations found</h4>
           <p class="empty-state-text">Click "Add Organization" above to onboard your first platform tenant.</p>
         </div>
       <% } %>
     </div>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     Change Subscription Plan Modal
+     ═══════════════════════════════════════════════════════════════════ -->
+<div id="modalChangePlan" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 1050; align-items: center; justify-content: center; padding: 20px;">
+  <div class="card" style="width: 100%; max-width: 480px; margin: auto; box-shadow: var(--shadow-xl); border: 1px solid var(--border-color);">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 18px 22px;">
+      <h3 class="card-title" style="margin: 0; display: flex; align-items: center; gap: 8px;">
+        <i class="uil uil-package text-primary"></i>
+        <span>Change Subscription Plan</span>
+      </h3>
+      <button type="button" class="btn btn-sm btn-subtle" onclick="closeChangePlanModal()" style="border: none; background: transparent; font-size: 1.2rem; cursor: pointer;">
+        <i class="uil uil-times"></i>
+      </button>
+    </div>
+
+    <form id="changePlanForm" action="" method="POST" style="padding: 22px;">
+      <div style="margin-bottom: 14px;">
+        <label class="form-label" style="font-weight: 600;">Organization</label>
+        <input type="text" id="targetTenantName" class="form-input" disabled style="background: var(--bg-tertiary); font-weight: 700;">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label for="selectPlanId" class="form-label" style="font-weight: 600;">Assign Package *</label>
+        <select id="selectPlanId" name="planId" class="form-select" required>
+          <% if (typeof plans !== 'undefined' && plans) { %>
+            <% plans.forEach(function(p) { %>
+              <option value="<%= p.id %>">
+                <%= p.name %> (<%= p.tier %>) &bull; KES <%= parseFloat(p.price || p.monthly_price).toLocaleString() %> / <%= p.frequency || 'Monthly' %>
+              </option>
+            <% }); %>
+          <% } %>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label for="extendMonths" class="form-label" style="font-weight: 600;">Validity Duration (Months) *</label>
+        <select id="extendMonths" name="extendMonths" class="form-select" required>
+          <option value="1" selected>1 Month</option>
+          <option value="3">3 Months (Quarter)</option>
+          <option value="6">6 Months (Biannual)</option>
+          <option value="12">12 Months (1 Year)</option>
+          <option value="24">24 Months (2 Years)</option>
+        </select>
+        <small class="text-xs text-muted" style="display: block; margin-top: 4px;">Sets subscription period and immediately activates account.</small>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+        <button type="button" class="btn btn-secondary" onclick="closeChangePlanModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save & Activate Subscription</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openChangePlanModal(tenantId, tenantName, currentPlanId) {
+    const form = document.getElementById('changePlanForm');
+    form.action = '/admin/tenants/' + tenantId + '/subscription';
+    document.getElementById('targetTenantName').value = tenantName;
+    if (currentPlanId) {
+      document.getElementById('selectPlanId').value = currentPlanId;
+    }
+    document.getElementById('modalChangePlan').style.display = 'flex';
+  }
+
+  function closeChangePlanModal() {
+    document.getElementById('modalChangePlan').style.display = 'none';
+  }
+
+  window.addEventListener('click', function(e) {
+    const m = document.getElementById('modalChangePlan');
+    if (e.target === m) closeChangePlanModal();
+  });
+</script>

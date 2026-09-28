@@ -10,7 +10,69 @@
     </div>
   </div>
 
-  <!-- Financial Cards Grid -->
+  <!-- Search & Period Filter Section (Top Positioned) -->
+  <div class="card mb-6" style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); padding: 18px 22px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <i class="uil uil-calender" style="color: var(--primary); font-size: 1.25rem;"></i>
+        <strong style="font-size: 0.95rem;">Financial Period & Revenue Scope</strong>
+        <% if (typeof filters !== 'undefined' && (filters.startDate || filters.endDate)) { %>
+          <span class="badge badge-primary" style="font-size: 0.8rem;">
+            <%= filters.startDate || 'Beginning' %> &rarr; <%= filters.endDate || 'Today' %>
+          </span>
+        <% } else { %>
+          <span class="badge badge-subtle" style="font-size: 0.8rem;">All-Time Lifetime Overview</span>
+        <% } %>
+      </div>
+
+      <!-- Quick Preset Buttons -->
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="periodPresetsGroup">
+        <button type="button" class="btn btn-xs btn-secondary" onclick="applyPreset('today')">Today</button>
+        <button type="button" class="btn btn-xs btn-secondary" onclick="applyPreset('7days')">Last 7 Days</button>
+        <button type="button" class="btn btn-xs btn-secondary" onclick="applyPreset('thisMonth')">This Month</button>
+        <button type="button" class="btn btn-xs btn-secondary" onclick="applyPreset('lastMonth')">Last Month</button>
+        <button type="button" class="btn btn-xs btn-secondary" onclick="applyPreset('thisQuarter')">This Quarter</button>
+        <button type="button" class="btn btn-xs btn-secondary" onclick="applyPreset('thisYear')">This Year</button>
+        <a href="/accounting" class="btn btn-xs btn-subtle">All Time</a>
+      </div>
+    </div>
+
+    <form action="/accounting" method="GET" id="accountingFilterForm" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+      <div style="flex: 1 1 240px;">
+        <label class="form-label" style="font-size: 0.82rem; margin-bottom: 4px;">Search Transactions</label>
+        <div class="search-input-wrapper">
+          <i class="uil uil-search"></i>
+          <input type="text" name="q" class="form-input" placeholder="Receipt #, client, invoice #, ref..." value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : '' %>">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <div style="width: 160px;">
+          <label class="form-label" style="font-size: 0.82rem; margin-bottom: 4px;">From Date</label>
+          <input type="date" id="filterStartDate" name="startDate" class="form-input flatpickr-date" placeholder="e.g. 2026-09-01" value="<%= (typeof filters !== 'undefined' && filters.startDate) ? filters.startDate : '' %>">
+        </div>
+        <div style="width: 160px;">
+          <label class="form-label" style="font-size: 0.82rem; margin-bottom: 4px;">To Date</label>
+          <input type="date" id="filterEndDate" name="endDate" class="form-input flatpickr-date" placeholder="e.g. 2026-09-30" value="<%= (typeof filters !== 'undefined' && filters.endDate) ? filters.endDate : '' %>">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button type="submit" class="btn btn-primary" style="height: 42px; display: inline-flex; align-items: center; gap: 6px;">
+          <i class="uil uil-filter"></i>
+          <span>Apply Filter</span>
+        </button>
+        <% if (typeof filters !== 'undefined' && (filters.search || filters.startDate || filters.endDate)) { %>
+          <a href="/accounting" class="btn btn-secondary" style="height: 42px; display: inline-flex; align-items: center; gap: 4px;" title="Reset filter">
+            <i class="uil uil-times"></i>
+            <span>Reset</span>
+          </a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+
+  <!-- Financial Cards Grid (Calculated for Selected Period) -->
   <div class="kpi-grid mb-6">
     <div class="kpi-card">
       <div class="kpi-icon kpi-icon-success">
@@ -19,7 +81,7 @@
       <div class="kpi-content">
         <span class="kpi-label">Cash Collected</span>
         <div class="kpi-value text-success"><%= formatKES(metrics.totalCollected) %></div>
-        <span class="text-xs text-muted mt-1 block">Total payments realized</span>
+        <span class="text-xs text-muted mt-1 block"><%= metrics.paymentCount || 0 %> payments realized in period</span>
       </div>
     </div>
 
@@ -30,7 +92,7 @@
       <div class="kpi-content">
         <span class="kpi-label">Total Invoiced</span>
         <div class="kpi-value"><%= formatKES(metrics.totalInvoiced) %></div>
-        <span class="text-xs text-muted mt-1 block">Gross billings to clients</span>
+        <span class="text-xs text-muted mt-1 block"><%= metrics.invoiceCount || 0 %> billings issued in period</span>
       </div>
     </div>
 
@@ -52,7 +114,7 @@
       <div class="kpi-content">
         <span class="kpi-label">Operating Expenses</span>
         <div class="kpi-value text-danger"><%= formatKES(metrics.totalExpenses) %></div>
-        <span class="text-xs text-muted mt-1 block">Direct costs & overhead</span>
+        <span class="text-xs text-muted mt-1 block"><%= metrics.expenseCount || 0 %> expenses logged in period</span>
       </div>
     </div>
 
@@ -63,63 +125,97 @@
       <div class="kpi-content">
         <span class="kpi-label">Operating Cash Margin</span>
         <div class="kpi-value <%= metrics.netOperatingProfit >= 0 ? 'text-success' : 'text-danger' %>"><%= formatKES(metrics.netOperatingProfit) %></div>
-        <span class="text-xs text-muted mt-1 block">Collected minus Expenses</span>
+        <span class="text-xs text-muted mt-1 block">Realized Revenue minus Expenses</span>
       </div>
     </div>
   </div>
 
-  <!-- KRA VAT Breakdown Card -->
-  <div class="card mb-6">
-    <div class="card-header">
-      <h3 class="card-title">KRA Monthly VAT Return Estimator</h3>
-      <p class="text-xs text-muted">Estimated 16% standard rate tax liability for current billing cycle</p>
+  <!-- Row: KRA VAT Estimator & Revenue by Payment Channel -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-bottom: 24px;">
+    <!-- KRA VAT Breakdown Card -->
+    <div class="card" style="margin-bottom: 0;">
+      <div class="card-header">
+        <h3 class="card-title">KRA Monthly VAT Return Estimator</h3>
+        <p class="text-xs text-muted">Estimated 16% standard rate tax liability for selected period</p>
+      </div>
+      <div class="card-body">
+        <div class="grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+          <div class="stat-panel">
+            <div class="stat-panel-label">Output VAT (Billed)</div>
+            <div class="stat-panel-value"><%= formatKES(metrics.outputVat) %></div>
+            <p class="stat-panel-hint">16% VAT charged on client invoices.</p>
+          </div>
+
+          <div class="stat-panel">
+            <div class="stat-panel-label">Input VAT (Claimable)</div>
+            <div class="stat-panel-value text-primary"><%= formatKES(metrics.inputVat) %></div>
+            <p class="stat-panel-hint">VAT paid on qualifying supplier expenses.</p>
+          </div>
+
+          <div class="stat-panel">
+            <div class="stat-panel-label">Net Tax Position</div>
+            <div class="stat-panel-value <%= metrics.netVatPayable >= 0 ? 'text-warning' : 'text-success' %>">
+              <%= formatKES(Math.abs(metrics.netVatPayable)) %>
+              <span class="text-xs font-normal"><%= metrics.netVatPayable >= 0 ? '(Payable)' : '(Credit)' %></span>
+            </div>
+            <p class="stat-panel-hint">Due by 20th via KRA iTax.</p>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="card-body">
-      <div class="grid-3">
-        <div class="stat-panel">
-          <div class="stat-panel-label">Output VAT (Billed)</div>
-          <div class="stat-panel-value">
-            <%= formatKES(metrics.outputVat) %>
-          </div>
-          <p class="stat-panel-hint">
-            16% VAT charged on client invoices.
-          </p>
-        </div>
 
-        <div class="stat-panel">
-          <div class="stat-panel-label">Input VAT (Claimable)</div>
-          <div class="stat-panel-value text-primary">
-            <%= formatKES(metrics.inputVat) %>
+    <!-- Revenue Breakdown by Payment Method -->
+    <div class="card" style="margin-bottom: 0;">
+      <div class="card-header">
+        <h3 class="card-title">Revenue by Payment Channel</h3>
+        <p class="text-xs text-muted">Collections realized by channel during this period</p>
+      </div>
+      <div class="card-body">
+        <% if (typeof methodBreakdown !== 'undefined' && methodBreakdown && methodBreakdown.length > 0) { %>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <% methodBreakdown.forEach(function(mb) { %>
+              <% const pct = metrics.totalCollected > 0 ? ((parseFloat(mb.total) / metrics.totalCollected) * 100).toFixed(1) : 0; %>
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+                  <span><strong><%= mb.payment_method %></strong> <span class="text-muted">(<%= mb.count %> transactions)</span></span>
+                  <span class="text-success font-bold"><%= formatKES(parseFloat(mb.total)) %> <span class="text-muted font-normal">(<%= pct %>%)</span></span>
+                </div>
+                <div style="width: 100%; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
+                  <div style="width: <%= pct %>%; height: 100%; background: var(--primary); border-radius: 3px;"></div>
+                </div>
+              </div>
+            <% }); %>
           </div>
-          <p class="stat-panel-hint">
-            VAT paid on qualifying supplier invoices.
-          </p>
-        </div>
-
-        <div class="stat-panel">
-          <div class="stat-panel-label">Net Tax Position</div>
-          <div class="stat-panel-value <%= metrics.netVatPayable >= 0 ? 'text-warning' : 'text-success' %>">
-            <%= formatKES(Math.abs(metrics.netVatPayable)) %>
-            <span class="text-xs font-normal">
-              <%= metrics.netVatPayable >= 0 ? '(Payable to KRA)' : '(Credit / Refund)' %>
-            </span>
+        <% } else { %>
+          <div class="text-center py-4 text-muted text-xs">
+            No payments realized in this period.
           </div>
-          <p class="stat-panel-hint">
-            Due by the 20th of next month via iTax.
-          </p>
-        </div>
+        <% } %>
       </div>
     </div>
   </div>
 
   <!-- Recent Payments Audit Table -->
   <div class="card">
-    <div class="card-header card-header-flex">
-      <div>
-        <h3 class="card-title">Recent Payment Collections</h3>
-        <p class="text-xs text-muted">Real-time ledger of inbound client settlements</p>
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-receipt"></i>
+        </div>
+        <div>
+          <div class="flex-align-center gap-2">
+            <h2 class="card-title">Recent Payment Collections</h2>
+            <span class="badge badge-subtle"><%= recentPayments ? recentPayments.length : 0 %> Listed</span>
+          </div>
+          <p class="card-subtitle">Real-time ledger of inbound client settlements via M-Pesa and Bank</p>
+        </div>
       </div>
-      <span class="badge badge-subtle"><%= recentPayments ? recentPayments.length : 0 %> Received</span>
+      <div class="flex-align-center gap-2">
+        <a href="/invoices" class="card-action-link">
+          <span>View All Invoices</span>
+          <i class="uil uil-arrow-right"></i>
+        </a>
+      </div>
     </div>
     <div class="card-body-table">
       <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
@@ -140,7 +236,7 @@
             <tbody>
               <% recentPayments.forEach(function(pay) { %>
                 <tr>
-                  <td><strong><%= pay.mpesa_receipt_number || pay.reference_number || pay.id.substring(0, 8) %></strong></td>
+                  <td><strong><%= pay.mpesa_receipt_number || pay.bank_reference || pay.reference_number || (pay.id ? pay.id.substring(0, 8) : '') %></strong></td>
                   <td><%= pay.client_name || '—' %></td>
                   <td><%= pay.invoice_number %></td>
                   <td><span class="badge badge-subtle"><%= pay.payment_method %></span></td>
@@ -154,15 +250,59 @@
             </tbody>
           </table>
         </div>
+
+        <% if (typeof pagination !== 'undefined' && pagination) { %>
+          <%- include('../../partials/pagination') %>
+        <% } %>
       <% } else { %>
         <div class="empty-state">
           <div class="empty-state-icon">
             <i class="uil uil-receipt"></i>
           </div>
-          <h4 class="empty-state-title">No completed payments recorded yet</h4>
+          <h4 class="empty-state-title">No completed payments found</h4>
           <p class="empty-state-text">Payments collected via M-Pesa or bank transfer will populate this ledger.</p>
         </div>
       <% } %>
     </div>
   </div>
 </div>
+
+<script>
+  function formatDate(d) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function applyPreset(preset) {
+    const today = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (preset === 'today') {
+      start = today;
+      end = today;
+    } else if (preset === '7days') {
+      start = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000);
+      end = today;
+    } else if (preset === 'thisMonth') {
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    } else if (preset === 'lastMonth') {
+      start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      end = new Date(today.getFullYear(), today.getMonth(), 0);
+    } else if (preset === 'thisQuarter') {
+      const q = Math.floor(today.getMonth() / 3);
+      start = new Date(today.getFullYear(), q * 3, 1);
+      end = new Date(today.getFullYear(), q * 3 + 3, 0);
+    } else if (preset === 'thisYear') {
+      start = new Date(today.getFullYear(), 0, 1);
+      end = new Date(today.getFullYear(), 11, 31);
+    }
+
+    document.getElementById('filterStartDate').value = formatDate(start);
+    document.getElementById('filterEndDate').value = formatDate(end);
+    document.getElementById('accountingFilterForm').submit();
+  }
+</script>

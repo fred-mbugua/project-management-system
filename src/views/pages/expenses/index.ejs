@@ -109,14 +109,70 @@
     </div>
   </div>
 
+  <!-- Search & Date Filter Section -->
+  <div class="search-filter-section">
+    <form action="/expenses" method="GET" class="filter-form">
+      <div class="search-input-wrapper">
+        <i class="uil uil-search"></i>
+        <input type="text" name="q" class="form-input" placeholder="Search description, vendor, receipt #, or project..." value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : '' %>">
+      </div>
+
+      <div class="date-filter-group">
+        <div class="date-filter-item">
+          <span>From:</span>
+          <input type="date" name="startDate" class="form-input" placeholder="e.g. 2026-09-01" value="<%= (typeof filters !== 'undefined' && filters.startDate) ? filters.startDate : '' %>">
+        </div>
+        <div class="date-filter-item">
+          <span>To:</span>
+          <input type="date" name="endDate" class="form-input" placeholder="e.g. 2026-09-30" value="<%= (typeof filters !== 'undefined' && filters.endDate) ? filters.endDate : '' %>">
+        </div>
+      </div>
+
+      <div class="filter-status-wrapper">
+        <select name="category" class="form-select form-select-sm">
+          <option value="">All Categories</option>
+          <% categories.forEach(function(cat) { %>
+            <option value="<%= cat %>" <%= (typeof filters !== 'undefined' && filters.category === cat) ? 'selected' : '' %>><%= cat.replace(/_/g, ' ') %></option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="uil uil-filter"></i>
+          <span>Filter</span>
+        </button>
+        <% if (typeof filters !== 'undefined' && (filters.search || filters.startDate || filters.endDate || filters.category)) { %>
+          <a href="/expenses" class="btn btn-sm btn-secondary" title="Clear all filters">
+            <i class="uil uil-times"></i>
+            <span>Clear</span>
+          </a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+
   <!-- Expenses Table -->
   <div class="card">
-    <div class="card-header card-header-flex">
-      <div>
-        <h3 class="card-title">Expense Transactions</h3>
-        <p class="text-xs text-muted">Complete historical disbursement journal</p>
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-money-withdrawal"></i>
+        </div>
+        <div>
+          <div class="flex-align-center gap-2">
+            <h2 class="card-title">Expense Transactions</h2>
+            <span class="badge badge-subtle"><%= expenses ? expenses.length : 0 %> Listed</span>
+          </div>
+          <p class="card-subtitle">Complete historical disbursement journal and cost allocations</p>
+        </div>
       </div>
-      <span class="badge badge-subtle"><%= expenses ? expenses.length : 0 %> Entries</span>
+      <div class="flex-align-center gap-2">
+        <button class="btn btn-sm btn-primary" id="btn-open-expense-modal">
+          <i class="uil uil-plus"></i>
+          <span>Log Expense</span>
+        </button>
+      </div>
     </div>
     <div class="card-body-table">
       <div class="table-scroll-hint">Swipe horizontally to view all columns &rarr;</div>
@@ -157,12 +213,16 @@
             </tbody>
           </table>
         </div>
+
+        <% if (typeof pagination !== 'undefined' && pagination) { %>
+          <%- include('../../partials/pagination') %>
+        <% } %>
       <% } else { %>
         <div class="empty-state">
           <div class="empty-state-icon">
             <i class="uil uil-bill"></i>
           </div>
-          <h4 class="empty-state-title">No expenses logged yet</h4>
+          <h4 class="empty-state-title">No expenses found</h4>
           <p class="empty-state-text">Use the form above to record your first operational or project disbursement.</p>
         </div>
       <% } %>

@@ -92,13 +92,17 @@
     </div>
     <% } %>
 
-    <!-- Settings -->
+    <!-- Settings & Audit -->
     <% if (typeof currentUser !== 'undefined' && currentUser && ['SUPER_ADMIN', 'TENANT_OWNER'].includes(currentUser.role)) { %>
     <div class="sidebar-section">
-      <span class="sidebar-section-title">Configuration</span>
+      <span class="sidebar-section-title">Configuration & Logs</span>
       <a href="/settings" class="sidebar-link<%= currentPath.startsWith('/settings') ? ' active' : '' %>" id="nav-settings">
         <i class="uil uil-setting sidebar-icon"></i>
         <span>Settings</span>
+      </a>
+      <a href="/audit-logs" class="sidebar-link<%= currentPath.startsWith('/audit-logs') ? ' active' : '' %>" id="nav-audit-logs">
+        <i class="uil uil-history sidebar-icon"></i>
+        <span>Action & Audit Logs</span>
       </a>
     </div>
     <% } %>
@@ -107,13 +111,17 @@
     <% if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'SUPER_ADMIN') { %>
     <div class="sidebar-section">
       <span class="sidebar-section-title">Platform Admin</span>
-      <a href="/admin/tenants" class="sidebar-link<%= currentPath.startsWith('/admin') ? ' active' : '' %>" id="nav-admin">
+      <a href="/admin/tenants" class="sidebar-link<%= currentPath.startsWith('/admin/tenants') ? ' active' : '' %>" id="nav-admin">
         <i class="uil uil-shield-check sidebar-icon"></i>
         <span>Organizations</span>
       </a>
       <a href="/admin/plans" class="sidebar-link<%= currentPath.startsWith('/admin/plans') ? ' active' : '' %>" id="nav-plans">
         <i class="uil uil-layers sidebar-icon"></i>
         <span>Subscription Plans</span>
+      </a>
+      <a href="/admin/error-logs" class="sidebar-link<%= currentPath.startsWith('/admin/error-logs') ? ' active' : '' %>" id="nav-error-logs">
+        <i class="uil uil-bug sidebar-icon"></i>
+        <span>System Error Logs</span>
       </a>
     </div>
     <% } %>

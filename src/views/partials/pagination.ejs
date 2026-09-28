@@ -1,0 +1,75 @@
+<% if (typeof pagination !== 'undefined' && pagination && pagination.total > 0) { %>
+  <%
+    function buildPageUrl(p) {
+      const q = Object.assign({}, pagination.query, { page: p });
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(q)) {
+        if (v !== undefined && v !== null && v !== '') {
+          params.set(k, String(v));
+        }
+      }
+      return pagination.baseUrl + '?' + params.toString();
+    }
+  %>
+
+  <div class="pagination-container">
+    <div class="pagination-info">
+      Showing <strong><%= pagination.startIndex %></strong> to <strong><%= pagination.endIndex %></strong> of <strong><%= pagination.total %></strong> entries
+    </div>
+
+    <% if (pagination.totalPages > 1) { %>
+      <div class="pagination-controls">
+        <!-- Previous Page Button -->
+        <% if (pagination.hasPrev) { %>
+          <a href="<%= buildPageUrl(pagination.page - 1) %>" class="pagination-btn pagination-prev" title="Previous Page" aria-label="Previous Page">
+            <i class="uil uil-angle-left"></i>
+            <span>Prev</span>
+          </a>
+        <% } else { %>
+          <span class="pagination-btn pagination-prev disabled" aria-disabled="true">
+            <i class="uil uil-angle-left"></i>
+            <span>Prev</span>
+          </span>
+        <% } %>
+
+        <!-- First page jump if not in window -->
+        <% if (pagination.pages[0] > 1) { %>
+          <a href="<%= buildPageUrl(1) %>" class="pagination-btn pagination-num">1</a>
+          <% if (pagination.pages[0] > 2) { %>
+            <span class="pagination-ellipsis">&hellip;</span>
+          <% } %>
+        <% } %>
+
+        <!-- Page Numbers -->
+        <% pagination.pages.forEach(function(p) { %>
+          <% if (p === pagination.page) { %>
+            <span class="pagination-btn pagination-num active" aria-current="page"><%= p %></span>
+          <% } else { %>
+            <a href="<%= buildPageUrl(p) %>" class="pagination-btn pagination-num"><%= p %></a>
+          <% } %>
+        <% }); %>
+
+        <!-- Last page jump if not in window -->
+        <% if (pagination.pages[pagination.pages.length - 1] < pagination.totalPages) { %>
+          <% if (pagination.pages[pagination.pages.length - 1] < pagination.totalPages - 1) { %>
+            <span class="pagination-ellipsis">&hellip;</span>
+          <% } %>
+          <a href="<%= buildPageUrl(pagination.totalPages) %>" class="pagination-btn pagination-num"><%= pagination.totalPages %></a>
+        <% } %>
+
+        <!-- Next Page Button -->
+        <% if (pagination.hasNext) { %>
+          <a href="<%= buildPageUrl(pagination.page + 1) %>" class="pagination-btn pagination-next" title="Next Page" aria-label="Next Page">
+            <span>Next</span>
+            <i class="uil uil-angle-right"></i>
+          </a>
+        <% } else { %>
+          <span class="pagination-btn pagination-next disabled" aria-disabled="true">
+            <span>Next</span>
+            <i class="uil uil-angle-right"></i>
+          </span>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+<% } %>

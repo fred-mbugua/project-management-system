@@ -608,7 +608,9 @@
     flex-direction: column;
   }
 
-  .page-actions .btn {
+  .page-actions .btn,
+  .page-actions form,
+  .page-actions form .btn {
     width: 100%;
   }
 }

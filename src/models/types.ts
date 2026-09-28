@@ -66,6 +66,8 @@ export enum PaymentMethod {
   CASH = 'CASH',
   CHEQUE = 'CHEQUE',
   CARD = 'CARD',
+  MANUAL = 'MANUAL',
+  OTHER = 'OTHER',
 }
 
 export enum PaymentStatus {
@@ -105,6 +107,7 @@ export enum MaintenanceFrequency {
   QUARTERLY = 'QUARTERLY',
   BIANNUAL = 'BIANNUAL',
   ANNUAL = 'ANNUAL',
+  CUSTOM = 'CUSTOM',
 }
 
 export enum MaintenanceStatus {
@@ -125,6 +128,8 @@ export enum SubscriptionStatus {
   PAST_DUE = 'PAST_DUE',
   CANCELLED = 'CANCELLED',
   TRIAL = 'TRIAL',
+  SUSPENDED = 'SUSPENDED',
+  EXPIRED = 'EXPIRED',
 }
 
 export enum DarajaShortcodeType {
@@ -169,6 +174,10 @@ export interface SubscriptionPlan {
   tier: SubscriptionTier;
   monthlyPrice: number;
   annualPrice: number;
+  price?: number;
+  frequency?: string;
+  intervalMonths?: number;
+  description?: string;
   maxUsers: number;
   maxProjects: number;
   maxStorageMb: number;
@@ -176,6 +185,26 @@ export interface SubscriptionPlan {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface TenantDisplayFields {
+  showTenantPhone?: boolean;
+  showTenantEmail?: boolean;
+  showTenantAddress?: boolean;
+  showTenantKraPin?: boolean;
+  showClientPhone?: boolean;
+  showClientEmail?: boolean;
+  showClientAddress?: boolean;
+  showClientKraPin?: boolean;
+  showBankDetails?: boolean;
+  showPaymentTerms?: boolean;
+  showMpesaDetails?: boolean;
+  showTaxBreakdown?: boolean;
+  showDiscount?: boolean;
+  showProject?: boolean;
+  showNotes?: boolean;
+  showTerms?: boolean;
+  showEtimsQr?: boolean;
 }
 
 export interface Tenant {
@@ -197,6 +226,7 @@ export interface Tenant {
   invoicePrefix: string;
   quotePrefix: string;
   invoiceTemplate?: string;
+  displayFields?: TenantDisplayFields;
   invoiceNotes?: string | null;
   paymentTerms?: string | null;
   bankDetails?: string | null;
@@ -206,6 +236,11 @@ export interface Tenant {
   darajaShortcode?: string | null;
   darajaShortcodeType: DarajaShortcodeType;
   darajaEnvironment: string;
+  cardGatewayProvider?: string | null;
+  cardPublicKey?: string | null;
+  cardSecretKey?: string | null;
+  cardEnabled?: boolean;
+  receiptFields?: Record<string, any> | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -331,6 +366,8 @@ export interface Quotation {
   totalAmount: number;
   notes?: string | null;
   terms?: string | null;
+  template?: string;
+  customColor?: string | null;
   convertedInvoiceId?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -370,6 +407,7 @@ export interface Invoice {
   notes?: string | null;
   terms?: string | null;
   template: string;
+  customColor?: string | null;
   etimsVerificationHash?: string | null;
   etimsQrPayload?: string | null;
   tenantKraPin?: string | null;
@@ -400,12 +438,16 @@ export interface Payment {
   paymentMethod: PaymentMethod;
   status: PaymentStatus;
   paymentDate: Date;
+  receiptNumber?: string | null;
   mpesaReceiptNumber?: string | null;
   mpesaPhoneNumber?: string | null;
   mpesaTransactionDate?: string | null;
   mpesaCheckoutRequestId?: string | null;
   mpesaMerchantRequestId?: string | null;
   referenceNumber?: string | null;
+  proofUrl?: string | null;
+  proofFilename?: string | null;
+  recordedByUserId?: string | null;
   notes?: string | null;
   rawCallbackData?: any;
   createdAt: Date;
@@ -485,3 +527,37 @@ export interface AuditLog {
   metadata?: any;
   createdAt: Date;
 }
+
+export interface ProjectDocument {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  name: string;
+  fileUrl: string;
+  fileSize: number;
+  fileType?: string | null;
+  uploadedById?: string | null;
+  uploadedByName?: string | null;
+  createdAt: Date;
+}
+
+export interface SubscriptionInvoice {
+  id: string;
+  tenantId: string;
+  planId?: string | null;
+  invoiceNumber: string;
+  amount: number;
+  taxAmount: number;
+  totalAmount: number;
+  status: string;
+  billingPeriodStart: Date;
+  billingPeriodEnd: Date;
+  dueDate: Date;
+  paidAt?: Date | null;
+  paymentMethod?: string | null;
+  paymentReference?: string | null;
+  paymentInstructions?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+

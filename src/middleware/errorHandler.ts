@@ -5,6 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import logger from '../utils/logger';
+import { ErrorLogModel } from '../models/errorLog.model';
 
 const errorLogger = logger.child('ErrorHandler');
 
@@ -54,20 +55,48 @@ export function globalErrorHandler(
       ? 'An unexpected error occurred. Please try again later.'
       : err.message;
 
+  // Generate unique diagnostic reference ID
+  const errorReference = 'ERR-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+
+  // 1. Structured File & Console Logging
   errorLogger.error('Unhandled error', {
+    errorReference,
     statusCode,
     message: err.message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    stack: err.stack,
     path: req.path,
     method: req.method,
     userId: req.user?.id,
     tenantId: req.tenantId,
+    ip: req.ip || req.headers['x-forwarded-for'],
+  });
+
+  // 2. Persistent Database Error Logging
+  ErrorLogModel.create({
+    tenantId: req.tenantId || req.user?.tenantId || null,
+    userId: req.user?.id || null,
+    level: statusCode >= 500 ? 'ERROR' : 'WARN',
+    message: err.message || 'Unknown server error',
+    stack: err.stack || null,
+    path: req.path,
+    method: req.method,
+    statusCode,
+    ipAddress: (req.ip || (req.headers['x-forwarded-for'] as string) || null)?.toString(),
+    userAgent: (req.headers['user-agent'] || null)?.toString(),
+    metadata: {
+      errorReference,
+      query: req.query,
+      body: req.method !== 'GET' ? req.body : undefined,
+    },
+  }).catch((dbErr) => {
+    errorLogger.warn('Failed to record error to error_logs table', { dbError: dbErr.message });
   });
 
   // API error response
   if (req.path.startsWith('/api/') || req.headers.accept?.includes('application/json')) {
     res.status(statusCode).json({
       error: message,
+      errorReference,
       ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     });
     return;
@@ -78,7 +107,9 @@ export function globalErrorHandler(
     title: `Error ${statusCode}`,
     statusCode,
     message,
+    errorReference,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     layout: 'layouts/main',
   });
 }
+

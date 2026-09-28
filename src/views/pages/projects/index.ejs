@@ -16,7 +16,72 @@
     </div>
   </div>
 
+  <!-- Search & Date Filter Section -->
+  <div class="search-filter-section">
+    <form action="/projects" method="GET" class="filter-form">
+      <div class="search-input-wrapper">
+        <i class="uil uil-search"></i>
+        <input type="text" name="q" class="form-input" placeholder="Search project name, code, client, or description..." value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : '' %>">
+      </div>
+
+      <div class="date-filter-group">
+        <div class="date-filter-item">
+          <span>From:</span>
+          <input type="date" name="startDate" class="form-input" placeholder="e.g. 2026-09-01" value="<%= (typeof filters !== 'undefined' && filters.startDate) ? filters.startDate : '' %>">
+        </div>
+        <div class="date-filter-item">
+          <span>To:</span>
+          <input type="date" name="endDate" class="form-input" placeholder="e.g. 2026-09-30" value="<%= (typeof filters !== 'undefined' && filters.endDate) ? filters.endDate : '' %>">
+        </div>
+      </div>
+
+      <div class="filter-status-wrapper">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All Statuses</option>
+          <option value="PLANNING" <%= (typeof filters !== 'undefined' && filters.status === 'PLANNING') ? 'selected' : '' %>>Planning</option>
+          <option value="IN_PROGRESS" <%= (typeof filters !== 'undefined' && filters.status === 'IN_PROGRESS') ? 'selected' : '' %>>In Progress</option>
+          <option value="ON_HOLD" <%= (typeof filters !== 'undefined' && filters.status === 'ON_HOLD') ? 'selected' : '' %>>On Hold</option>
+          <option value="COMPLETED" <%= (typeof filters !== 'undefined' && filters.status === 'COMPLETED') ? 'selected' : '' %>>Completed</option>
+          <option value="CANCELLED" <%= (typeof filters !== 'undefined' && filters.status === 'CANCELLED') ? 'selected' : '' %>>Cancelled</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="uil uil-filter"></i>
+          <span>Filter</span>
+        </button>
+        <% if (typeof filters !== 'undefined' && (filters.search || filters.startDate || filters.endDate || filters.status)) { %>
+          <a href="/projects" class="btn btn-sm btn-secondary" title="Clear all filters">
+            <i class="uil uil-times"></i>
+            <span>Clear</span>
+          </a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+
   <div class="card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-folder"></i>
+        </div>
+        <div>
+          <div class="flex-align-center gap-2">
+            <h2 class="card-title">Projects Directory</h2>
+            <span class="badge badge-subtle"><%= projects ? projects.length : 0 %> Listed</span>
+          </div>
+          <p class="card-subtitle">Manage project scopes, deliverables, budgets, and status tracking</p>
+        </div>
+      </div>
+      <div class="flex-align-center gap-2">
+        <a href="/projects/new" class="btn btn-sm btn-primary">
+          <i class="uil uil-plus"></i>
+          <span>New Project</span>
+        </a>
+      </div>
+    </div>
     <div class="card-body-table">
       <% if (projects && projects.length > 0) { %>
         <div class="table-scroll-hint">
@@ -74,10 +139,14 @@
             </tbody>
           </table>
         </div>
+
+        <% if (typeof pagination !== 'undefined' && pagination) { %>
+          <%- include('../../partials/pagination') %>
+        <% } %>
       <% } else { %>
         <div class="empty-state">
           <div class="empty-state-icon"><i class="uil uil-folder-plus"></i></div>
-          <p class="empty-state-title">No projects yet</p>
+          <p class="empty-state-title">No projects found</p>
           <p class="empty-state-message">Create your first client deliverable or internal milestone project.</p>
           <a href="/projects/new" class="btn btn-primary btn-sm mt-3">
             <i class="uil uil-plus"></i>

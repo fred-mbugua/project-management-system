@@ -26,6 +26,5 @@ logs/
 # Coverage
 coverage/
 
-# Prisma
-prisma/*.db
-prisma/*.db-journal
+# Scratch
+scratch/

@@ -4,7 +4,7 @@
 
 import { PoolClient } from 'pg';
 import { query } from '../config/database';
-import { Tenant, TaxType, DarajaShortcodeType } from './types';
+import { Tenant, TaxType, DarajaShortcodeType, TenantDisplayFields } from './types';
 
 export interface CreateTenantInput {
   id?: string;
@@ -25,6 +25,7 @@ export interface CreateTenantInput {
   invoicePrefix?: string;
   quotePrefix?: string;
   invoiceTemplate?: string;
+  displayFields?: TenantDisplayFields;
   invoiceNotes?: string | null;
   paymentTerms?: string | null;
   bankDetails?: string | null;
@@ -34,10 +35,42 @@ export interface CreateTenantInput {
   darajaShortcode?: string | null;
   darajaShortcodeType?: DarajaShortcodeType;
   darajaEnvironment?: string;
+  cardGatewayProvider?: string;
+  cardPublicKey?: string | null;
+  cardSecretKey?: string | null;
+  cardEnabled?: boolean;
+  receiptFields?: Record<string, any> | null;
 }
 
 export class TenantModel {
   private static mapRow(row: any): Tenant {
+    let displayFields: TenantDisplayFields = {
+      showTenantPhone: true,
+      showTenantEmail: true,
+      showTenantAddress: true,
+      showTenantKraPin: true,
+      showClientPhone: true,
+      showClientEmail: true,
+      showClientAddress: true,
+      showClientKraPin: true,
+      showBankDetails: true,
+      showPaymentTerms: true,
+      showMpesaDetails: true,
+      showTaxBreakdown: true,
+      showDiscount: true,
+      showProject: true,
+      showNotes: true,
+      showTerms: true,
+      showEtimsQr: true,
+    };
+
+    if (row.display_fields) {
+      try {
+        const parsed = typeof row.display_fields === 'string' ? JSON.parse(row.display_fields) : row.display_fields;
+        displayFields = { ...displayFields, ...parsed };
+      } catch {}
+    }
+
     return {
       id: row.id,
       name: row.name,
@@ -57,6 +90,7 @@ export class TenantModel {
       invoicePrefix: row.invoice_prefix,
       quotePrefix: row.quote_prefix,
       invoiceTemplate: row.invoice_template || 'modern',
+      displayFields,
       invoiceNotes: row.invoice_notes,
       paymentTerms: row.payment_terms,
       bankDetails: row.bank_details,
@@ -65,7 +99,12 @@ export class TenantModel {
       darajaPasskey: row.daraja_passkey,
       darajaShortcode: row.daraja_shortcode,
       darajaShortcodeType: row.daraja_shortcode_type,
-      darajaEnvironment: row.daraja_environment,
+      darajaEnvironment: row.daraja_environment || 'sandbox',
+      cardGatewayProvider: row.card_gateway_provider || 'STRIPE',
+      cardPublicKey: row.card_public_key,
+      cardSecretKey: row.card_secret_key,
+      cardEnabled: Boolean(row.card_enabled),
+      receiptFields: typeof row.receipt_fields === 'string' ? JSON.parse(row.receipt_fields) : row.receipt_fields,
       isActive: row.is_active,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
@@ -190,6 +229,18 @@ export class TenantModel {
         daraja_environment = COALESCE($15, daraja_environment),
         primary_color = COALESCE($16, primary_color),
         invoice_template = COALESCE($17, invoice_template),
+        logo_url = CASE WHEN CAST($18 AS TEXT) = '__NULL__' THEN NULL WHEN CAST($18 AS TEXT) IS NOT NULL THEN CAST($18 AS TEXT) ELSE logo_url END,
+        secondary_color = COALESCE($19, secondary_color),
+        accent_color = COALESCE($20, accent_color),
+        display_fields = COALESCE($21::jsonb, display_fields),
+        daraja_consumer_key = COALESCE($22, daraja_consumer_key),
+        daraja_consumer_secret = COALESCE($23, daraja_consumer_secret),
+        daraja_passkey = COALESCE($24, daraja_passkey),
+        card_gateway_provider = COALESCE($25, card_gateway_provider),
+        card_public_key = COALESCE($26, card_public_key),
+        card_secret_key = COALESCE($27, card_secret_key),
+        card_enabled = COALESCE($28, card_enabled),
+        receipt_fields = COALESCE($29::jsonb, receipt_fields),
         updated_at = NOW()
       WHERE id = $1
       RETURNING *
@@ -212,6 +263,18 @@ export class TenantModel {
       data.darajaEnvironment || null,
       data.primaryColor || null,
       data.invoiceTemplate || null,
+      data.logoUrl !== undefined ? (data.logoUrl === '' || data.logoUrl === null ? '__NULL__' : data.logoUrl) : null,
+      data.secondaryColor || null,
+      data.accentColor || null,
+      data.displayFields !== undefined ? JSON.stringify(data.displayFields) : null,
+      data.darajaConsumerKey !== undefined ? data.darajaConsumerKey : null,
+      data.darajaConsumerSecret !== undefined ? data.darajaConsumerSecret : null,
+      data.darajaPasskey !== undefined ? data.darajaPasskey : null,
+      data.cardGatewayProvider || null,
+      data.cardPublicKey !== undefined ? data.cardPublicKey : null,
+      data.cardSecretKey !== undefined ? data.cardSecretKey : null,
+      data.cardEnabled !== undefined ? data.cardEnabled : null,
+      data.receiptFields !== undefined ? JSON.stringify(data.receiptFields) : null,
     ];
     const runner = client ? client.query.bind(client) : query;
     const res = await runner(sql, values);

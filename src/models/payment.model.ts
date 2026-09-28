@@ -14,12 +14,16 @@ export interface CreatePaymentInput {
   paymentMethod?: PaymentMethod;
   status?: PaymentStatus;
   paymentDate?: Date;
+  receiptNumber?: string | null;
   mpesaReceiptNumber?: string | null;
   mpesaPhoneNumber?: string | null;
   mpesaTransactionDate?: string | null;
   mpesaCheckoutRequestId?: string | null;
   mpesaMerchantRequestId?: string | null;
   referenceNumber?: string | null;
+  proofUrl?: string | null;
+  proofFilename?: string | null;
+  recordedByUserId?: string | null;
   notes?: string | null;
   rawCallbackData?: any;
 }
@@ -34,12 +38,16 @@ export class PaymentModel {
       paymentMethod: row.payment_method,
       status: row.status,
       paymentDate: new Date(row.payment_date),
+      receiptNumber: row.receipt_number,
       mpesaReceiptNumber: row.mpesa_receipt_number,
       mpesaPhoneNumber: row.mpesa_phone_number,
       mpesaTransactionDate: row.mpesa_transaction_date,
       mpesaCheckoutRequestId: row.mpesa_checkout_request_id,
       mpesaMerchantRequestId: row.mpesa_merchant_request_id,
       referenceNumber: row.reference_number,
+      proofUrl: row.proof_url,
+      proofFilename: row.proof_filename,
+      recordedByUserId: row.recorded_by_user_id,
       notes: row.notes,
       rawCallbackData: row.raw_callback_data,
       createdAt: new Date(row.created_at),
@@ -65,12 +73,13 @@ export class PaymentModel {
     const sql = `
       INSERT INTO payments (
         id, tenant_id, invoice_id, amount, payment_method,
-        status, payment_date, mpesa_receipt_number, mpesa_phone_number,
+        status, payment_date, receipt_number, mpesa_receipt_number, mpesa_phone_number,
         mpesa_transaction_date, mpesa_checkout_request_id, mpesa_merchant_request_id,
-        reference_number, notes, raw_callback_data, updated_at
+        reference_number, proof_url, proof_filename, recorded_by_user_id,
+        notes, raw_callback_data, updated_at
       ) VALUES (
         COALESCE($1, gen_random_uuid()::text),
-        $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW()
+        $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW()
       )
       RETURNING *
     `;
@@ -82,12 +91,16 @@ export class PaymentModel {
       data.paymentMethod || PaymentMethod.MPESA_STK,
       data.status || PaymentStatus.PENDING,
       data.paymentDate || new Date(),
+      data.receiptNumber || null,
       data.mpesaReceiptNumber || null,
       data.mpesaPhoneNumber || null,
       data.mpesaTransactionDate || null,
       data.mpesaCheckoutRequestId || null,
       data.mpesaMerchantRequestId || null,
       data.referenceNumber || null,
+      data.proofUrl || null,
+      data.proofFilename || null,
+      data.recordedByUserId || null,
       data.notes || null,
       data.rawCallbackData ? JSON.stringify(data.rawCallbackData) : null,
     ];

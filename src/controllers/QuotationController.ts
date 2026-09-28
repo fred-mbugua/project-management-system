@@ -6,6 +6,8 @@ import { Request, Response, NextFunction } from 'express';
 import { query } from '../config/database';
 import { QuotationModel, QuotationStatus } from '../models';
 import { calculateInvoiceTotals, formatKES } from '../utils/taxCalculator';
+import { extractPaginationParams, calculatePagination } from '../utils/pagination';
+import pdfService from '../services/pdf.service';
 import logger from '../utils/logger';
 
 const quoteLogger = logger.child('QuotationController');
@@ -20,39 +22,80 @@ export class QuotationController {
         return;
       }
 
-      let sql: string;
-      let params: any[];
-      if (tenantId) {
-        sql = `
-          SELECT 
-            q.*,
-            c.name as client_name,
-            p.name as project_name
-          FROM quotations q
-          LEFT JOIN clients c ON q.client_id = c.id
-          LEFT JOIN projects p ON q.project_id = p.id
-          WHERE q.tenant_id = $1
-          ORDER BY q.created_at DESC
-        `;
-        params = [tenantId];
-      } else {
-        sql = `
-          SELECT 
-            q.*,
-            c.name as client_name,
-            p.name as project_name
-          FROM quotations q
-          LEFT JOIN clients c ON q.client_id = c.id
-          LEFT JOIN projects p ON q.project_id = p.id
-          ORDER BY q.created_at DESC
-        `;
-        params = [];
+      const params = extractPaginationParams(req, 10);
+      const conditions: string[] = [];
+      const values: any[] = [];
+      let paramIdx = 1;
+
+      if (tenantId && !isSuper) {
+        conditions.push(`q.tenant_id = $${paramIdx++}`);
+        values.push(tenantId);
       }
-      const result = await query(sql, params);
+
+      if (params.search) {
+        conditions.push(`(
+          q.quotation_number ILIKE $${paramIdx} OR 
+          c.name ILIKE $${paramIdx} OR 
+          q.title ILIKE $${paramIdx} OR
+          p.name ILIKE $${paramIdx} OR
+          q.notes ILIKE $${paramIdx}
+        )`);
+        values.push(`%${params.search}%`);
+        paramIdx++;
+      }
+
+      if (params.startDate) {
+        conditions.push(`q.created_at >= $${paramIdx++}::timestamptz`);
+        values.push(`${params.startDate}T00:00:00Z`);
+      }
+
+      if (params.endDate) {
+        conditions.push(`q.created_at <= $${paramIdx++}::timestamptz`);
+        values.push(`${params.endDate}T23:59:59Z`);
+      }
+
+      if (params.status) {
+        conditions.push(`q.status = $${paramIdx++}`);
+        values.push(params.status);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // Total count for pagination
+      const countSql = `
+        SELECT COUNT(*)::int as total
+        FROM quotations q
+        LEFT JOIN clients c ON q.client_id = c.id
+        LEFT JOIN projects p ON q.project_id = p.id
+        ${whereClause}
+      `;
+      const countRes = await query(countSql, values);
+      const total = countRes.rows[0]?.total || 0;
+
+      // Newest always at top: ORDER BY q.created_at DESC
+      const dataSql = `
+        SELECT 
+          q.*,
+          c.name as client_name,
+          p.name as project_name,
+          p.code as project_code
+        FROM quotations q
+        LEFT JOIN clients c ON q.client_id = c.id
+        LEFT JOIN projects p ON q.project_id = p.id
+        ${whereClause}
+        ORDER BY q.created_at DESC
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+      `;
+      const dataValues = [...values, params.limit, params.offset];
+      const result = await query(dataSql, dataValues);
+
+      const pagination = calculatePagination(total, params, req);
 
       res.render('pages/quotations/index', {
         title: 'Quotations',
         quotations: result.rows,
+        pagination,
+        filters: params,
         formatKES,
       });
     } catch (error) {
@@ -319,6 +362,129 @@ export class QuotationController {
       res.redirect(`/invoices/${newInvoiceId}`);
     } catch (error) {
       quoteLogger.error('Failed to convert quotation to invoice', { error: String(error) });
+      next(error);
+    }
+  };
+
+  downloadPdf = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+      const tenantId = req.tenantId;
+      const quoteId = req.params.id as string;
+
+      let sql = `
+        SELECT 
+          q.*,
+          c.name as client_name,
+          c.email as client_email,
+          c.phone as client_phone,
+          c.address as client_address,
+          c.city as client_city,
+          c.kra_pin as client_kra_pin,
+          p.name as project_name,
+          p.code as project_code,
+          t.name as tenant_name,
+          t.email as tenant_email,
+          t.phone as tenant_phone,
+          t.address as tenant_address,
+          t.city as tenant_city,
+          t.kra_pin as tenant_kra_pin,
+          t.logo_url as tenant_logo_url,
+          t.primary_color as tenant_primary_color,
+          t.secondary_color as tenant_secondary_color,
+          t.accent_color as tenant_accent_color,
+          t.bank_details as tenant_bank_details,
+          t.invoice_template as tenant_invoice_template,
+          t.display_fields as tenant_display_fields,
+          t.daraja_shortcode as tenant_daraja_shortcode,
+          t.daraja_shortcode_type as tenant_daraja_shortcode_type
+        FROM quotations q
+        LEFT JOIN clients c ON q.client_id = c.id
+        LEFT JOIN projects p ON q.project_id = p.id
+        LEFT JOIN tenants t ON q.tenant_id = t.id
+        WHERE q.id = $1
+      `;
+      const params: any[] = [quoteId];
+      if (tenantId && !isSuper) {
+        sql += ` AND q.tenant_id = $2`;
+        params.push(tenantId);
+      }
+      sql += ` LIMIT 1`;
+
+      const [quoteRes, itemsRes] = await Promise.all([
+        query(sql, params),
+        query(`SELECT * FROM quotation_items WHERE quotation_id = $1 ORDER BY sort_order ASC, id ASC`, [quoteId]),
+      ]);
+
+      const quote = quoteRes.rows[0];
+      if (!quote) {
+        res.status(404).send('Quotation not found');
+        return;
+      }
+
+      const selectedTemplate = (req.query.template as string) || quote.template || quote.tenant_invoice_template || 'modern';
+      const customColor = (req.query.color as string) || quote.custom_color || quote.tenant_primary_color || '#4F46E5';
+
+      let displayFields: any = {};
+      if (quote.tenant_display_fields) {
+        try {
+          displayFields = typeof quote.tenant_display_fields === 'string'
+            ? JSON.parse(quote.tenant_display_fields)
+            : quote.tenant_display_fields;
+        } catch {}
+      }
+
+      await pdfService.generateDocumentPdf({
+        type: 'quotation',
+        documentNumber: quote.quotation_number,
+        title: quote.title,
+        status: quote.status,
+        issueDate: quote.created_at,
+        dueDateOrValidUntil: quote.valid_until,
+        dueDateLabel: 'Valid Until',
+        notes: quote.notes,
+        terms: quote.terms,
+        template: selectedTemplate,
+        customColor,
+        displayFields,
+        subtotal: quote.subtotal,
+        taxAmount: quote.tax_amount,
+        discountAmount: quote.discount_amount,
+        totalAmount: quote.total_amount,
+        tenant: {
+          name: quote.tenant_name || 'Organization',
+          email: quote.tenant_email,
+          phone: quote.tenant_phone,
+          address: quote.tenant_address,
+          city: quote.tenant_city,
+          kraPin: quote.tenant_kra_pin,
+          logoUrl: quote.tenant_logo_url,
+          primaryColor: quote.tenant_primary_color,
+          secondaryColor: quote.tenant_secondary_color,
+          accentColor: quote.tenant_accent_color,
+          bankDetails: quote.tenant_bank_details,
+          darajaShortcode: quote.tenant_daraja_shortcode,
+          darajaShortcodeType: quote.tenant_daraja_shortcode_type,
+        },
+        client: {
+          name: quote.client_name || 'Client',
+          email: quote.client_email,
+          phone: quote.client_phone,
+          address: quote.client_address,
+          city: quote.client_city,
+          kraPin: quote.client_kra_pin,
+        },
+        project: quote.project_name ? { name: quote.project_name, code: quote.project_code } : null,
+        items: itemsRes.rows.map((it: any) => ({
+          description: it.description,
+          quantity: it.quantity,
+          unitPrice: it.unit_price,
+          lineTax: it.line_tax,
+          lineTotal: it.line_total,
+        })),
+      }, res);
+    } catch (error) {
+      quoteLogger.error('Failed to generate quotation PDF', { error: String(error) });
       next(error);
     }
   };

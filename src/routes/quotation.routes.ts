@@ -15,6 +15,7 @@ router.get('/', quotationController.index);
 router.get('/new', quotationController.showNew);
 router.post('/new', quotationController.create);
 router.get('/:id', quotationController.show);
+router.get('/:id/pdf', quotationController.downloadPdf);
 router.post('/:id/convert', quotationController.convertToInvoice);
 
 export default router;

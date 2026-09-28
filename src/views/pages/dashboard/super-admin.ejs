@@ -81,8 +81,11 @@
           <i class="uil uil-building"></i>
         </div>
         <div>
-          <h2 class="card-title">Registered Organizations (Tenants)</h2>
-          <p class="card-subtitle">Global multi-tenant workspaces and active subscription tiers</p>
+          <div class="flex-align-center gap-2">
+            <h2 class="card-title">Registered Organizations (Tenants)</h2>
+            <span class="badge badge-primary"><%= recentTenants ? recentTenants.length : 0 %> Workspaces</span>
+          </div>
+          <p class="card-subtitle">Global multi-tenant workspaces, active subscription tiers, and system accounts</p>
         </div>
       </div>
       <a href="/admin/tenants" class="card-action-link" id="link-manage-all-tenants">
@@ -106,6 +109,7 @@
                 <th>Plan Tier</th>
                 <th>Status</th>
                 <th>Created</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -135,6 +139,12 @@
                     <% } %>
                   </td>
                   <td><%= new Date(t.created_at).toLocaleDateString() %></td>
+                  <td>
+                    <a href="/admin/tenants" class="btn btn-xs btn-secondary" title="Manage Tenant">
+                      <i class="uil uil-sliders-v-alt"></i>
+                      <span>Manage</span>
+                    </a>
+                  </td>
                 </tr>
               <% }); %>
             </tbody>

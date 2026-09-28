@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { query } from '../config/database';
 import { UserModel } from '../models/user.model';
 import { UserRole } from '../models/types';
+import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import { formatKES } from '../utils/taxCalculator';
 import logger from '../utils/logger';
 
@@ -18,21 +19,59 @@ export class TeamController {
       const tenantId = req.tenantId;
       const isSuper = req.user?.role === UserRole.SUPER_ADMIN;
 
-      let members;
-      if (isSuper && !tenantId) {
-        members = await query(`
-          SELECT u.*, t.name as tenant_name 
-          FROM users u 
-          LEFT JOIN tenants t ON u.tenant_id = t.id 
-          ORDER BY u.created_at DESC
-        `);
-      } else {
-        members = await query(`
-          SELECT * FROM users 
-          WHERE tenant_id = $1 
-          ORDER BY first_name ASC, last_name ASC
-        `, [tenantId]);
+      const params = extractPaginationParams(req, 10);
+      const conditions: string[] = [];
+      const values: any[] = [];
+      let paramIdx = 1;
+
+      if (tenantId && !isSuper) {
+        conditions.push(`u.tenant_id = $${paramIdx++}`);
+        values.push(tenantId);
       }
+
+      if (params.search) {
+        conditions.push(`(
+          u.first_name ILIKE $${paramIdx} OR
+          u.last_name ILIKE $${paramIdx} OR
+          u.email ILIKE $${paramIdx} OR
+          u.phone ILIKE $${paramIdx} OR
+          u.role ILIKE $${paramIdx}
+        )`);
+        values.push(`%${params.search}%`);
+        paramIdx++;
+      }
+
+      if (params.startDate) {
+        conditions.push(`u.created_at >= $${paramIdx++}::timestamptz`);
+        values.push(`${params.startDate}T00:00:00Z`);
+      }
+
+      if (params.endDate) {
+        conditions.push(`u.created_at <= $${paramIdx++}::timestamptz`);
+        values.push(`${params.endDate}T23:59:59Z`);
+      }
+
+      if (req.query.role) {
+        conditions.push(`u.role = $${paramIdx++}`);
+        values.push(req.query.role);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const countSql = `SELECT COUNT(*)::int as total FROM users u ${whereClause}`;
+      const countRes = await query(countSql, values);
+      const total = countRes.rows[0]?.total || 0;
+
+      const dataSql = `
+        SELECT u.*, t.name as tenant_name 
+        FROM users u 
+        LEFT JOIN tenants t ON u.tenant_id = t.id 
+        ${whereClause}
+        ORDER BY u.created_at DESC
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+      `;
+      const dataValues = [...values, params.limit, params.offset];
+      const members = await query(dataSql, dataValues);
 
       // Recent payouts if any
       const payoutsRes = await query(`
@@ -44,10 +83,14 @@ export class TeamController {
         LIMIT 10
       `, [tenantId || 'none']);
 
+      const pagination = calculatePagination(total, params, req);
+
       res.render('pages/team/index', {
         title: 'Team Directory',
         members: members.rows,
         payouts: payoutsRes.rows,
+        pagination,
+        filters: { ...params, role: req.query.role },
         formatKES,
       });
     } catch (error) {

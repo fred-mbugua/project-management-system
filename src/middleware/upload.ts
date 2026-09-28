@@ -1,101 +1,72 @@
 // ══════════════════════════════════════════════════════════════════════
-// File Upload Middleware - Multer Configuration
-// Handles tenant logos, receipt images, and document attachments
+// Multer Upload Middleware (Memory Storage for Direct R2 Upload)
 // ══════════════════════════════════════════════════════════════════════
 
-import multer from 'multer';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import multer, { FileFilterCallback } from 'multer';
+import { Request } from 'express';
 import appConfig from '../config/app';
 
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-const ALLOWED_DOCUMENT_TYPES = [
-  ...ALLOWED_IMAGE_TYPES,
-  'application/pdf',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/csv',
+// Memory storage keeps file buffers in RAM so they can be dispatched to Cloudflare R2
+const storage = multer.memoryStorage();
+
+// Allowed image mime types for tenant logos and avatars
+const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/svg+xml',
 ];
 
-/**
- * Storage engine that organizes uploads by tenant and type.
- */
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, appConfig.uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${uuidv4()}${ext}`;
-    cb(null, uniqueName);
-  },
-});
+// Allowed document types for project files and attachments
+const ALLOWED_DOC_TYPES = [
+  ...ALLOWED_IMAGE_TYPES,
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+  'text/csv',
+  'application/zip',
+  'application/x-zip-compressed',
+];
 
-/**
- * File filter for image uploads (logos, avatars, receipts).
- */
-function imageFilter(
-  _req: Express.Request,
-  file: Express.Multer.File,
-  cb: multer.FileFilterCallback
-): void {
-  if (ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
+const imageFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+  if (!file.originalname || file.originalname.trim() === '') {
+    return cb(null, false);
+  }
+  if (ALLOWED_IMAGE_TYPES.includes(file.mimetype.toLowerCase())) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files (JPEG, PNG, GIF, WebP, SVG) are allowed.'));
+    cb(new Error('Invalid image format. Allowed formats: PNG, JPG, JPEG, WebP, SVG.'));
   }
-}
+};
 
-/**
- * File filter for document uploads (images + PDFs + spreadsheets).
- */
-function documentFilter(
-  _req: Express.Request,
-  file: Express.Multer.File,
-  cb: multer.FileFilterCallback
-): void {
-  if (ALLOWED_DOCUMENT_TYPES.includes(file.mimetype)) {
+const documentFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+  if (!file.originalname || file.originalname.trim() === '') {
+    return cb(null, false);
+  }
+  if (ALLOWED_DOC_TYPES.includes(file.mimetype.toLowerCase())) {
     cb(null, true);
   } else {
-    cb(new Error('Only images, PDFs, and spreadsheet files are allowed.'));
+    cb(new Error('Invalid file type. Allowed formats: PDF, Word, Excel, CSV, Text, Zip, and Images.'));
   }
-}
+};
 
-/** Upload a single logo image (max 2MB) */
 export const uploadLogo = multer({
   storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max for logos
   fileFilter: imageFilter,
-  limits: { fileSize: 2 * 1024 * 1024 },
-}).single('logo');
+});
 
-/** Upload a single receipt/document (max 10MB) */
-export const uploadReceipt = multer({
+export const uploadDocument = multer({
   storage,
+  limits: { fileSize: appConfig.maxFileSize || 15 * 1024 * 1024 }, // 15 MB
   fileFilter: documentFilter,
-  limits: { fileSize: appConfig.maxFileSize },
-}).single('receipt');
+});
 
-/** Upload multiple attachments (max 5 files, 10MB each) */
-export const uploadAttachments = multer({
-  storage,
-  fileFilter: documentFilter,
-  limits: { fileSize: appConfig.maxFileSize },
-}).array('attachments', 5);
-
-/** Upload CSV/Excel import file */
-export const uploadImportFile = multer({
-  storage,
-  fileFilter: (_req, file, cb) => {
-    const allowed = [
-      'text/csv',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ];
-    if (allowed.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only CSV and Excel files are allowed for import.'));
-    }
-  },
-  limits: { fileSize: appConfig.maxFileSize },
-}).single('importFile');
+export default {
+  uploadLogo,
+  uploadDocument,
+};

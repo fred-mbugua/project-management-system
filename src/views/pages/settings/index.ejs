@@ -10,7 +10,7 @@
     </div>
   </div>
 
-  <form action="/settings" method="POST" class="form-stack">
+  <form action="/settings" method="POST" enctype="multipart/form-data" class="form-stack">
     <!-- General Profile -->
     <div class="card mb-6">
       <div class="card-header">
@@ -45,12 +45,168 @@
       </div>
     </div>
 
+    <!-- Tenant Logo & Branding -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="uil uil-image-v text-primary"></i>
+          <span>2. Brand Assets & Logo</span>
+        </h3>
+        <p class="text-xs text-muted">Upload your organization's logo to brand invoices, quotations, documents, and tenant portals</p>
+      </div>
+      <div class="card-body">
+        <!-- Modern Logo Uploader & Preview Grid -->
+        <div class="logo-branding-grid mb-6">
+          <!-- Interactive Upload Dropzone -->
+          <div class="logo-dropzone-panel">
+            <div class="dropzone-box" id="logoDropzone">
+              <input type="file" id="logo" name="logo" class="logo-file-hidden" accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml">
+              
+              <div class="dropzone-content">
+                <div class="dropzone-icon-circle">
+                  <i class="uil uil-cloud-upload"></i>
+                </div>
+                <h4 class="dropzone-title">Upload Company Logo</h4>
+                <p class="dropzone-instructions">
+                  Drag and drop your image here, or <span class="dropzone-browse-text">Browse files</span>
+                </p>
+                <div class="dropzone-tags">
+                  <span class="dropzone-tag">PNG</span>
+                  <span class="dropzone-tag">JPG</span>
+                  <span class="dropzone-tag">SVG</span>
+                  <span class="dropzone-tag">WebP</span>
+                  <span class="dropzone-tag">Max 5MB</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Uploader Status Bar -->
+            <div class="uploader-status-bar" id="uploaderStatusBar">
+              <div class="uploader-status-info">
+                <span class="status-indicator-dot <%= tenant.logoUrl ? 'status-active' : 'status-ready' %>" id="statusIndicatorDot"></span>
+                <div class="status-text-group">
+                  <span class="status-title" id="statusTitle">
+                    <%= tenant.logoUrl ? 'Logo Active' : 'Ready to Upload' %>
+                  </span>
+                  <span class="status-subtitle" id="statusSubtitle">
+                    <%= tenant.logoUrl ? 'Active on all issued invoices, quotations, and headers' : 'Choose a PNG, JPG, or SVG image to preview' %>
+                  </span>
+                </div>
+              </div>
+              <div class="uploader-status-actions" id="uploaderStatusActions">
+                <button type="button" class="btn btn-xs btn-secondary" id="btnBrowseLogo">
+                  <i class="uil uil-folder-open"></i>
+                  <span>Choose File</span>
+                </button>
+                <button type="button" class="btn btn-xs btn-outline-danger hidden" id="btnClearSelectedLogo">
+                  <i class="uil uil-times"></i>
+                  <span>Cancel</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Document Live Preview Panel -->
+          <div class="logo-preview-panel">
+            <div class="preview-panel-header">
+              <span class="preview-panel-title">
+                <i class="uil uil-eye"></i>
+                <span>Document Header Preview</span>
+              </span>
+              <span class="badge badge-subtle preview-badge" id="previewBadge">
+                <%= tenant.logoUrl ? 'Active Logo' : 'Mockup' %>
+              </span>
+            </div>
+
+            <!-- Document Sheet Mockup -->
+            <div class="document-mockup-sheet">
+              <div class="mockup-header-row">
+                <div class="mockup-brand-side">
+                  <div class="mockup-logo-frame" id="mockupLogoFrame">
+                    <% if (tenant.logoUrl) { %>
+                      <img src="<%= tenant.logoUrl %>" alt="<%= tenant.name %> Logo" class="mockup-logo-img" id="mockupLogoImg">
+                      <div class="mockup-logo-placeholder hidden" id="mockupLogoPlaceholder">
+                        <i class="uil uil-building"></i>
+                        <span>No Logo</span>
+                      </div>
+                    <% } else { %>
+                      <div class="mockup-logo-placeholder" id="mockupLogoPlaceholder">
+                        <i class="uil uil-building"></i>
+                        <span>No Logo</span>
+                      </div>
+                      <img src="" alt="Preview Logo" class="mockup-logo-img hidden" id="mockupLogoImg">
+                    <% } %>
+                  </div>
+                  <div class="mockup-brand-info">
+                    <h5 class="mockup-company-name"><%= tenant.name %></h5>
+                    <p class="mockup-company-sub"><%= tenant.city || 'Nairobi, Kenya' %> &bull; <%= tenant.phone || '+254 700 000 000' %></p>
+                    <p class="mockup-company-sub"><strong>KRA PIN:</strong> <%= tenant.kraPin || 'P051234567Z' %></p>
+                  </div>
+                </div>
+
+                <div class="mockup-doc-side">
+                  <span class="mockup-doc-type">TAX INVOICE</span>
+                  <span class="mockup-doc-num">INV-2026-0001</span>
+                  <span class="mockup-doc-badge">SAMPLE</span>
+                </div>
+              </div>
+
+              <div class="mockup-divider"></div>
+
+              <div class="mockup-skeleton-lines">
+                <div class="skeleton-line line-wide"></div>
+                <div class="skeleton-line line-med"></div>
+              </div>
+            </div>
+
+            <% if (tenant.logoUrl) { %>
+              <div class="logo-removal-action mt-3" id="logoRemovalContainer">
+                <label class="form-check text-xs text-danger flex-align-center gap-2 cursor-pointer">
+                  <input type="checkbox" name="removeLogo" value="true" class="form-check-input" id="removeLogoCheckbox">
+                  <span>Remove current logo and revert to text header</span>
+                </label>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="primaryColor" class="form-label">Primary Brand Color</label>
+            <div class="color-input-group">
+              <input type="color" id="primaryColor" name="primaryColor" class="form-color-picker" value="<%= tenant.primaryColor || '#4F46E5' %>">
+              <input type="text" class="form-input form-input-sm" id="primaryColorText" value="<%= tenant.primaryColor || '#4F46E5' %>" maxlength="7">
+            </div>
+            <p class="form-hint">Main accent on invoices & quotes</p>
+          </div>
+
+          <div class="form-group">
+            <label for="secondaryColor" class="form-label">Secondary Brand Color</label>
+            <div class="color-input-group">
+              <input type="color" id="secondaryColor" name="secondaryColor" class="form-color-picker" value="<%= tenant.secondaryColor || '#1E293B' %>">
+              <input type="text" class="form-input form-input-sm" id="secondaryColorText" value="<%= tenant.secondaryColor || '#1E293B' %>" maxlength="7">
+            </div>
+            <p class="form-hint">Table headers & borders</p>
+          </div>
+
+          <div class="form-group">
+            <label for="accentColor" class="form-label">Highlight / Accent Color</label>
+            <div class="color-input-group">
+              <input type="color" id="accentColor" name="accentColor" class="form-color-picker" value="<%= tenant.accentColor || '#06B6D4' %>">
+              <input type="text" class="form-input form-input-sm" id="accentColorText" value="<%= tenant.accentColor || '#06B6D4' %>" maxlength="7">
+            </div>
+            <p class="form-hint">Badges & highlights</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- KRA & eTIMS -->
     <div class="card mb-6">
       <div class="card-header">
         <h3 class="card-title">
           <i class="uil uil-shield-check text-primary"></i>
-          <span>2. KRA & eTIMS Tax Compliance</span>
+          <span>3. KRA & eTIMS Tax Compliance</span>
         </h3>
         <p class="text-xs text-muted">Tax registration identifiers for automated fiscal compliance</p>
       </div>
@@ -78,9 +234,9 @@
       <div class="card-header">
         <h3 class="card-title">
           <i class="uil uil-receipt text-primary"></i>
-          <span>3. Invoicing & Bank Details</span>
+          <span>4. Invoicing & Document Templates</span>
         </h3>
-        <p class="text-xs text-muted">Prefixes, default payment terms, and remittance instructions</p>
+        <p class="text-xs text-muted">Prefixes, multi-design templates, default payment terms, and remittance instructions</p>
       </div>
       <div class="card-body">
         <div class="form-row mb-4">
@@ -94,25 +250,19 @@
           </div>
         </div>
 
-        <div class="form-row mb-4">
-          <div class="form-group">
-            <label for="invoiceTemplate" class="form-label">Default Document Template</label>
-            <select id="invoiceTemplate" name="invoiceTemplate" class="form-select">
-              <option value="modern" <%= (tenant.invoiceTemplate || 'modern') === 'modern' ? 'selected' : '' %>>Modern Minimalist (Clean Standard)</option>
-              <option value="corporate" <%= tenant.invoiceTemplate === 'corporate' ? 'selected' : '' %>>Corporate Slate (Branded Header Banner)</option>
-              <option value="classic" <%= tenant.invoiceTemplate === 'classic' ? 'selected' : '' %>>Classic Formal (Double Framed Border)</option>
-              <option value="creative" <%= tenant.invoiceTemplate === 'creative' ? 'selected' : '' %>>Creative Studio (Left Accent Bar & Rounded Badges)</option>
-            </select>
-            <p class="form-hint">Selected style is preloaded for quotations and invoices.</p>
-          </div>
-          <div class="form-group">
-            <label for="primaryColor" class="form-label">Brand Accent Color</label>
-            <div class="color-input-group">
-              <input type="color" id="primaryColor" name="primaryColor" class="form-color-picker" value="<%= tenant.primaryColor || '#4F46E5' %>">
-              <span class="color-hex-label" id="primaryColorLabel"><%= tenant.primaryColor || '#4F46E5' %></span>
-            </div>
-            <p class="form-hint">Used for invoice/quotation borders, buttons, and headers.</p>
-          </div>
+        <div class="form-group mb-4">
+          <label for="invoiceTemplate" class="form-label">Default Document Design Template</label>
+          <select id="invoiceTemplate" name="invoiceTemplate" class="form-select">
+            <option value="modern" <%= (tenant.invoiceTemplate || 'modern') === 'modern' ? 'selected' : '' %>>Modern Minimalist (Clean Standard with Accent Bar)</option>
+            <option value="corporate" <%= tenant.invoiceTemplate === 'corporate' ? 'selected' : '' %>>Corporate Slate (Branded Header Banner & Dark Table)</option>
+            <option value="classic" <%= tenant.invoiceTemplate === 'classic' ? 'selected' : '' %>>Classic Formal (Double Framed Serif & Formal Ledger)</option>
+            <option value="creative" <%= tenant.invoiceTemplate === 'creative' ? 'selected' : '' %>>Creative Studio (Left Color Stripe & Rounded Badges)</option>
+            <option value="executive" <%= tenant.invoiceTemplate === 'executive' ? 'selected' : '' %>>Executive Elegance (Charcoal & Gold Double Border)</option>
+            <option value="compact" <%= tenant.invoiceTemplate === 'compact' ? 'selected' : '' %>>Tech Compact Grid (High-Density Engineering Layout)</option>
+            <option value="minimal" <%= tenant.invoiceTemplate === 'minimal' ? 'selected' : '' %>>Nordic Clean (Ultra-Light Sans & Crisp Spacing)</option>
+            <option value="bold" <%= tenant.invoiceTemplate === 'bold' ? 'selected' : '' %>>Vibrant Accent Banner (Full Brand Header & Strong Contrast)</option>
+          </select>
+          <p class="form-hint">Selected template defaults for all new invoices and quotations, with live switching available on each document view.</p>
         </div>
 
         <div class="form-group mb-4">
@@ -132,19 +282,208 @@
       </div>
     </div>
 
-    <!-- M-Pesa Daraja Configuration -->
+    <!-- Document Display Fields (Invoices & Quotations) -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="uil uil-sliders-v-alt text-primary"></i>
+          <span>5. Document Display Fields (Invoices & Quotations)</span>
+        </h3>
+        <p class="text-xs text-muted">Select which vendor details, customer identifiers, payment methods, and tax sections to display on your invoices, quotations, and PDF downloads.</p>
+      </div>
+      <div class="card-body">
+        <input type="hidden" name="has_display_fields" value="1">
+        <% const df = (typeof tenant !== 'undefined' && tenant && tenant.displayFields) ? tenant.displayFields : {}; %>
+
+        <div class="display-fields-grid">
+          <!-- Group 1: Vendor / Company Details -->
+          <div class="display-fields-group">
+            <h5 class="display-fields-group-title">
+              <i class="uil uil-building text-primary"></i>
+              <span>Vendor / Company Info</span>
+            </h5>
+            <div class="display-fields-options">
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showTenantPhone" value="1" class="form-check-input" <%= df.showTenantPhone !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Official Phone Number</span>
+                  <span class="display-field-desc">Display company telephone contact</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showTenantEmail" value="1" class="form-check-input" <%= df.showTenantEmail !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Official Email Address</span>
+                  <span class="display-field-desc">Display company billing email</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showTenantAddress" value="1" class="form-check-input" <%= df.showTenantAddress !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Physical / Postal Address</span>
+                  <span class="display-field-desc">Display company premises / city</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showTenantKraPin" value="1" class="form-check-input" <%= df.showTenantKraPin !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Company KRA PIN</span>
+                  <span class="display-field-desc">Required for tax invoices</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Group 2: Client Details -->
+          <div class="display-fields-group">
+            <h5 class="display-fields-group-title">
+              <i class="uil uil-user text-primary"></i>
+              <span>Client / Billed To Info</span>
+            </h5>
+            <div class="display-fields-options">
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showClientPhone" value="1" class="form-check-input" <%= df.showClientPhone !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Client Phone Number</span>
+                  <span class="display-field-desc">Display customer phone contact</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showClientEmail" value="1" class="form-check-input" <%= df.showClientEmail !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Client Email Address</span>
+                  <span class="display-field-desc">Display customer email address</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showClientAddress" value="1" class="form-check-input" <%= df.showClientAddress !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Client Physical Address</span>
+                  <span class="display-field-desc">Display customer billing location</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showClientKraPin" value="1" class="form-check-input" <%= df.showClientKraPin !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Client KRA PIN</span>
+                  <span class="display-field-desc">Display client tax identification</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Group 3: Financial & Payment Methods -->
+          <div class="display-fields-group">
+            <h5 class="display-fields-group-title">
+              <i class="uil uil-credit-card text-primary"></i>
+              <span>Payment & Settlement</span>
+            </h5>
+            <div class="display-fields-options">
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showBankDetails" value="1" class="form-check-input" <%= df.showBankDetails !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Bank Settlement Details</span>
+                  <span class="display-field-desc">Display bank name, account & branch</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showPaymentTerms" value="1" class="form-check-input" <%= df.showPaymentTerms !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Payment Terms Notice</span>
+                  <span class="display-field-desc">Display invoice due date policy</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showMpesaDetails" value="1" class="form-check-input" <%= df.showMpesaDetails !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Safaricom M-Pesa Paybill / Till</span>
+                  <span class="display-field-desc">Display Daraja instant payment shortcode</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Group 4: Tax, Notes & Verification -->
+          <div class="display-fields-group">
+            <h5 class="display-fields-group-title">
+              <i class="uil uil-receipt text-primary"></i>
+              <span>Tax, Notes & Verification</span>
+            </h5>
+            <div class="display-fields-options">
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showTaxBreakdown" value="1" class="form-check-input" <%= df.showTaxBreakdown !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">VAT (16%) Column & Line</span>
+                  <span class="display-field-desc">Item-level and total tax breakdown</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showDiscount" value="1" class="form-check-input" <%= df.showDiscount !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Discount Line</span>
+                  <span class="display-field-desc">Display deducted discount amount</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showProject" value="1" class="form-check-input" <%= df.showProject !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Project Reference & Code</span>
+                  <span class="display-field-desc">Link invoice/quote to client project</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showNotes" value="1" class="form-check-input" <%= df.showNotes !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Document Notes</span>
+                  <span class="display-field-desc">Custom instructions & bank notes</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showTerms" value="1" class="form-check-input" <%= df.showTerms !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">Terms & Conditions</span>
+                  <span class="display-field-desc">Standard legal stipulations</span>
+                </div>
+              </label>
+
+              <label class="form-check display-field-item">
+                <input type="checkbox" name="showEtimsQr" value="1" class="form-check-input" <%= df.showEtimsQr !== false ? 'checked' : '' %>>
+                <div class="display-field-info">
+                  <span class="display-field-label">KRA eTIMS Verification Banner / QR</span>
+                  <span class="display-field-desc">Fiscal compliance hash & verification box</span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. M-Pesa Daraja Configuration -->
     <div class="card mb-6">
       <div class="card-header">
         <h3 class="card-title">
           <i class="uil uil-mobile-android text-primary"></i>
-          <span>4. Safaricom M-Pesa Daraja Gateway</span>
+          <span>5. Safaricom M-Pesa Daraja Gateway</span>
         </h3>
-        <p class="text-xs text-muted">STK Push and automated instant payment confirmation</p>
+        <p class="text-xs text-muted">STK Push and automated instant payment confirmation directly into your Paybill or Till</p>
       </div>
       <div class="card-body">
-        <div class="form-row-3">
+        <div class="form-row-3" style="margin-bottom: 16px;">
           <div class="form-group">
-            <label for="darajaShortcode" class="form-label">Business Shortcode / Till</label>
+            <label for="darajaShortcode" class="form-label">Business Shortcode / Till *</label>
             <input type="text" id="darajaShortcode" name="darajaShortcode" class="form-input" value="<%= tenant.darajaShortcode || '' %>" placeholder="e.g. 174379">
           </div>
           <div class="form-group">
@@ -157,10 +496,181 @@
           <div class="form-group">
             <label for="darajaEnvironment" class="form-label">Environment</label>
             <select id="darajaEnvironment" name="darajaEnvironment" class="form-select">
-              <option value="sandbox" <%= tenant.darajaEnvironment === 'sandbox' ? 'selected' : '' %>>Sandbox (Testing)</option>
-              <option value="production" <%= tenant.darajaEnvironment === 'production' ? 'selected' : '' %>>Production (Live)</option>
+              <option value="sandbox" <%= (tenant.darajaEnvironment === 'sandbox' || !tenant.darajaEnvironment) ? 'selected' : '' %>>Sandbox (Testing Mode)</option>
+              <option value="live" <%= tenant.darajaEnvironment === 'live' ? 'selected' : '' %>>Production (Live Safaricom)</option>
             </select>
           </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="darajaConsumerKey" class="form-label">Consumer Key</label>
+            <input type="text" id="darajaConsumerKey" name="darajaConsumerKey" class="form-input" value="<%= tenant.darajaConsumerKey || '' %>" placeholder="Daraja app consumer key">
+          </div>
+          <div class="form-group">
+            <label for="darajaConsumerSecret" class="form-label">Consumer Secret</label>
+            <input type="password" id="darajaConsumerSecret" name="darajaConsumerSecret" class="form-input" value="<%= tenant.darajaConsumerSecret || '' %>" placeholder="Daraja app consumer secret">
+          </div>
+          <div class="form-group">
+            <label for="darajaPasskey" class="form-label">Online Passkey (Lipa na M-Pesa)</label>
+            <input type="password" id="darajaPasskey" name="darajaPasskey" class="form-input" value="<%= tenant.darajaPasskey || '' %>" placeholder="Daraja online passkey">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Card Payment Gateway Configuration -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="uil uil-credit-card text-primary"></i>
+          <span>6. Credit & Debit Card Gateway</span>
+        </h3>
+        <p class="text-xs text-muted">Accept Visa, Mastercard, and international cards via Stripe, Paystack, or Flutterwave</p>
+      </div>
+      <div class="card-body">
+        <div style="margin-bottom: 16px;">
+          <label class="form-check" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="cardEnabled" name="cardEnabled" class="form-check-input" <%= tenant.cardEnabled ? 'checked' : '' %>>
+            <span class="font-bold">Enable Online Card Payments on Client Checkout Portal</span>
+          </label>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="cardGatewayProvider" class="form-label">Gateway Provider</label>
+            <select id="cardGatewayProvider" name="cardGatewayProvider" class="form-select">
+              <option value="STRIPE" <%= (!tenant.cardGatewayProvider || tenant.cardGatewayProvider === 'STRIPE') ? 'selected' : '' %>>Stripe Payments</option>
+              <option value="PAYSTACK" <%= tenant.cardGatewayProvider === 'PAYSTACK' ? 'selected' : '' %>>Paystack</option>
+              <option value="FLUTTERWAVE" <%= tenant.cardGatewayProvider === 'FLUTTERWAVE' ? 'selected' : '' %>>Flutterwave</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cardPublicKey" class="form-label">Public / Publishable Key</label>
+            <input type="text" id="cardPublicKey" name="cardPublicKey" class="form-input" value="<%= tenant.cardPublicKey || '' %>" placeholder="pk_test_... or pk_live_...">
+          </div>
+          <div class="form-group">
+            <label for="cardSecretKey" class="form-label">Secret Key</label>
+            <input type="password" id="cardSecretKey" name="cardSecretKey" class="form-input" value="<%= tenant.cardSecretKey || '' %>" placeholder="sk_test_... or sk_live_...">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Test Payment Configuration Banner -->
+    <div class="card mb-6" style="border: 2px dashed var(--primary); background: #f8fafc;">
+      <div class="card-header" style="background: transparent; border-bottom: 1px dashed var(--slate-200);">
+        <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+          <i class="uil uil-flask" style="color: #f59e0b; font-size: 1.3rem;"></i>
+          <span>Verify & Test Payment Configurations Before Going Live</span>
+        </h3>
+        <p class="text-xs text-muted">Test your M-Pesa Daraja and Card gateway API credentials in real-time to guarantee zero client checkout issues.</p>
+      </div>
+      <div class="card-body">
+        <p style="font-size: 0.88rem; color: var(--slate-600); margin-bottom: 16px;">
+          Click the button below to test authentication against Safaricom and Card processors with your current input credentials:
+        </p>
+        <button type="button" class="btn btn-secondary" id="btnTestPayment" onclick="runPaymentTest()">
+          <i class="uil uil-check-circle" style="color: var(--success, #10b981);"></i>
+          <span>Test Payment Configuration Now</span>
+        </button>
+
+        <div id="paymentTestResult" style="display: none; margin-top: 16px; padding: 14px; border-radius: 8px; font-size: 0.88rem;"></div>
+      </div>
+    </div>
+
+    <!-- 7. Payment Receipt PDF Customization -->
+    <% 
+      const rf = tenant.receiptFields || {
+        showTenantKraPin: true,
+        showBankDetails: true,
+        showMpesaRef: true,
+        showProject: true,
+        showClientPhone: true,
+        showClientAddress: true,
+        showNotes: true,
+        receiptFooterNote: 'Thank you for your payment. For any billing queries, contact our accounts department.'
+      };
+    %>
+    <div class="card mb-6">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="uil uil-receipt text-primary"></i>
+          <span>7. Automated Payment Receipt Customization</span>
+        </h3>
+        <p class="text-xs text-muted">Select fields and notes displayed on the automatic PDF receipts dispatched to clients upon payment</p>
+      </div>
+      <div class="card-body">
+        <input type="hidden" name="has_receipt_fields" value="1">
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px;">
+          <label class="form-check display-field-item">
+            <input type="checkbox" name="rec_showTenantKraPin" value="1" class="form-check-input" <%= rf.showTenantKraPin !== false ? 'checked' : '' %>>
+            <div class="display-field-info">
+              <span class="display-field-label">Company KRA PIN</span>
+              <span class="display-field-desc">Display tax identifier on receipt</span>
+            </div>
+          </label>
+
+          <label class="form-check display-field-item">
+            <input type="checkbox" name="rec_showBankDetails" value="1" class="form-check-input" <%= rf.showBankDetails !== false ? 'checked' : '' %>>
+            <div class="display-field-info">
+              <span class="display-field-label">Bank Settlement Info</span>
+              <span class="display-field-desc">Display verified payment destination</span>
+            </div>
+          </label>
+
+          <label class="form-check display-field-item">
+            <input type="checkbox" name="rec_showMpesaRef" value="1" class="form-check-input" <%= rf.showMpesaRef !== false ? 'checked' : '' %>>
+            <div class="display-field-info">
+              <span class="display-field-label">M-Pesa / Gateway Ref Code</span>
+              <span class="display-field-desc">Print transaction reference number</span>
+            </div>
+          </label>
+
+          <label class="form-check display-field-item">
+            <input type="checkbox" name="rec_showProject" value="1" class="form-check-input" <%= rf.showProject !== false ? 'checked' : '' %>>
+            <div class="display-field-info">
+              <span class="display-field-label">Project Details</span>
+              <span class="display-field-desc">Link receipt to specific project</span>
+            </div>
+          </label>
+
+          <label class="form-check display-field-item">
+            <input type="checkbox" name="rec_showClientPhone" value="1" class="form-check-input" <%= rf.showClientPhone !== false ? 'checked' : '' %>>
+            <div class="display-field-info">
+              <span class="display-field-label">Client Phone Contact</span>
+              <span class="display-field-desc">Display client phone on receipt</span>
+            </div>
+          </label>
+
+          <label class="form-check display-field-item">
+            <input type="checkbox" name="rec_showClientAddress" value="1" class="form-check-input" <%= rf.showClientAddress !== false ? 'checked' : '' %>>
+            <div class="display-field-info">
+              <span class="display-field-label">Client Address / City</span>
+              <span class="display-field-desc">Display client location</span>
+            </div>
+          </label>
+
+          <label class="form-check display-field-item">
+            <input type="checkbox" name="rec_showNotes" value="1" class="form-check-input" <%= rf.showNotes !== false ? 'checked' : '' %>>
+            <div class="display-field-info">
+              <span class="display-field-label">Payment Settlement Notes</span>
+              <span class="display-field-desc">Show notes and settlement channel</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="rec_receiptFooterNote" class="form-label">Receipt Footer Note</label>
+          <input 
+            type="text" 
+            id="rec_receiptFooterNote" 
+            name="rec_receiptFooterNote" 
+            class="form-input" 
+            value="<%= rf.receiptFooterNote || 'Thank you for your payment. For any billing queries, contact our accounts department.' %>"
+            placeholder="Official acknowledgement footnote on PDF receipts"
+          >
         </div>
       </div>
     </div>
@@ -174,3 +684,74 @@
     </div>
   </form>
 </div>
+
+<script>
+  async function runPaymentTest() {
+    const btn = document.getElementById('btnTestPayment');
+    const resultBox = document.getElementById('paymentTestResult');
+    const origHtml = btn.innerHTML;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="uil uil-spinner-alt" style="animation: spin 1s infinite linear;"></i> Testing Gateway Connection...';
+    resultBox.style.display = 'none';
+
+    try {
+      const payload = {
+        darajaConsumerKey: document.getElementById('darajaConsumerKey')?.value || '',
+        darajaConsumerSecret: document.getElementById('darajaConsumerSecret')?.value || '',
+        darajaPasskey: document.getElementById('darajaPasskey')?.value || '',
+        darajaShortcode: document.getElementById('darajaShortcode')?.value || '',
+        darajaEnvironment: document.getElementById('darajaEnvironment')?.value || 'sandbox',
+        cardGatewayProvider: document.getElementById('cardGatewayProvider')?.value || 'STRIPE',
+        cardPublicKey: document.getElementById('cardPublicKey')?.value || '',
+        cardSecretKey: document.getElementById('cardSecretKey')?.value || '',
+        cardEnabled: document.getElementById('cardEnabled')?.checked || false,
+      };
+
+      const res = await fetch('/settings/test-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      resultBox.style.display = 'block';
+      let html = '<div style="font-weight: 700; margin-bottom: 6px;">Test Results:</div>';
+
+      if (data.mpesa && data.mpesa.tested) {
+        html += `<div style="margin-bottom: 4px; color: ${data.mpesa.success ? '#065f46' : '#991b1b'};">
+          <i class="uil ${data.mpesa.success ? 'uil-check-circle' : 'uil-exclamation-triangle'}"></i>
+          <strong>M-Pesa:</strong> ${data.mpesa.message}
+        </div>`;
+      } else {
+        html += `<div style="margin-bottom: 4px; color: #475569;">
+          <i class="uil uil-info-circle"></i>
+          <strong>M-Pesa:</strong> ${data.mpesa ? data.mpesa.message : 'Not configured'}
+        </div>`;
+      }
+
+      if (data.card && data.card.tested) {
+        html += `<div style="margin-bottom: 4px; color: ${data.card.success ? '#065f46' : '#991b1b'};">
+          <i class="uil ${data.card.success ? 'uil-check-circle' : 'uil-exclamation-triangle'}"></i>
+          <strong>Card Gateway:</strong> ${data.card.message}
+        </div>`;
+      }
+
+      resultBox.innerHTML = html;
+      resultBox.style.background = data.success ? '#ecfdf5' : '#fff1f2';
+      resultBox.style.border = `1px solid ${data.success ? '#10b981' : '#f43f5e'}`;
+    } catch (err) {
+      resultBox.style.display = 'block';
+      resultBox.style.background = '#fff1f2';
+      resultBox.style.border = '1px solid #f43f5e';
+      resultBox.innerHTML = `<span style="color: #991b1b;"><i class="uil uil-times-circle"></i> Connection check failed: ${err.message}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
+  }
+</script>
+<style>
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+</style>
+

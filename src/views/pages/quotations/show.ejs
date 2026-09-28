@@ -13,6 +13,10 @@
       <p class="page-subtitle"><%= quotation.title || 'Official Commercial Estimate' %> &bull; Client: <strong><%= quotation.client_name || 'Valued Client' %></strong></p>
     </div>
     <div class="page-actions">
+      <a href="/quotations/<%= quotation.id %>/pdf" class="btn btn-secondary" id="btn-download-quote-pdf" target="_blank">
+        <i class="uil uil-file-download-alt"></i>
+        <span>Download PDF</span>
+      </a>
       <button type="button" class="btn btn-secondary" id="btn-print-quotation" data-action="print">
         <i class="uil uil-print"></i>
         <span>Print Quotation</span>
@@ -55,6 +59,22 @@
           <i class="uil uil-palette"></i>
           <span>Creative</span>
         </button>
+        <button type="button" class="template-btn" data-template="executive">
+          <i class="uil uil-award"></i>
+          <span>Executive</span>
+        </button>
+        <button type="button" class="template-btn" data-template="compact">
+          <i class="uil uil-table"></i>
+          <span>Compact</span>
+        </button>
+        <button type="button" class="template-btn" data-template="minimal">
+          <i class="uil uil-minus"></i>
+          <span>Minimal</span>
+        </button>
+        <button type="button" class="template-btn" data-template="bold">
+          <i class="uil uil-brush-alt"></i>
+          <span>Bold Banner</span>
+        </button>
       </div>
     </div>
 
@@ -67,6 +87,8 @@
         <button type="button" class="color-swatch" data-color="#DC2626" title="Ruby" aria-label="Ruby"></button>
         <button type="button" class="color-swatch" data-color="#D97706" title="Amber" aria-label="Amber"></button>
         <button type="button" class="color-swatch" data-color="#475569" title="Slate" aria-label="Slate"></button>
+        <button type="button" class="color-swatch" data-color="#9333EA" title="Purple" aria-label="Purple"></button>
+        <button type="button" class="color-swatch" data-color="#0891B2" title="Teal" aria-label="Teal"></button>
         <div class="color-picker-wrapper" title="Pick Custom Color">
           <input type="color" class="color-picker-input" value="#4F46E5" aria-label="Custom brand color">
         </div>
@@ -75,19 +97,34 @@
   </div>
 
   <!-- Quotation Sheet -->
+  <% const df = (typeof tenant !== 'undefined' && tenant && tenant.displayFields) ? tenant.displayFields : {}; %>
+
   <div class="quotation-sheet document-sheet template-modern" 
        data-default-template="<%= (typeof tenant !== 'undefined' && tenant && tenant.invoiceTemplate) ? tenant.invoiceTemplate : 'modern' %>"
-       data-default-color="<%= (typeof quotation !== 'undefined' && quotation.tenant_primary_color) ? quotation.tenant_primary_color : '#4F46E5' %>">
+       data-default-color="<%= (typeof quotation !== 'undefined' && quotation.custom_color) ? quotation.custom_color : ((typeof quotation !== 'undefined' && quotation.tenant_primary_color) ? quotation.tenant_primary_color : '#4F46E5') %>">
     
     <!-- Header Row -->
     <div class="invoice-header-row quotation-header-row">
       <div class="invoice-brand-block quotation-brand-block">
+        <% if (quotation.tenant_logo_url || (typeof tenant !== 'undefined' && tenant && tenant.logoUrl)) { %>
+          <div class="doc-logo-wrapper">
+            <img src="<%= quotation.tenant_logo_url || (typeof tenant !== 'undefined' && tenant ? tenant.logoUrl : '') %>" alt="<%= quotation.tenant_name || ((typeof tenant !== 'undefined' && tenant) ? tenant.name : appName) %> Logo" class="doc-brand-logo">
+          </div>
+        <% } %>
         <h2><%= quotation.tenant_name || ((typeof tenant !== 'undefined' && tenant) ? tenant.name : appName) %></h2>
         <div>
-          <p><%= quotation.tenant_address || 'Nairobi, Kenya' %></p>
-          <p>Email: <%= quotation.tenant_email || 'info@company.co.ke' %></p>
-          <p>Phone: <%= quotation.tenant_phone || '+254 700 000 000' %></p>
-          <p><strong>KRA PIN:</strong> <%= quotation.tenant_kra_pin || 'P000000000X' %></p>
+          <% if (df.showTenantAddress !== false) { %>
+            <p><%= quotation.tenant_address || 'Nairobi, Kenya' %></p>
+          <% } %>
+          <% if (df.showTenantEmail !== false && (quotation.tenant_email || (typeof tenant !== 'undefined' && tenant && tenant.email))) { %>
+            <p>Email: <%= quotation.tenant_email || tenant.email %></p>
+          <% } %>
+          <% if (df.showTenantPhone !== false && (quotation.tenant_phone || (typeof tenant !== 'undefined' && tenant && tenant.phone))) { %>
+            <p>Phone: <%= quotation.tenant_phone || tenant.phone %></p>
+          <% } %>
+          <% if (df.showTenantKraPin !== false) { %>
+            <p><strong>KRA PIN:</strong> <%= quotation.tenant_kra_pin || 'P000000000X' %></p>
+          <% } %>
         </div>
       </div>
       <div class="invoice-meta-block quotation-meta-block">
@@ -97,8 +134,10 @@
         </span>
         <h3><%= quotation.quotation_number %></h3>
         <p>Issue Date: <%= new Date(quotation.issue_date || quotation.created_at).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' }) %></p>
-        <p>Valid Until: <%= new Date(quotation.valid_until).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' }) %></p>
-        <% if (quotation.project_code) { %>
+        <% if (df.showPaymentTerms !== false) { %>
+          <p>Valid Until: <%= new Date(quotation.valid_until).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' }) %></p>
+        <% } %>
+        <% if (df.showProject !== false && quotation.project_code) { %>
           <p>Project: <strong><%= quotation.project_code %></strong></p>
         <% } %>
       </div>
@@ -110,11 +149,11 @@
         <h4 class="invoice-party-heading">Estimate Prepared For:</h4>
         <h3 class="invoice-party-name"><%= quotation.client_name || 'Valued Client' %></h3>
         <div class="invoice-party-details">
-          <% if (quotation.client_address) { %><p><%= quotation.client_address %></p><% } %>
-          <% if (quotation.client_city) { %><p><%= quotation.client_city %>, Kenya</p><% } %>
-          <% if (quotation.client_email) { %><p>Email: <%= quotation.client_email %></p><% } %>
-          <% if (quotation.client_phone) { %><p>Phone: <%= quotation.client_phone %></p><% } %>
-          <% if (quotation.client_kra_pin) { %><p><strong>PIN:</strong> <%= quotation.client_kra_pin %></p><% } %>
+          <% if (df.showClientAddress !== false && quotation.client_address) { %><p><%= quotation.client_address %></p><% } %>
+          <% if (df.showClientAddress !== false && quotation.client_city) { %><p><%= quotation.client_city %>, Kenya</p><% } %>
+          <% if (df.showClientEmail !== false && quotation.client_email) { %><p>Email: <%= quotation.client_email %></p><% } %>
+          <% if (df.showClientPhone !== false && quotation.client_phone) { %><p>Phone: <%= quotation.client_phone %></p><% } %>
+          <% if (df.showClientKraPin !== false && quotation.client_kra_pin) { %><p><strong>PIN:</strong> <%= quotation.client_kra_pin %></p><% } %>
         </div>
       </div>
     </div>
@@ -128,7 +167,9 @@
             <th>Item & Service Description</th>
             <th class="text-right">Qty</th>
             <th class="text-right">Unit Price</th>
-            <th class="text-right">Tax Rate</th>
+            <% if (df.showTaxBreakdown !== false) { %>
+              <th class="text-right">Tax Rate</th>
+            <% } %>
             <th class="text-right">Total (KES)</th>
           </tr>
         </thead>
@@ -142,8 +183,10 @@
                 </td>
                 <td class="text-right"><%= item.quantity %></td>
                 <td class="text-right"><%= formatKES(parseFloat(item.unit_price)) %></td>
-                <td class="text-right"><span class="badge badge-subtle">16% VAT</span></td>
-                <td class="text-right font-bold"><%= formatKES(parseFloat(item.line_total || (item.quantity * item.unit_price * 1.16))) %></td>
+                <% if (df.showTaxBreakdown !== false) { %>
+                  <td class="text-right"><span class="badge badge-subtle">16% VAT</span></td>
+                <% } %>
+                <td class="text-right font-bold"><%= formatKES(parseFloat(item.line_total || (item.quantity * item.unit_price * (df.showTaxBreakdown !== false ? 1.16 : 1)))) %></td>
               </tr>
             <% }); %>
           <% } else { %>
@@ -152,7 +195,9 @@
               <td><strong>General Professional Services & Deliverables</strong></td>
               <td class="text-right">1</td>
               <td class="text-right"><%= formatKES(parseFloat(quotation.subtotal)) %></td>
-              <td class="text-right"><span class="badge badge-subtle">16% VAT</span></td>
+              <% if (df.showTaxBreakdown !== false) { %>
+                <td class="text-right"><span class="badge badge-subtle">16% VAT</span></td>
+              <% } %>
               <td class="text-right font-bold"><%= formatKES(parseFloat(quotation.total_amount)) %></td>
             </tr>
           <% } %>
@@ -167,11 +212,13 @@
           <span>Subtotal (Net):</span>
           <span><%= formatKES(parseFloat(quotation.subtotal)) %></span>
         </div>
-        <div class="invoice-total-line">
-          <span>VAT (16% Standard Rate):</span>
-          <span><%= formatKES(parseFloat(quotation.tax_amount)) %></span>
-        </div>
-        <% if (parseFloat(quotation.discount_amount) > 0) { %>
+        <% if (df.showTaxBreakdown !== false) { %>
+          <div class="invoice-total-line">
+            <span>VAT (16% Standard Rate):</span>
+            <span><%= formatKES(parseFloat(quotation.tax_amount)) %></span>
+          </div>
+        <% } %>
+        <% if (df.showDiscount !== false && parseFloat(quotation.discount_amount) > 0) { %>
           <div class="invoice-total-line">
             <span>Special Discount:</span>
             <span>- <%= formatKES(parseFloat(quotation.discount_amount)) %></span>
@@ -184,16 +231,88 @@
       </div>
     </div>
 
+    <!-- Settlement Details (Bank & M-Pesa) -->
+    <% const hasBank = df.showBankDetails !== false && (quotation.tenant_bank_details || (typeof tenant !== 'undefined' && tenant && tenant.bankDetails)); %>
+    <% const hasMpesa = df.showMpesaDetails !== false && (quotation.tenant_daraja_shortcode || (typeof tenant !== 'undefined' && tenant && tenant.darajaShortcode)); %>
+    <% if (hasBank || hasMpesa) { %>
+      <div class="invoice-settlement-card mb-6">
+        <h4 class="invoice-settlement-title">
+          <i class="uil uil-credit-card text-primary"></i>
+          <span>Settlement & Payment Details</span>
+        </h4>
+        <div class="invoice-settlement-grid">
+          <% if (hasBank) { %>
+            <div class="settlement-grid-item">
+              <span class="settlement-label">Bank Settlement Account:</span>
+              <p class="settlement-value"><%= quotation.tenant_bank_details || tenant.bankDetails %></p>
+            </div>
+          <% } %>
+          <% if (hasMpesa) { %>
+            <div class="settlement-grid-item">
+              <span class="settlement-label">Safaricom M-Pesa <%= (quotation.tenant_daraja_shortcode_type || (typeof tenant !== 'undefined' && tenant && tenant.darajaShortcodeType) || 'PAYBILL') %>:</span>
+              <p class="settlement-value">
+                Shortcode: <strong><%= quotation.tenant_daraja_shortcode || tenant.darajaShortcode %></strong> &bull; Reference: <strong><%= quotation.quotation_number %></strong>
+              </p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+
     <!-- Notes & Terms -->
-    <% if (quotation.notes || quotation.terms) { %>
+    <% const hasNotes = df.showNotes !== false && quotation.notes; %>
+    <% const hasTerms = df.showTerms !== false && quotation.terms; %>
+    <% if (hasNotes || hasTerms) { %>
       <div class="invoice-notes-terms quotation-notes-terms">
-        <% if (quotation.notes) { %>
+        <% if (hasNotes) { %>
           <p class="mb-1"><strong>Scope Notes:</strong> <%= quotation.notes %></p>
         <% } %>
-        <% if (quotation.terms) { %>
+        <% if (hasTerms) { %>
           <p><strong>Quotation Terms & Validity:</strong> <%= quotation.terms %></p>
         <% } %>
       </div>
     <% } %>
+  </div>
+
+  <!-- Complete Quotation History & Audit Trail -->
+  <div class="card mt-6">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="uil uil-history text-primary"></i>
+        <span>Quotation Lifecycle & History</span>
+      </h3>
+      <p class="text-xs text-muted">Complete timeline from initial drafting to invoice conversion</p>
+    </div>
+    <div class="card-body">
+      <div class="timeline-feed">
+        <div class="timeline-entry">
+          <div class="timeline-dot bg-primary"></div>
+          <div class="timeline-content">
+            <div class="timeline-heading">Quotation Created</div>
+            <div class="timeline-meta">
+              <%= new Date(quotation.created_at || quotation.issue_date).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' }) %> &bull; Status: <span class="badge badge-sm badge-info"><%= quotation.status %></span>
+            </div>
+            <div class="text-xs text-muted mt-1">
+              Commercial estimate <%= quotation.quotation_number %> issued to <%= quotation.client_name %> with total estimated value of <%= formatKES(parseFloat(quotation.total_amount)) %>.
+            </div>
+          </div>
+        </div>
+
+        <% if (quotation.status === 'CONVERTED' && quotation.converted_invoice_id) { %>
+          <div class="timeline-entry">
+            <div class="timeline-dot bg-success"></div>
+            <div class="timeline-content">
+              <div class="timeline-heading">Converted to Tax Invoice</div>
+              <div class="timeline-meta">
+                <%= new Date(quotation.updated_at).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' }) %> &bull; Status: <span class="badge badge-sm badge-success">CONVERTED</span>
+              </div>
+              <div class="text-xs text-muted mt-1">
+                Transformed into active invoice. <a href="/invoices/<%= quotation.converted_invoice_id %>" class="text-primary font-semibold">View invoice details &rarr;</a>
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
   </div>
 </div>

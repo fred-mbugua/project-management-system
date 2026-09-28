@@ -4,6 +4,13 @@
     <div class="error-code"><%= typeof statusCode !== 'undefined' ? statusCode : 500 %></div>
     <h1 class="error-title">Something Went Wrong</h1>
     <p class="error-message"><%= typeof message !== 'undefined' ? message : 'An unexpected error occurred. Please try again later.' %></p>
+    <% if (typeof errorReference !== 'undefined' && errorReference) { %>
+      <div class="mb-4">
+        <span class="badge badge-subtle">
+          <i class="uil uil-bug"></i> Reference: <code><%= errorReference %></code>
+        </span>
+      </div>
+    <% } %>
     <% if (typeof stack !== 'undefined' && stack) { %>
       <details class="error-details">
         <summary>Technical Details</summary>

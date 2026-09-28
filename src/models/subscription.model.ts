@@ -17,6 +17,10 @@ export interface CreateSubscriptionPlanInput {
   tier: SubscriptionTier;
   monthlyPrice: number;
   annualPrice: number;
+  price?: number;
+  frequency?: string;
+  intervalMonths?: number;
+  description?: string;
   maxUsers: number;
   maxProjects: number;
   maxStorageMb?: number;
@@ -42,8 +46,12 @@ export class SubscriptionModel {
       id: row.id,
       name: row.name,
       tier: row.tier,
-      monthlyPrice: parseFloat(row.monthly_price),
-      annualPrice: parseFloat(row.annual_price),
+      monthlyPrice: parseFloat(row.monthly_price || 0),
+      annualPrice: parseFloat(row.annual_price || 0),
+      price: row.price ? parseFloat(row.price) : parseFloat(row.monthly_price || 0),
+      frequency: row.frequency || 'MONTHLY',
+      intervalMonths: row.interval_months ? parseInt(row.interval_months, 10) : 1,
+      description: row.description,
       maxUsers: row.max_users,
       maxProjects: row.max_projects,
       maxStorageMb: row.max_storage_mb,
@@ -111,10 +119,11 @@ export class SubscriptionModel {
     const sql = `
       INSERT INTO subscription_plans (
         id, name, tier, monthly_price, annual_price,
+        price, frequency, interval_months, description,
         max_users, max_projects, max_storage_mb, features, is_active, updated_at
       ) VALUES (
         COALESCE($1, gen_random_uuid()::text),
-        $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW()
+        $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW()
       )
       RETURNING *
     `;
@@ -124,6 +133,10 @@ export class SubscriptionModel {
       data.tier,
       data.monthlyPrice,
       data.annualPrice,
+      data.price ?? data.monthlyPrice,
+      data.frequency || 'MONTHLY',
+      data.intervalMonths || 1,
+      data.description || null,
       data.maxUsers,
       data.maxProjects,
       data.maxStorageMb ?? 500,

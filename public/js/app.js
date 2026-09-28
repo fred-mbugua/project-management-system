@@ -363,8 +363,34 @@
       var swatches = customizer.querySelectorAll('.color-swatch');
       var colorInput = customizer.querySelector('.color-picker-input');
 
+      var currentTpl = 'modern';
+      var currentColor = '#4F46E5';
+
+      function syncDownloadPdfLinks() {
+        var pdfButtons = [
+          document.getElementById('btn-download-pdf'),
+          document.getElementById('btn-download-quote-pdf')
+        ];
+
+        pdfButtons.forEach(function (btn) {
+          if (!btn) return;
+          var baseHref = btn.getAttribute('data-base-href');
+          if (!baseHref) {
+            baseHref = btn.getAttribute('href').split('?')[0];
+            btn.setAttribute('data-base-href', baseHref);
+          }
+          btn.setAttribute('href', baseHref + '?template=' + encodeURIComponent(currentTpl) + '&color=' + encodeURIComponent(currentColor));
+        });
+      }
+
       function applyTemplate(tplName) {
-        sheet.classList.remove('template-modern', 'template-corporate', 'template-classic', 'template-creative');
+        var allTemplates = [
+          'template-modern', 'template-corporate', 'template-classic', 'template-creative',
+          'template-executive', 'template-compact', 'template-minimal', 'template-bold'
+        ];
+        allTemplates.forEach(function (t) {
+          sheet.classList.remove(t);
+        });
         sheet.classList.add('template-' + tplName);
 
         templateBtns.forEach(function (btn) {
@@ -375,7 +401,9 @@
           }
         });
 
+        currentTpl = tplName;
         localStorage.setItem('pm_doc_template', tplName);
+        syncDownloadPdfLinks();
       }
 
       function applyColor(hexColor) {
@@ -394,7 +422,9 @@
           colorInput.value = hexColor;
         }
 
+        currentColor = hexColor;
         localStorage.setItem('pm_doc_color', hexColor);
+        syncDownloadPdfLinks();
       }
 
       templateBtns.forEach(function (btn) {
@@ -444,14 +474,439 @@
         });
       });
 
-      var primaryColorInput = document.getElementById('primaryColor');
-      var primaryColorLabel = document.getElementById('primaryColorLabel');
-      if (primaryColorInput && primaryColorLabel) {
-        primaryColorInput.addEventListener('input', function (e) {
-          primaryColorLabel.textContent = e.target.value;
+      // Settings brand color pickers sync
+      ['primaryColor', 'secondaryColor', 'accentColor'].forEach(function (name) {
+        var picker = document.getElementById(name);
+        var text = document.getElementById(name + 'Text');
+        if (picker && text) {
+          picker.addEventListener('input', function (e) {
+            text.value = e.target.value;
+          });
+          text.addEventListener('input', function (e) {
+            if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+              picker.value = e.target.value;
+            }
+          });
+        }
+      });
+    }
+  };
+
+  // ──────────────────────────────────────────────
+  // Logo Uploader & Document Live Preview Manager
+  // ──────────────────────────────────────────────
+
+  const LogoUploader = {
+    init: function () {
+      var dropzone = document.getElementById('logoDropzone');
+      var fileInput = document.getElementById('logo');
+      var statusDot = document.getElementById('statusIndicatorDot');
+      var statusTitle = document.getElementById('statusTitle');
+      var statusSubtitle = document.getElementById('statusSubtitle');
+      var btnBrowse = document.getElementById('btnBrowseLogo');
+      var btnClear = document.getElementById('btnClearSelectedLogo');
+      var previewImg = document.getElementById('mockupLogoImg');
+      var placeholder = document.getElementById('mockupLogoPlaceholder');
+      var previewBadge = document.getElementById('previewBadge');
+      var removeCheckbox = document.getElementById('removeLogoCheckbox');
+
+      if (!dropzone || !fileInput) return;
+
+      var initialLogoSrc = previewImg ? previewImg.getAttribute('src') : '';
+      var hasInitialLogo = Boolean(initialLogoSrc && initialLogoSrc.trim() !== '');
+
+      function formatBytes(bytes) {
+        if (!bytes || bytes === 0) return '0 B';
+        var k = 1024;
+        var sizes = ['B', 'KB', 'MB', 'GB'];
+        var i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+      }
+
+      function handleFile(file) {
+        if (!file) return;
+
+        // Validation: Must be image
+        if (!file.type.match(/^image\//)) {
+          alert('Please select a valid image file (PNG, JPG, SVG, or WebP).');
+          fileInput.value = '';
+          return;
+        }
+
+        // Validation: Max 5MB
+        if (file.size > 5 * 1024 * 1024) {
+          alert('The selected image is larger than 5MB. Please choose an image under 5MB.');
+          fileInput.value = '';
+          return;
+        }
+
+        // If remove checkbox is checked, uncheck it
+        if (removeCheckbox && removeCheckbox.checked) {
+          removeCheckbox.checked = false;
+        }
+
+        // Instant preview using URL.createObjectURL
+        var objectUrl = URL.createObjectURL(file);
+        if (previewImg) {
+          previewImg.src = objectUrl;
+          previewImg.classList.remove('hidden');
+          previewImg.style.opacity = '1';
+        }
+        if (placeholder) {
+          placeholder.classList.add('hidden');
+        }
+
+        // Dynamic status bar styling
+        if (statusDot) {
+          statusDot.className = 'status-indicator-dot status-selected';
+          statusDot.style.background = '';
+        }
+
+        if (statusTitle) {
+          statusTitle.textContent = file.name;
+        }
+
+        if (statusSubtitle) {
+          statusSubtitle.textContent = formatBytes(file.size) + ' • Ready to save on update';
+        }
+
+        if (previewBadge) {
+          previewBadge.textContent = 'Preview';
+        }
+
+        if (btnClear) {
+          btnClear.classList.remove('hidden');
+        }
+      }
+
+      function resetSelection() {
+        fileInput.value = '';
+
+        if (hasInitialLogo) {
+          if (previewImg) {
+            previewImg.src = initialLogoSrc;
+            previewImg.classList.remove('hidden');
+            previewImg.style.opacity = '1';
+          }
+          if (placeholder) {
+            placeholder.classList.add('hidden');
+          }
+          if (statusDot) {
+            statusDot.className = 'status-indicator-dot status-active';
+            statusDot.style.background = '';
+          }
+          if (statusTitle) {
+            statusTitle.textContent = 'Logo Active';
+          }
+          if (statusSubtitle) {
+            statusSubtitle.textContent = 'Active on all issued invoices, quotations, and headers';
+          }
+          if (previewBadge) {
+            previewBadge.textContent = 'Active Logo';
+          }
+        } else {
+          if (previewImg) {
+            previewImg.src = '';
+            previewImg.classList.add('hidden');
+          }
+          if (placeholder) {
+            placeholder.classList.remove('hidden');
+          }
+          if (statusDot) {
+            statusDot.className = 'status-indicator-dot status-ready';
+            statusDot.style.background = '';
+          }
+          if (statusTitle) {
+            statusTitle.textContent = 'Ready to Upload';
+          }
+          if (statusSubtitle) {
+            statusSubtitle.textContent = 'Choose a PNG, JPG, or SVG image to preview';
+          }
+          if (previewBadge) {
+            previewBadge.textContent = 'Mockup';
+          }
+        }
+
+        if (btnClear) {
+          btnClear.classList.add('hidden');
+        }
+      }
+
+      // Input change event
+      fileInput.addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (file) {
+          handleFile(file);
+        } else {
+          resetSelection();
+        }
+      });
+
+      // Status Bar Browse button
+      if (btnBrowse) {
+        btnBrowse.addEventListener('click', function (e) {
+          e.stopPropagation();
+          fileInput.click();
+        });
+      }
+
+      // Status Bar Cancel / Clear button
+      if (btnClear) {
+        btnClear.addEventListener('click', function (e) {
+          e.stopPropagation();
+          resetSelection();
+        });
+      }
+
+      // Drag and drop events
+      ['dragenter', 'dragover'].forEach(function (eventName) {
+        dropzone.addEventListener(eventName, function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add('drag-over');
+        });
+      });
+
+      ['dragleave', 'dragend'].forEach(function (eventName) {
+        dropzone.addEventListener(eventName, function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove('drag-over');
+        });
+      });
+
+      dropzone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('drag-over');
+
+        var dt = e.dataTransfer;
+        var files = dt && dt.files;
+        if (files && files.length > 0) {
+          try {
+            fileInput.files = files;
+          } catch (err) {
+            // Some browsers don't allow reassigning fileInput.files directly; DataTransfer fallback
+            var container = new DataTransfer();
+            container.items.add(files[0]);
+            fileInput.files = container.files;
+          }
+          handleFile(files[0]);
+        }
+      });
+
+      // Remove logo checkbox behavior
+      if (removeCheckbox) {
+        removeCheckbox.addEventListener('change', function () {
+          if (removeCheckbox.checked) {
+            if (previewImg) {
+              previewImg.style.opacity = '0.25';
+            }
+            if (statusDot) {
+              statusDot.className = 'status-indicator-dot';
+              statusDot.style.background = '#EF4444';
+              statusDot.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.25)';
+            }
+            if (statusTitle) {
+              statusTitle.textContent = 'Marked for Removal';
+            }
+            if (statusSubtitle) {
+              statusSubtitle.textContent = 'Logo will be deleted upon clicking Save All Settings';
+            }
+            if (previewBadge) {
+              previewBadge.textContent = 'To be Removed';
+            }
+          } else {
+            if (statusDot) {
+              statusDot.style.background = '';
+              statusDot.style.boxShadow = '';
+            }
+            if (fileInput.files && fileInput.files.length > 0) {
+              handleFile(fileInput.files[0]);
+            } else {
+              resetSelection();
+            }
+          }
         });
       }
     }
+  };
+
+  // ──────────────────────────────────────────────
+  // DateFilterManager (Flatpickr Integration & Quick Presets)
+  // ──────────────────────────────────────────────
+
+  const DateFilterManager = {
+    init: function () {
+      if (typeof flatpickr === 'undefined') return;
+
+      // 1. Compute dynamic exemplary dates for placeholders
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.toLocaleString('en-US', { month: 'short' });
+      const currentDay = now.getDate();
+      const lastDayOfMonth = new Date(currentYear, now.getMonth() + 1, 0).getDate();
+      const nextMonthName = new Date(currentYear, now.getMonth() + 1, 1).toLocaleString('en-US', { month: 'short' });
+
+      const defaultTodayPlaceholder = `e.g. ${currentMonth} ${currentDay}, ${currentYear}`;
+      const defaultStartPlaceholder = `e.g. ${currentMonth} 1, ${currentYear}`;
+      const defaultEndPlaceholder = `e.g. ${currentMonth} ${lastDayOfMonth}, ${currentYear}`;
+      const defaultDuePlaceholder = `e.g. ${nextMonthName} 15, ${currentYear}`;
+
+      // Initialize Flatpickr on date inputs
+      const dateInputs = document.querySelectorAll(
+        'input[type="date"], input.flatpickr-date, .date-filter-item input'
+      );
+
+      dateInputs.forEach(function (input) {
+        if (input._flatpickr) return;
+
+        const nameOrId = (input.name || input.id || '').toLowerCase();
+        let placeholder = input.getAttribute('placeholder');
+
+        if (!placeholder || placeholder.includes('YYYY-MM-DD') || placeholder.startsWith('e.g. 202')) {
+          if (nameOrId.includes('start') || nameOrId.includes('from')) {
+            placeholder = defaultStartPlaceholder;
+          } else if (nameOrId.includes('end') || nameOrId.includes('to')) {
+            placeholder = defaultEndPlaceholder;
+          } else if (nameOrId.includes('due') || nameOrId.includes('valid')) {
+            placeholder = defaultDuePlaceholder;
+          } else {
+            placeholder = defaultTodayPlaceholder;
+          }
+        }
+
+        input.type = 'text'; // Prevent browser native picker clash
+        input.setAttribute('placeholder', placeholder);
+
+        const fp = flatpickr(input, {
+          dateFormat: 'Y-m-d',
+          altInput: true,
+          altFormat: 'M j, Y',
+          allowInput: true,
+          disableMobile: false,
+        });
+
+        // Ensure the generated altInput displays the placeholder date
+        if (fp && fp.altInput) {
+          fp.altInput.placeholder = placeholder;
+          fp.altInput.setAttribute('aria-label', placeholder);
+        }
+      });
+
+      // 2. Inject Quick Date Presets into .date-filter-group
+      const filterGroups = document.querySelectorAll('.date-filter-group');
+      filterGroups.forEach(function (group) {
+        if (group.querySelector('.date-filter-presets')) return;
+
+        const startInput = group.querySelector('input[name="startDate"]');
+        const endInput = group.querySelector('input[name="endDate"]');
+        if (!startInput || !endInput) return;
+
+        const presetsContainer = document.createElement('div');
+        presetsContainer.className = 'date-filter-presets';
+
+        const presets = [
+          { label: 'Today', key: 'today' },
+          { label: '7D', key: '7d' },
+          { label: '30D', key: '30d' },
+          { label: 'This Month', key: 'month' },
+          { label: 'Quarter', key: 'quarter' },
+          { label: 'This Year', key: 'year' },
+          { label: 'All', key: 'all' },
+        ];
+
+        presets.forEach(function (p) {
+          const pill = document.createElement('button');
+          pill.type = 'button';
+          pill.className = 'preset-pill';
+          pill.textContent = p.label;
+          pill.setAttribute('data-preset', p.key);
+
+          pill.addEventListener('click', function (e) {
+            e.preventDefault();
+            DateFilterManager.applyPreset(p.key, startInput, endInput, group);
+          });
+
+          presetsContainer.appendChild(pill);
+        });
+
+        group.appendChild(presetsContainer);
+      });
+    },
+
+    formatDate: function (date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + d;
+    },
+
+    applyPreset: function (preset, startInput, endInput, group) {
+      const today = new Date();
+      let start = null;
+      let end = null;
+
+      if (preset === 'today') {
+        start = new Date(today);
+        end = new Date(today);
+      } else if (preset === '7d') {
+        start = new Date(today);
+        start.setDate(today.getDate() - 7);
+        end = new Date(today);
+      } else if (preset === '30d') {
+        start = new Date(today);
+        start.setDate(today.getDate() - 30);
+        end = new Date(today);
+      } else if (preset === 'month') {
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      } else if (preset === 'quarter') {
+        const quarterMonth = Math.floor(today.getMonth() / 3) * 3;
+        start = new Date(today.getFullYear(), quarterMonth, 1);
+        end = new Date(today.getFullYear(), quarterMonth + 3, 0);
+      } else if (preset === 'year') {
+        start = new Date(today.getFullYear(), 0, 1);
+        end = new Date(today.getFullYear(), 11, 31);
+      } else if (preset === 'all') {
+        start = null;
+        end = null;
+      }
+
+      if (start && end) {
+        const startStr = this.formatDate(start);
+        const endStr = this.formatDate(end);
+
+        if (startInput._flatpickr) {
+          startInput._flatpickr.setDate(startStr, true);
+        } else {
+          startInput.value = startStr;
+        }
+
+        if (endInput._flatpickr) {
+          endInput._flatpickr.setDate(endStr, true);
+        } else {
+          endInput.value = endStr;
+        }
+      } else {
+        if (startInput._flatpickr) startInput._flatpickr.clear();
+        else startInput.value = '';
+
+        if (endInput._flatpickr) endInput._flatpickr.clear();
+        else endInput.value = '';
+      }
+
+      // Update active state on pills
+      group.querySelectorAll('.preset-pill').forEach(function (pill) {
+        pill.classList.toggle('active', pill.getAttribute('data-preset') === preset && preset !== 'all');
+      });
+
+      // Automatically submit form if inside filter-form
+      const form = group.closest('form');
+      if (form) {
+        form.submit();
+      }
+    },
   };
 
   // ──────────────────────────────────────────────
@@ -468,6 +923,8 @@
     CalculationManager.init();
     DocumentStyler.init();
     ActionHandlers.init();
+    LogoUploader.init();
+    DateFilterManager.init();
   });
 })();
 

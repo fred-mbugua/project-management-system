@@ -1,8 +1,3 @@
-// ══════════════════════════════════════════════════════════════════════
-// Admin Controller - Raw PostgreSQL Queries
-// Platform management for Super Administrators
-// ══════════════════════════════════════════════════════════════════════
-
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { query, withTransaction } from '../config/database';
@@ -16,17 +11,52 @@ import {
   SubscriptionStatus,
   AuditAction,
 } from '../models';
+import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import { formatKES } from '../utils/taxCalculator';
+import subscriptionBillingService from '../services/subscriptionBilling.service';
 import logger from '../utils/logger';
 
 const adminLogger = logger.child('AdminController');
 
 export class AdminController {
   /**
-   * List all registered organizations
+   * List all registered organizations with pagination, search, and date filters
    */
-  listTenants = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  listTenants = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const params = extractPaginationParams(req, 10);
+      const conditions: string[] = [];
+      const values: any[] = [];
+      let paramIdx = 1;
+
+      if (params.search) {
+        conditions.push(`(
+          t.name ILIKE $${paramIdx} OR
+          t.slug ILIKE $${paramIdx} OR
+          t.email ILIKE $${paramIdx} OR
+          t.kra_pin ILIKE $${paramIdx} OR
+          t.city ILIKE $${paramIdx}
+        )`);
+        values.push(`%${params.search}%`);
+        paramIdx++;
+      }
+
+      if (params.startDate) {
+        conditions.push(`t.created_at >= $${paramIdx++}::timestamptz`);
+        values.push(`${params.startDate}T00:00:00Z`);
+      }
+
+      if (params.endDate) {
+        conditions.push(`t.created_at <= $${paramIdx++}::timestamptz`);
+        values.push(`${params.endDate}T23:59:59Z`);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const countSql = `SELECT COUNT(*)::int as total FROM tenants t ${whereClause}`;
+      const countRes = await query(countSql, values);
+      const total = countRes.rows[0]?.total || 0;
+
       const sql = `
         SELECT 
           t.*,
@@ -38,13 +68,25 @@ export class AdminController {
         FROM tenants t
         LEFT JOIN tenant_subscriptions ts ON t.id = ts.tenant_id
         LEFT JOIN subscription_plans sp ON ts.plan_id = sp.id
+        ${whereClause}
         ORDER BY t.created_at DESC
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
       `;
-      const result = await query(sql);
+      const dataValues = [...values, params.limit, params.offset];
+      const [result, plansRes] = await Promise.all([
+        query(sql, dataValues),
+        query(`SELECT * FROM subscription_plans WHERE is_active = TRUE ORDER BY monthly_price ASC`),
+      ]);
+
+      const pagination = calculatePagination(total, params, req);
 
       res.render('pages/admin/tenants', {
         title: 'Organizations',
         tenants: result.rows,
+        plans: plansRes.rows,
+        pagination,
+        filters: params,
+        formatKES,
       });
     } catch (error) {
       adminLogger.error('Failed to list tenants', { error: String(error) });
@@ -201,6 +243,302 @@ export class AdminController {
       next(error);
     }
   };
+
+  /**
+   * Create a new subscription plan with frequency and custom interval
+   */
+  createPlan = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const {
+        name,
+        tier,
+        price,
+        frequency,
+        intervalMonths,
+        annualPrice,
+        maxUsers,
+        maxProjects,
+        maxStorageMb,
+        description,
+      } = req.body;
+
+      if (!name || !name.trim() || price === undefined || price === '') {
+        req.flash('error', 'Plan name and price are required.');
+        res.redirect('/admin/plans');
+        return;
+      }
+
+      const parsedPrice = parseFloat(price) || 0;
+      const parsedInterval = parseInt(intervalMonths, 10) || 1;
+      const planFrequency = frequency || 'MONTHLY';
+
+      // Normalize monthly price for legacy comparisons
+      let monthlyPrice = parsedPrice;
+      if (planFrequency === 'QUARTERLY') monthlyPrice = parsedPrice / 3;
+      else if (planFrequency === 'BIANNUAL') monthlyPrice = parsedPrice / 6;
+      else if (planFrequency === 'ANNUAL') monthlyPrice = parsedPrice / 12;
+      else if (planFrequency === 'CUSTOM' && parsedInterval > 0) monthlyPrice = parsedPrice / parsedInterval;
+
+      const planTier = (tier && Object.values(SubscriptionTier).includes(tier)) ? tier : SubscriptionTier.STARTER;
+
+      await SubscriptionModel.createPlan({
+        name: name.trim(),
+        tier: planTier,
+        monthlyPrice,
+        annualPrice: parseFloat(annualPrice) || (monthlyPrice * 12 * 0.85),
+        price: parsedPrice,
+        frequency: planFrequency,
+        intervalMonths: parsedInterval,
+        description: description ? description.trim() : null,
+        maxUsers: parseInt(maxUsers, 10) || 5,
+        maxProjects: parseInt(maxProjects, 10) || 10,
+        maxStorageMb: parseInt(maxStorageMb, 10) || 1000,
+        isActive: true,
+      });
+
+      await AuditLogModel.create({
+        userId: req.user?.id,
+        action: AuditAction.CREATE,
+        entityType: 'SubscriptionPlan',
+        description: `Created subscription plan "${name.trim()}" (${planFrequency} - KES ${parsedPrice.toLocaleString()})`,
+      });
+
+      req.flash('success', `Subscription plan "${name.trim()}" created successfully.`);
+      res.redirect('/admin/plans');
+    } catch (error) {
+      adminLogger.error('Failed to create subscription plan', { error: String(error) });
+      req.flash('error', 'Failed to create plan: ' + (error instanceof Error ? error.message : String(error)));
+      res.redirect('/admin/plans');
+    }
+  };
+
+  /**
+   * Update an existing subscription plan
+   */
+  updatePlan = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const planId = req.params.id as string;
+      const {
+        name,
+        tier,
+        price,
+        frequency,
+        intervalMonths,
+        annualPrice,
+        maxUsers,
+        maxProjects,
+        maxStorageMb,
+        description,
+      } = req.body;
+
+      if (!name || !name.trim() || price === undefined || price === '') {
+        req.flash('error', 'Plan name and price are required.');
+        res.redirect('/admin/plans');
+        return;
+      }
+
+      const parsedPrice = parseFloat(price) || 0;
+      const parsedInterval = parseInt(intervalMonths, 10) || 1;
+      const planFrequency = frequency || 'MONTHLY';
+
+      let monthlyPrice = parsedPrice;
+      if (planFrequency === 'QUARTERLY') monthlyPrice = parsedPrice / 3;
+      else if (planFrequency === 'BIANNUAL') monthlyPrice = parsedPrice / 6;
+      else if (planFrequency === 'ANNUAL') monthlyPrice = parsedPrice / 12;
+      else if (planFrequency === 'CUSTOM' && parsedInterval > 0) monthlyPrice = parsedPrice / parsedInterval;
+
+      const calculatedAnnualPrice = parseFloat(annualPrice) || (monthlyPrice * 12 * 0.85);
+      const planTier = (tier && Object.values(SubscriptionTier).includes(tier)) ? tier : null;
+
+      await query(`
+        UPDATE subscription_plans
+        SET name = COALESCE($1, name),
+            tier = COALESCE($2, tier),
+            price = $3,
+            monthly_price = $4,
+            annual_price = $5,
+            frequency = COALESCE($6, frequency),
+            interval_months = $7,
+            max_users = COALESCE($8, max_users),
+            max_projects = COALESCE($9, max_projects),
+            max_storage_mb = COALESCE($10, max_storage_mb),
+            description = COALESCE($11, description),
+            updated_at = NOW()
+        WHERE id = $12
+      `, [
+        name.trim() || null,
+        planTier,
+        parsedPrice,
+        monthlyPrice,
+        calculatedAnnualPrice,
+        planFrequency || null,
+        parsedInterval,
+        maxUsers ? parseInt(maxUsers, 10) : null,
+        maxProjects ? parseInt(maxProjects, 10) : null,
+        maxStorageMb ? parseInt(maxStorageMb, 10) : null,
+        description ? description.trim() : null,
+        planId,
+      ]);
+
+      await AuditLogModel.create({
+        userId: req.user?.id,
+        action: AuditAction.UPDATE,
+        entityType: 'SubscriptionPlan',
+        entityId: planId,
+        description: `Updated subscription plan "${name.trim()}" (${planFrequency} - KES ${parsedPrice.toLocaleString()})`,
+      });
+
+      req.flash('success', `Subscription plan "${name.trim()}" updated successfully.`);
+      res.redirect('/admin/plans');
+    } catch (error) {
+      adminLogger.error('Failed to update plan', { error: String(error) });
+      req.flash('error', 'Failed to update plan: ' + (error instanceof Error ? error.message : String(error)));
+      res.redirect('/admin/plans');
+    }
+  };
+
+  /**
+   * Toggle Plan Active / Inactive Status
+   */
+  togglePlanStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const planId = req.params.id as string;
+      await query(`UPDATE subscription_plans SET is_active = NOT is_active, updated_at = NOW() WHERE id = $1`, [planId]);
+      req.flash('success', 'Plan status updated.');
+      res.redirect('/admin/plans');
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Suspend a tenant account manually
+   */
+  suspendTenant = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.params.id as string;
+
+      const tenantRes = await query(`SELECT * FROM tenants WHERE id = $1`, [tenantId]);
+      const tenant = tenantRes.rows[0];
+      if (!tenant) {
+        req.flash('error', 'Organization not found.');
+        res.redirect('/admin/tenants');
+        return;
+      }
+
+      await withTransaction(async (client) => {
+        // Deactivate workspace
+        await client.query(`UPDATE tenants SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [tenantId]);
+        // Update subscription status to SUSPENDED
+        await client.query(`UPDATE tenant_subscriptions SET status = 'SUSPENDED', updated_at = NOW() WHERE tenant_id = $1`, [tenantId]);
+        // Audit log
+        await client.query(
+          `INSERT INTO audit_logs (id, tenant_id, user_id, action, entity_type, entity_id, description, created_at)
+           VALUES (gen_random_uuid()::text, $1, $2, 'UPDATE', 'Tenant', $1, $3, NOW())`,
+          [tenantId, req.user?.id, `Super Admin suspended organization "${tenant.name}"`]
+        );
+      });
+
+      req.flash('success', `Organization "${tenant.name}" has been suspended.`);
+      res.redirect('/admin/tenants');
+    } catch (error) {
+      adminLogger.error('Failed to suspend tenant', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Activate a tenant account manually
+   */
+  activateTenant = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.params.id as string;
+
+      const tenantRes = await query(`SELECT * FROM tenants WHERE id = $1`, [tenantId]);
+      const tenant = tenantRes.rows[0];
+      if (!tenant) {
+        req.flash('error', 'Organization not found.');
+        res.redirect('/admin/tenants');
+        return;
+      }
+
+      await withTransaction(async (client) => {
+        // Activate workspace
+        await client.query(`UPDATE tenants SET is_active = TRUE, updated_at = NOW() WHERE id = $1`, [tenantId]);
+        // Update subscription status to ACTIVE
+        await client.query(`UPDATE tenant_subscriptions SET status = 'ACTIVE', updated_at = NOW() WHERE tenant_id = $1`, [tenantId]);
+        // Audit log
+        await client.query(
+          `INSERT INTO audit_logs (id, tenant_id, user_id, action, entity_type, entity_id, description, created_at)
+           VALUES (gen_random_uuid()::text, $1, $2, 'UPDATE', 'Tenant', $1, $3, NOW())`,
+          [tenantId, req.user?.id, `Super Admin activated organization "${tenant.name}"`]
+        );
+      });
+
+      req.flash('success', `Organization "${tenant.name}" has been activated.`);
+      res.redirect('/admin/tenants');
+    } catch (error) {
+      adminLogger.error('Failed to activate tenant', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Change or update tenant subscription package
+   */
+  updateTenantSubscription = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.params.id as string;
+      const { planId, extendMonths } = req.body;
+
+      if (!planId) {
+        req.flash('error', 'Plan selection is required.');
+        res.redirect('/admin/tenants');
+        return;
+      }
+
+      const months = parseInt(extendMonths, 10) || 1;
+      const newEnd = new Date();
+      newEnd.setMonth(newEnd.getMonth() + months);
+
+      await withTransaction(async (client) => {
+        await client.query(
+          `UPDATE tenant_subscriptions 
+           SET plan_id = $1, status = 'ACTIVE', current_period_end = $2, updated_at = NOW()
+           WHERE tenant_id = $3`,
+          [planId, newEnd, tenantId]
+        );
+        await client.query(
+          `UPDATE tenants SET is_active = TRUE, updated_at = NOW() WHERE id = $1`,
+          [tenantId]
+        );
+      });
+
+      req.flash('success', 'Organization subscription package updated and activated.');
+      res.redirect('/admin/tenants');
+    } catch (error) {
+      adminLogger.error('Failed to update tenant subscription', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Trigger subscription expiration scan and enforcement on-demand
+   */
+  scanSubscriptions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await subscriptionBillingService.checkAndEnforceExpiredSubscriptions();
+      req.flash(
+        'success',
+        `Expiration Scan Complete: Scanned ${result.totalScanned} account(s), deactivated ${result.totalDeactivated} expired, issued ${result.invoicesGenerated} renewal invoice(s).`
+      );
+      res.redirect('/admin/tenants');
+    } catch (error) {
+      adminLogger.error('Failed to scan subscriptions', { error: String(error) });
+      next(error);
+    }
+  };
 }
 
 export default new AdminController();
+

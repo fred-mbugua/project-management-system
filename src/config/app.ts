@@ -67,6 +67,15 @@ export const appConfig = {
   uploadDir: process.env.UPLOAD_DIR || 'public/uploads',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
 
+  // Cloudflare R2 Object Storage
+  r2: {
+    accountId: process.env.R2_ACCOUNT_ID || '',
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+    bucketName: process.env.R2_BUCKET_NAME || 'pm-erp-storage',
+    publicUrl: process.env.R2_PUBLIC_URL || '',
+  },
+
   // Encryption (for tenant Daraja credentials)
   encryption: {
     key: process.env.ENCRYPTION_KEY || 'default-encryption-key-change-me!!',

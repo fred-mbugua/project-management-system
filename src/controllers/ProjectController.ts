@@ -5,7 +5,10 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../config/database';
-import { ProjectModel, TaskModel, ProjectStatus, TaskPriority, TaskStatus } from '../models';
+import { ProjectModel, TaskModel, ProjectStatus, TaskPriority, TaskStatus, AuditAction } from '../models';
+import { extractPaginationParams, calculatePagination } from '../utils/pagination';
+import storageService from '../services/storage.service';
+import ActionLogService from '../services/actionLog.service';
 import { formatKES } from '../utils/taxCalculator';
 import logger from '../utils/logger';
 
@@ -13,7 +16,7 @@ const projectLogger = logger.child('ProjectController');
 
 export class ProjectController {
   /**
-   * List all projects for current tenant
+   * List all projects for current tenant with pagination, search, and date filters
    */
   index = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -24,35 +27,78 @@ export class ProjectController {
         return;
       }
 
-      const sql = (isSuper && !tenantId)
-        ? `
-          SELECT 
-            p.*,
-            c.name as client_name,
-            (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id = p.id) as task_count,
-            (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id = p.id AND t.status = 'COMPLETED') as completed_task_count,
-            (SELECT COUNT(*)::int FROM project_members pm WHERE pm.project_id = p.id) as member_count
-          FROM projects p
-          LEFT JOIN clients c ON p.client_id = c.id
-          ORDER BY p.created_at DESC
-        `
-        : `
-          SELECT 
-            p.*,
-            c.name as client_name,
-            (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id = p.id) as task_count,
-            (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id = p.id AND t.status = 'COMPLETED') as completed_task_count,
-            (SELECT COUNT(*)::int FROM project_members pm WHERE pm.project_id = p.id) as member_count
-          FROM projects p
-          LEFT JOIN clients c ON p.client_id = c.id
-          WHERE p.tenant_id = $1
-          ORDER BY p.created_at DESC
-        `;
-      const result = (isSuper && !tenantId) ? await query(sql) : await query(sql, [tenantId]);
+      const params = extractPaginationParams(req, 10);
+      const conditions: string[] = [];
+      const values: any[] = [];
+      let paramIdx = 1;
+
+      if (tenantId && !isSuper) {
+        conditions.push(`p.tenant_id = $${paramIdx++}`);
+        values.push(tenantId);
+      }
+
+      if (params.search) {
+        conditions.push(`(
+          p.name ILIKE $${paramIdx} OR
+          p.code ILIKE $${paramIdx} OR
+          c.name ILIKE $${paramIdx} OR
+          p.description ILIKE $${paramIdx}
+        )`);
+        values.push(`%${params.search}%`);
+        paramIdx++;
+      }
+
+      if (params.startDate) {
+        conditions.push(`p.created_at >= $${paramIdx++}::timestamptz`);
+        values.push(`${params.startDate}T00:00:00Z`);
+      }
+
+      if (params.endDate) {
+        conditions.push(`p.created_at <= $${paramIdx++}::timestamptz`);
+        values.push(`${params.endDate}T23:59:59Z`);
+      }
+
+      if (params.status) {
+        conditions.push(`p.status = $${paramIdx++}`);
+        values.push(params.status);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // Count total projects
+      const countSql = `
+        SELECT COUNT(*)::int as total
+        FROM projects p
+        LEFT JOIN clients c ON p.client_id = c.id
+        ${whereClause}
+      `;
+      const countRes = await query(countSql, values);
+      const total = countRes.rows[0]?.total || 0;
+
+      // Select projects with task and member counts - newest at top (p.created_at DESC)
+      const dataSql = `
+        SELECT 
+          p.*,
+          c.name as client_name,
+          (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id = p.id) as task_count,
+          (SELECT COUNT(*)::int FROM tasks t WHERE t.project_id = p.id AND t.status = 'COMPLETED') as completed_task_count,
+          (SELECT COUNT(*)::int FROM project_members pm WHERE pm.project_id = p.id) as member_count
+        FROM projects p
+        LEFT JOIN clients c ON p.client_id = c.id
+        ${whereClause}
+        ORDER BY p.created_at DESC
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+      `;
+      const dataValues = [...values, params.limit, params.offset];
+      const result = await query(dataSql, dataValues);
+
+      const pagination = calculatePagination(total, params, req);
 
       res.render('pages/projects/index', {
         title: 'Projects',
         projects: result.rows,
+        pagination,
+        filters: params,
         formatKES,
       });
     } catch (error) {
@@ -117,6 +163,15 @@ export class ProjectController {
         status: status || ProjectStatus.PLANNING,
       });
 
+      // Record Action Log
+      await ActionLogService.record(req, {
+        action: AuditAction.CREATE,
+        entityType: 'PROJECT',
+        entityId: project.id,
+        description: `Created new project "${project.name}" (${project.code})`,
+        metadata: { name: project.name, code: project.code, budget: project.budget },
+      });
+
       req.flash('success', `Project "${project.name}" (${project.code}) created successfully.`);
       res.redirect(`/projects/${project.id}`);
     } catch (error) {
@@ -133,7 +188,7 @@ export class ProjectController {
       const tenantId = req.tenantId;
       const projectId = req.params.id as string;
 
-      const [projectRes, tasksRes, membersRes, usersRes] = await Promise.all([
+      const [projectRes, tasksRes, membersRes, usersRes, docsRes] = await Promise.all([
         query(`
           SELECT p.*, c.name as client_name, c.email as client_email, c.phone as client_phone
           FROM projects p
@@ -156,6 +211,13 @@ export class ProjectController {
           ORDER BY pm.joined_at ASC
         `, [projectId]),
         query(`SELECT id, first_name, last_name, email, role FROM users WHERE tenant_id = $1 AND is_active = TRUE`, [tenantId]),
+        query(`
+          SELECT pd.*, u.first_name, u.last_name
+          FROM project_documents pd
+          LEFT JOIN users u ON pd.uploaded_by_id = u.id
+          WHERE pd.project_id = $1 AND pd.tenant_id = $2
+          ORDER BY pd.created_at DESC
+        `, [projectId, tenantId]),
       ]);
 
       const project = projectRes.rows[0];
@@ -171,6 +233,7 @@ export class ProjectController {
         tasks: tasksRes.rows,
         members: membersRes.rows,
         teamUsers: usersRes.rows,
+        documents: docsRes.rows,
         formatKES,
       });
     } catch (error) {
@@ -210,6 +273,106 @@ export class ProjectController {
       res.redirect(`/projects/${projectId}`);
     } catch (error) {
       projectLogger.error('Failed to add task', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Upload project document to Cloudflare R2
+   */
+  uploadDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenantId;
+      const projectId = req.params.id as string;
+      if (!tenantId) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      if (!req.file) {
+        req.flash('error', 'Please select a file to upload.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const uploadResult = await storageService.uploadFile(req.file, `projects/${projectId}`);
+      const documentName = req.body.documentName?.trim() || req.file.originalname;
+
+      await query(`
+        INSERT INTO project_documents (
+          id, tenant_id, project_id, name, file_url, file_size, file_type, uploaded_by_id, created_at
+        ) VALUES (
+          gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW()
+        )
+      `, [
+        tenantId,
+        projectId,
+        documentName,
+        uploadResult.url,
+        req.file.size,
+        req.file.mimetype,
+        req.user?.id || null,
+      ]);
+
+      const storageTypeLabel = uploadResult.storageType === 'r2' ? 'Cloudflare R2' : 'storage';
+
+      // Record Action Log
+      await ActionLogService.record(req, {
+        action: AuditAction.CREATE,
+        entityType: 'PROJECT_DOCUMENT',
+        entityId: projectId,
+        description: `Uploaded file "${documentName}" (${uploadResult.storageType.toUpperCase()}) to project`,
+        metadata: {
+          documentName,
+          fileSize: req.file.size,
+          storageType: uploadResult.storageType,
+          url: uploadResult.url,
+        },
+      });
+
+      req.flash('success', `File "${documentName}" successfully uploaded to ${storageTypeLabel}.`);
+      res.redirect(`/projects/${projectId}`);
+    } catch (error) {
+      projectLogger.error('Failed to upload project document', { error: String(error) });
+      req.flash('error', 'Failed to upload document.');
+      res.redirect(`/projects/${req.params.id}`);
+    }
+  };
+
+  /**
+   * Delete project document
+   */
+  deleteDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenantId;
+      const projectId = req.params.id as string;
+      const docId = req.params.docId as string;
+
+      const docRes = await query(`
+        SELECT * FROM project_documents WHERE id = $1 AND project_id = $2 AND tenant_id = $3
+      `, [docId, projectId, tenantId]);
+
+      const doc = docRes.rows[0];
+      if (doc) {
+        await storageService.deleteFile(doc.file_url);
+        await query(`DELETE FROM project_documents WHERE id = $1`, [docId]);
+
+        // Record Action Log
+        await ActionLogService.record(req, {
+          action: AuditAction.DELETE,
+          entityType: 'PROJECT_DOCUMENT',
+          entityId: projectId,
+          description: `Deleted document "${doc.name}" from project`,
+          metadata: { docId, documentName: doc.name },
+        });
+
+        req.flash('success', 'Document deleted successfully.');
+      } else {
+        req.flash('error', 'Document not found.');
+      }
+      res.redirect(`/projects/${projectId}`);
+    } catch (error) {
+      projectLogger.error('Failed to delete project document', { error: String(error) });
       next(error);
     }
   };

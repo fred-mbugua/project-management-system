@@ -247,7 +247,26 @@ CREATE TABLE IF NOT EXISTS tenants (
   daraja_passkey TEXT,
   daraja_shortcode VARCHAR(50),
   daraja_shortcode_type daraja_shortcode_type NOT NULL DEFAULT 'PAYBILL',
-  daraja_environment VARCHAR(50) NOT NULL DEFAULT 'sandbox',
+  invoice_template VARCHAR(50) NOT NULL DEFAULT 'modern',
+  display_fields JSONB DEFAULT '{
+    "showTenantPhone": true,
+    "showTenantEmail": true,
+    "showTenantAddress": true,
+    "showTenantKraPin": true,
+    "showClientPhone": true,
+    "showClientEmail": true,
+    "showClientAddress": true,
+    "showClientKraPin": true,
+    "showBankDetails": true,
+    "showPaymentTerms": true,
+    "showMpesaDetails": true,
+    "showTaxBreakdown": true,
+    "showDiscount": true,
+    "showProject": true,
+    "showNotes": true,
+    "showTerms": true,
+    "showEtimsQr": true
+  }'::jsonb,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -571,6 +590,30 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant ON audit_logs(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
 
 -- ──────────────────────────────────────────────
+-- ERROR LOGS TABLE (System-wide Diagnostics & Monitoring)
+-- ──────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS error_logs (
+  id VARCHAR(64) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  tenant_id VARCHAR(64) REFERENCES tenants(id) ON DELETE SET NULL,
+  user_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
+  level VARCHAR(20) NOT NULL DEFAULT 'ERROR',
+  message TEXT NOT NULL,
+  stack TEXT,
+  path VARCHAR(255),
+  method VARCHAR(10),
+  status_code INT DEFAULT 500,
+  ip_address VARCHAR(50),
+  user_agent TEXT,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_error_logs_created ON error_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_error_logs_tenant ON error_logs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_error_logs_level ON error_logs(level);
+
+-- ──────────────────────────────────────────────
 -- SESSION STORE TABLE (connect-pg-simple)
 -- ──────────────────────────────────────────────
 
@@ -582,5 +625,124 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 
 CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON user_sessions(expire);
 
--- Document Templates Support
+-- Document Templates & Custom Colors Support
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS invoice_template VARCHAR(50) DEFAULT 'modern';
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS template VARCHAR(50) DEFAULT 'modern';
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS custom_color VARCHAR(50);
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS custom_color VARCHAR(50);
+
+-- Project Documents & Attachments (Stored in Cloudflare R2)
+CREATE TABLE IF NOT EXISTS project_documents (
+  id VARCHAR(64) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  file_url TEXT NOT NULL,
+  file_size INT DEFAULT 0,
+  file_type VARCHAR(100),
+  uploaded_by_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_docs_project ON project_documents(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_docs_tenant ON project_documents(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_project_docs_created ON project_documents(created_at);
+
+-- Tenant Document Display Fields Support
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS display_fields JSONB DEFAULT '{
+  "showTenantPhone": true,
+  "showTenantEmail": true,
+  "showTenantAddress": true,
+  "showTenantKraPin": true,
+  "showClientPhone": true,
+  "showClientEmail": true,
+  "showClientAddress": true,
+  "showClientKraPin": true,
+  "showBankDetails": true,
+  "showPaymentTerms": true,
+  "showMpesaDetails": true,
+  "showTaxBreakdown": true,
+  "showDiscount": true,
+  "showProject": true,
+  "showNotes": true,
+  "showTerms": true,
+  "showEtimsQr": true
+}'::jsonb;
+
+-- Extended Enums
+DO $$ BEGIN
+  ALTER TYPE subscription_status ADD VALUE IF NOT EXISTS 'SUSPENDED';
+  ALTER TYPE subscription_status ADD VALUE IF NOT EXISTS 'EXPIRED';
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+  ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'MANUAL';
+  ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'OTHER';
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- Additional Columns for Invoices & Maintenance
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS public_token VARCHAR(64) UNIQUE DEFAULT gen_random_uuid()::text;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS recurring_schedule_id VARCHAR(64) REFERENCES maintenance_schedules(id) ON DELETE SET NULL;
+
+ALTER TABLE maintenance_schedules ADD COLUMN IF NOT EXISTS interval_months INT NOT NULL DEFAULT 1;
+ALTER TABLE maintenance_schedules ADD COLUMN IF NOT EXISTS auto_send_email BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE maintenance_schedules ADD COLUMN IF NOT EXISTS last_invoice_id VARCHAR(64) REFERENCES invoices(id) ON DELETE SET NULL;
+ALTER TABLE maintenance_schedules ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5, 2) NOT NULL DEFAULT 16;
+ALTER TABLE maintenance_schedules ADD COLUMN IF NOT EXISTS end_date TIMESTAMPTZ;
+
+-- Additional Columns for Tenants
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS daraja_environment VARCHAR(20) NOT NULL DEFAULT 'sandbox';
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS card_gateway_provider VARCHAR(50) NOT NULL DEFAULT 'STRIPE';
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS card_public_key TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS card_secret_key TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS card_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS receipt_fields JSONB DEFAULT '{
+  "showTenantKraPin": true,
+  "showBankDetails": true,
+  "showMpesaRef": true,
+  "showProject": true,
+  "showClientPhone": true,
+  "showClientAddress": true,
+  "showNotes": true,
+  "receiptFooterNote": "Thank you for your business. For any queries, contact accounts."
+}'::jsonb;
+
+-- Additional Columns for Subscription Plans
+ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS frequency VARCHAR(50) DEFAULT 'MONTHLY';
+ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS interval_months INT NOT NULL DEFAULT 1;
+ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS price NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS description TEXT;
+
+-- Additional Columns for Payments
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS receipt_number VARCHAR(100) UNIQUE;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS card_last4 VARCHAR(10);
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS card_brand VARCHAR(50);
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_gateway VARCHAR(50) DEFAULT 'MPESA';
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS proof_url TEXT;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS proof_filename VARCHAR(255);
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS recorded_by_user_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL;
+
+-- Platform SaaS Subscription Invoices
+CREATE TABLE IF NOT EXISTS subscription_invoices (
+  id VARCHAR(64) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  plan_id VARCHAR(64) REFERENCES subscription_plans(id) ON DELETE SET NULL,
+  invoice_number VARCHAR(100) NOT NULL UNIQUE,
+  amount NUMERIC(12, 2) NOT NULL,
+  tax_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  total_amount NUMERIC(12, 2) NOT NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'UNPAID',
+  billing_period_start TIMESTAMPTZ NOT NULL,
+  billing_period_end TIMESTAMPTZ NOT NULL,
+  due_date TIMESTAMPTZ NOT NULL,
+  paid_at TIMESTAMPTZ,
+  payment_method VARCHAR(50),
+  payment_reference VARCHAR(100),
+  payment_instructions TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sub_invoices_tenant ON subscription_invoices(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_sub_invoices_status ON subscription_invoices(status);
+

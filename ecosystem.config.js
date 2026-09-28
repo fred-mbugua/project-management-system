@@ -29,7 +29,7 @@ module.exports = {
       // Production environment variables (triggered with: pm2 start ecosystem.config.js --env production)
       env_production: {
         NODE_ENV: 'production',
-        PORT: 3000,
+        PORT: 3002,
         APP_NAME: 'PM & ERP SaaS',
         APP_URL: 'https://projects.freestylecodetechnologies.com',
 
@@ -45,12 +45,12 @@ module.exports = {
         ENCRYPTION_IV: 'pm-erp-iv-16bytes',
 
         // Platform-Level Safaricom Daraja M-Pesa Integration
-        DARAJA_ENVIRONMENT: 'sandbox', // Switch to 'production' for live payments
+        DARAJA_ENVIRONMENT: 'production', // Switch to 'production' for live payments
         DARAJA_CONSUMER_KEY: 'V7AGIgWBGpK5iek1zR2VnIomaRgms3pumOOnfBg3srslLSMk',
         DARAJA_CONSUMER_SECRET: '7pZUelreG8xS1H09WDAnsVxeQrywZs5bxw6fUMV4fnipq4Pt2LeLCYe9JQ9QOivs',
         DARAJA_PASSKEY: 'ee995f018e57d429fe5a82e737aa410528c1347972391ecb0ede2d1a498debd2',
         DARAJA_SHORTCODE: '4814641',
-        DARAJA_SHORTCODE_TYPE: 'PAYBILL', // Must be 'PAYBILL' or 'TILL'
+        DARAJA_SHORTCODE_TYPE: 'CustomerPayBillOnline', // Must be 'PAYBILL' or 'TILL'
         DARAJA_CALLBACK_URL: 'https://projects.freestylecodetechnologies.com/api/mpesa/callback',
 
         // Email (Nodemailer SMTP)

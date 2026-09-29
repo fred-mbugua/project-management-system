@@ -74,10 +74,11 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unicons.iconscout.com', 'https://cdn.jsdelivr.net'],
         styleSrcAttr: ["'self'", "'unsafe-inline'"],
         fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://unicons.iconscout.com'],
-        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://www.paypal.com', 'https://*.paypal.com'],
         scriptSrcAttr: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", 'https://www.paypal.com', 'https://*.paypal.com', 'https://www.sandbox.paypal.com'],
+        frameSrc: ["'self'", 'https://www.paypal.com', 'https://*.paypal.com', 'https://www.sandbox.paypal.com'],
       },
     },
   })

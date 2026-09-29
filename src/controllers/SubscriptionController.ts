@@ -491,7 +491,232 @@ export class SubscriptionController {
   };
 
   /**
-   * Verify and Settle Payment (M-Pesa Paybill / STK Simulation / Card / Bank)
+   * Create PayPal Order for subscription invoice
+   */
+  createPaypalOrder = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const tenantId = req.tenantId;
+      if (!tenantId) {
+        res.status(401).json({ success: false, message: 'Authentication required' });
+        return;
+      }
+
+      const { invoiceId } = req.body;
+      if (!invoiceId) {
+        res.status(400).json({ success: false, message: 'Invoice ID is required' });
+        return;
+      }
+
+      const invoiceRes = await query(
+        `SELECT si.*, sp.name as plan_name, t.name as tenant_name
+         FROM subscription_invoices si
+         JOIN tenants t ON si.tenant_id = t.id
+         LEFT JOIN subscription_plans sp ON si.plan_id = sp.id
+         WHERE si.id = $1 AND si.tenant_id = $2`,
+        [invoiceId, tenantId]
+      );
+
+      if (invoiceRes.rows.length === 0) {
+        res.status(404).json({ success: false, message: 'Invoice not found' });
+        return;
+      }
+
+      const invoice = invoiceRes.rows[0];
+      if (invoice.status === 'PAID') {
+        res.json({ success: true, isPaid: true, message: 'Invoice already paid', redirectUrl: '/dashboard' });
+        return;
+      }
+
+      const settings = await PlatformPaymentSettingsModel.getSettings();
+      if (!settings.paypalEnabled) {
+        res.status(400).json({ success: false, message: 'PayPal payment is currently disabled by administrator.' });
+        return;
+      }
+
+      const totalKES = parseFloat(invoice.total_amount);
+      const exchangeRate = settings.paypalExchangeRate || 130.00;
+      const currency = settings.paypalCurrency || 'USD';
+      const amountValue = (totalKES / exchangeRate).toFixed(2);
+
+      const hasApiCredentials = Boolean(
+        settings.paypalClientId &&
+        settings.paypalClientSecret &&
+        !settings.paypalClientId.includes('your_')
+      );
+
+      if (hasApiCredentials) {
+        const baseUrl = settings.paypalEnvironment === 'production'
+          ? 'https://api-m.paypal.com'
+          : 'https://api-m.sandbox.paypal.com';
+
+        // 1. Get OAuth2 Token
+        const auth = Buffer.from(`${settings.paypalClientId}:${settings.paypalClientSecret}`).toString('base64');
+        const tokenRes = await axios.post(
+          `${baseUrl}/v1/oauth2/token`,
+          'grant_type=client_credentials',
+          {
+            headers: {
+              Authorization: `Basic ${auth}`,
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            timeout: 10000,
+          }
+        );
+
+        const accessToken = tokenRes.data.access_token;
+
+        // 2. Create Order
+        const orderRes = await axios.post(
+          `${baseUrl}/v2/checkout/orders`,
+          {
+            intent: 'CAPTURE',
+            purchase_units: [
+              {
+                reference_id: invoice.invoice_number,
+                description: `Subscription: ${invoice.plan_name || 'Standard'} (${invoice.invoice_number})`,
+                custom_id: invoice.id,
+                amount: {
+                  currency_code: currency,
+                  value: amountValue,
+                },
+              },
+            ],
+            application_context: {
+              brand_name: 'Free Style Code Technologies',
+              user_action: 'PAY_NOW',
+              return_url: `${appConfig.appUrl}/subscription/pay?status=paypal-success`,
+              cancel_url: `${appConfig.appUrl}/subscription/pay?status=paypal-cancelled`,
+            },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 15000,
+          }
+        );
+
+        res.json({
+          success: true,
+          orderId: orderRes.data.id,
+          currency,
+          amountValue,
+          isLive: settings.paypalEnvironment === 'production',
+        });
+        return;
+      }
+
+      // If credentials not yet configured or demo/sandbox fallback
+      const simulatedOrderId = `PAYPAL_SIM_${Date.now()}`;
+      res.json({
+        success: true,
+        orderId: simulatedOrderId,
+        currency,
+        amountValue,
+        isSimulated: true,
+      });
+    } catch (error: any) {
+      subLogger.error('Failed to create PayPal order', { error: error.response?.data || error.message });
+      res.status(500).json({
+        success: false,
+        message: error.response?.data?.message || 'Failed to initialize PayPal order.',
+      });
+    }
+  };
+
+  /**
+   * Capture PayPal Order & settle subscription
+   */
+  capturePaypalOrder = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const tenantId = req.tenantId;
+      if (!tenantId) {
+        res.status(401).json({ success: false, message: 'Authentication required' });
+        return;
+      }
+
+      const { invoiceId, orderId } = req.body;
+      if (!invoiceId || !orderId) {
+        res.status(400).json({ success: false, message: 'Invoice ID and PayPal Order ID are required' });
+        return;
+      }
+
+      const settings = await PlatformPaymentSettingsModel.getSettings();
+      let transactionCaptureId = orderId;
+
+      const hasApiCredentials = Boolean(
+        settings.paypalClientId &&
+        settings.paypalClientSecret &&
+        !settings.paypalClientId.includes('your_') &&
+        !orderId.startsWith('PAYPAL_SIM_')
+      );
+
+      if (hasApiCredentials) {
+        const baseUrl = settings.paypalEnvironment === 'production'
+          ? 'https://api-m.paypal.com'
+          : 'https://api-m.sandbox.paypal.com';
+
+        const auth = Buffer.from(`${settings.paypalClientId}:${settings.paypalClientSecret}`).toString('base64');
+        const tokenRes = await axios.post(
+          `${baseUrl}/v1/oauth2/token`,
+          'grant_type=client_credentials',
+          {
+            headers: {
+              Authorization: `Basic ${auth}`,
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            timeout: 10000,
+          }
+        );
+
+        const accessToken = tokenRes.data.access_token;
+        const captureRes = await axios.post(
+          `${baseUrl}/v2/checkout/orders/${orderId}/capture`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 15000,
+          }
+        );
+
+        const captureData = captureRes.data;
+        if (captureData.status !== 'COMPLETED') {
+          res.status(400).json({
+            success: false,
+            message: `PayPal payment not completed (status: ${captureData.status})`,
+          });
+          return;
+        }
+
+        const captureItem = captureData.purchase_units?.[0]?.payments?.captures?.[0];
+        if (captureItem?.id) {
+          transactionCaptureId = captureItem.id;
+        }
+      }
+
+      // Settle invoice using verifyPayment logic directly
+      req.body = {
+        invoiceId,
+        paymentMethod: 'PAYPAL',
+        transactionRef: transactionCaptureId,
+      };
+
+      await this.verifyPayment(req, res);
+    } catch (error: any) {
+      subLogger.error('Failed to capture PayPal payment', { error: error.response?.data || error.message });
+      res.status(500).json({
+        success: false,
+        message: error.response?.data?.message || 'Failed to capture PayPal payment.',
+      });
+    }
+  };
+
+  /**
+   * Verify and Settle Payment (M-Pesa Paybill / STK Simulation / Card / PayPal / Bank)
    * Restores portal access immediately and dispatches payment confirmation email.
    */
   verifyPayment = async (req: Request, res: Response): Promise<void> => {
@@ -510,7 +735,7 @@ export class SubscriptionController {
       }
 
       // Validate paymentMethod against allow-list
-      const allowedMethods = ['MPESA_STK', 'MPESA_PAYBILL', 'CARD', 'BANK', 'MANUAL'];
+      const allowedMethods = ['MPESA_STK', 'MPESA_PAYBILL', 'CARD', 'PAYPAL', 'BANK', 'MANUAL'];
       const method = allowedMethods.includes(paymentMethod) ? paymentMethod : 'MPESA_PAYBILL';
 
       // Validate transactionRef

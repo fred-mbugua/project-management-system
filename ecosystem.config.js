@@ -29,6 +29,16 @@ const productionEnv = {
   DARAJA_SHORTCODE_TYPE: 'CustomerPayBillOnline', // Must be 'PAYBILL' or 'TILL'
   DARAJA_CALLBACK_URL: 'https://projects.freestylecodetechnologies.com/api/mpesa/callback',
 
+  // PayPal Business & REST Gateway Integration
+  PAYPAL_ENABLED: 'true',                              // 'true' or 'false'
+  PAYPAL_ENVIRONMENT: 'production',                      // 'sandbox' (for testing) or 'production' (for live)
+  PAYPAL_BUSINESS_EMAIL: 'freestylecodetechnologies@gmail.com',  // Your PayPal Business Account Email
+  PAYPAL_CLIENT_ID: 'AaT00eSklm3ff6e-sX6D64cJrN2PtW9y92fcP7fai5nuhPuoGr4VP9zo6M4HqfqBlqq3mDiIDA8HgrzJ',      // From developer.paypal.com App Credentials
+  PAYPAL_CLIENT_SECRET: 'EFmzORnaQLc6eNcnK5CNh899nzGCMjXXF7BO-qi11zPVkRpw7ytMQpo1Vg1IzXRav-RZPVseq-SGLesK',     // From developer.paypal.com App Credentials
+  PAYPAL_CURRENCY: 'USD',                              // Settlement currency (USD, EUR, GBP)
+  PAYPAL_EXCHANGE_RATE: '130.00',                      // KES per 1 USD conversion rate
+
+
   // Email (Nodemailer SMTP)
   SMTP_HOST: 'smtp.gmail.com',
   SMTP_PORT: '587',

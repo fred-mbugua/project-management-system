@@ -299,7 +299,7 @@ Please make payment for your ${planName} subscription renewal:
 
 2. Direct Online Payment:
    • Visit: ${paymentUrl}
-   • Enter your phone number for instant M-Pesa prompt, or pay by Card.
+   • Choose instant M-Pesa prompt, Card Checkout, or PayPal Express.
 
 Upon settlement, your workspace will be immediately reactivated automatically.
           `.trim();

@@ -39,6 +39,17 @@ export const appConfig = {
     },
   },
 
+  // PayPal (Platform-Level)
+  paypal: {
+    enabled: process.env.PAYPAL_ENABLED === 'true',
+    environment: (process.env.PAYPAL_ENVIRONMENT || 'sandbox') as 'sandbox' | 'production',
+    businessEmail: process.env.PAYPAL_BUSINESS_EMAIL || '',
+    clientId: process.env.PAYPAL_CLIENT_ID || '',
+    clientSecret: process.env.PAYPAL_CLIENT_SECRET || '',
+    currency: process.env.PAYPAL_CURRENCY || 'USD',
+    exchangeRate: parseFloat(process.env.PAYPAL_EXCHANGE_RATE || '130.00'),
+  },
+
   // Email (SMTP)
   smtp: {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',

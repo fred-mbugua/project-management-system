@@ -660,6 +660,13 @@ export class AdminController {
         bankAccountNumber: bankAccountNumber ? bankAccountNumber.trim() : '',
         bankInstructions: bankInstructions ? bankInstructions.trim() : '',
         manualPesaEnabled: manualPesaEnabled === 'on' || manualPesaEnabled === '1' || manualPesaEnabled === 'true' || manualPesaEnabled === true,
+        paypalEnabled: body.paypalEnabled === 'on' || body.paypalEnabled === '1' || body.paypalEnabled === 'true' || body.paypalEnabled === true,
+        paypalEnvironment: body.paypalEnvironment === 'production' ? 'production' : 'sandbox',
+        paypalBusinessEmail: body.paypalBusinessEmail ? body.paypalBusinessEmail.trim() : '',
+        paypalClientId: body.paypalClientId ? body.paypalClientId.trim() : '',
+        paypalClientSecret: body.paypalClientSecret ? body.paypalClientSecret.trim() : '',
+        paypalCurrency: body.paypalCurrency ? body.paypalCurrency.trim() : 'USD',
+        paypalExchangeRate: parseFloat(body.paypalExchangeRate) || 130.00,
       });
 
       req.flash('success', 'Platform payment gateways and subscription payment methods updated successfully.');

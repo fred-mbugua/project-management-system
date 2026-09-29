@@ -66,6 +66,7 @@ export enum PaymentMethod {
   CASH = 'CASH',
   CHEQUE = 'CHEQUE',
   CARD = 'CARD',
+  PAYPAL = 'PAYPAL',
   MANUAL = 'MANUAL',
   OTHER = 'OTHER',
 }

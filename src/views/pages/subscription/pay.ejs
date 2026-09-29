@@ -111,10 +111,10 @@
               </button>
             <% } %>
 
-            <% if (paymentSettings.bankEnabled) { %>
-              <button type="button" class="btn btn-sm tab-btn" id="tab-btn-bank-pay" onclick="switchPaymentTab('bank-pay')">
-                <i class="uil uil-university"></i>
-                <span>Direct Bank Settlement</span>
+            <% if (paymentSettings.paypalEnabled) { %>
+              <button type="button" class="btn btn-sm tab-btn <%= (!paymentSettings.mpesaEnabled && !paymentSettings.manualPesaEnabled && !paymentSettings.cardEnabled) ? 'active' : '' %>" id="tab-btn-paypal-pay" onclick="switchPaymentTab('paypal-pay')">
+                <i class="uil uil-paypal" style="color: #003087;"></i>
+                <span>PayPal Business</span>
               </button>
             <% } %>
           </div>
@@ -266,47 +266,73 @@
             </div>
           <% } %>
 
-          <!-- TAB 4: Direct Bank Settlement -->
-          <% if (paymentSettings.bankEnabled) { %>
-            <div id="tab-content-bank-pay" class="tab-content-panel" style="display: none;">
-              <div style="background: var(--bg-tertiary, #f8fafc); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 20px;">
-                <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; font-weight: 700;">Direct Bank Account Details:</h4>
-                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem;">
-                  <div class="flex-between">
-                    <span class="text-muted">Bank Name:</span>
-                    <strong><%= paymentSettings.bankName %></strong>
+          <!-- TAB: PayPal Business Account -->
+          <% if (paymentSettings.paypalEnabled) { %>
+            <div id="tab-content-paypal-pay" class="tab-content-panel" style="<%= (!paymentSettings.mpesaEnabled && !paymentSettings.manualPesaEnabled && !paymentSettings.cardEnabled) ? '' : 'display: none;' %>">
+              <div style="background: var(--bg-tertiary, #f8fafc); border: 1.5px solid var(--border-color); border-radius: var(--radius-md); padding: 22px; margin-bottom: 20px;">
+                <div class="flex-between mb-3" style="align-items: center; flex-wrap: wrap; gap: 12px;">
+                  <div class="flex-align-center gap-2">
+                    <i class="uil uil-paypal" style="color: #003087; font-size: 2rem;"></i>
+                    <div>
+                      <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-primary);">PayPal Express Checkout</h4>
+                      <span class="text-xs text-muted">Worldwide Payments &bull; Instant Workspace Activation</span>
+                    </div>
                   </div>
-                  <div class="flex-between">
-                    <span class="text-muted">Account Name:</span>
-                    <strong><%= paymentSettings.bankAccountName %></strong>
-                  </div>
-                  <div class="flex-between">
-                    <span class="text-muted">Account Number:</span>
-                    <strong style="font-family: monospace; font-size: 1rem; color: var(--primary);"><%= paymentSettings.bankAccountNumber %></strong>
-                  </div>
-                  <div class="flex-between">
-                    <span class="text-muted">Payment Reference:</span>
-                    <strong style="font-family: monospace;"><%= invoice.invoice_number %></strong>
+                  <% const estUsd = ((invoice.total_amount || 0) / (paymentSettings.paypalExchangeRate || 130)).toFixed(2); %>
+                  <div style="text-align: right; background: rgba(0, 48, 135, 0.08); padding: 8px 16px; border-radius: 8px;">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Equivalent Total</div>
+                    <strong style="font-size: 1.25rem; color: #003087;">$<%= estUsd %> <%= paymentSettings.paypalCurrency || 'USD' %></strong>
                   </div>
                 </div>
 
-                <% if (paymentSettings.bankInstructions) { %>
-                  <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">
-                    <%= paymentSettings.bankInstructions %>
+                <p style="margin: 0 0 16px 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+                  Pay securely using your PayPal balance, linked bank account, or debit/credit card. Invoices in KES are converted at 1 USD = <strong><%= paymentSettings.paypalExchangeRate || 130 %> KES</strong>.
+                  <% if (paymentSettings.paypalBusinessEmail) { %>
+                    &bull; PayPal Merchant: <strong><%= paymentSettings.paypalBusinessEmail %></strong>
+                  <% } %>
+                </p>
+
+                <% if (paymentSettings.paypalClientId) { %>
+                  <!-- PayPal Smart Buttons Container -->
+                  <div id="paypal-button-container" style="max-width: 440px; margin: 0 auto 16px auto;"></div>
+                <% } %>
+
+                <!-- Direct / Manual PayPal Verification Form -->
+                <div style="border-top: 1px dashed var(--border-color); padding-top: 16px; margin-top: 16px;">
+                  <div style="font-size: 0.88rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary);">
+                    Already completed payment via PayPal or sent to Business Account?
+                  </div>
+                  <form id="paypalVerifyForm" onsubmit="handlePaypalManualSubmit(event)">
+                    <div class="form-group mb-3">
+                      <label class="form-label" for="paypalRefInput">PayPal Transaction ID / Order ID *</label>
+                      <input 
+                        type="text" 
+                        id="paypalRefInput" 
+                        class="form-input" 
+                        placeholder="e.g. 9XX98241L8240182K or PayPal Order ID" 
+                        required 
+                        style="font-family: monospace; text-transform: uppercase; font-size: 1rem; font-weight: 600;"
+                      >
+                      <span class="text-xs text-muted" style="margin-top: 4px; display: block;">Enter the transaction number from your PayPal payment confirmation receipt or email.</span>
+                    </div>
+                    <button type="submit" id="paypalVerifyBtn" class="btn btn-block" style="background: #0070ba; color: white; padding: 14px; font-weight: 700; font-size: 1rem; border: none; border-radius: var(--radius-md); cursor: pointer;">
+                      <i class="uil uil-check-circle"></i>
+                      <span>Verify PayPal Transaction & Activate Workspace</span>
+                    </button>
+                  </form>
+                </div>
+
+                <!-- Sandbox Mode Fast Track -->
+                <% if (paymentSettings.paypalEnvironment === 'sandbox') { %>
+                  <div style="margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--border-color); text-align: center;">
+                    <span class="badge badge-warning mb-2"><i class="uil uil-flask"></i> PayPal Sandbox Mode</span>
+                    <p class="text-xs text-muted mb-2">Simulate instant successful PayPal transaction verification for testing without connecting real PayPal funds:</p>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="simulateInstantConfirm('PAYPAL')">
+                      <i class="uil uil-check-circle text-success"></i> Simulate Instant PayPal Success
+                    </button>
                   </div>
                 <% } %>
               </div>
-
-              <form id="bankVerifyForm" onsubmit="handleBankReferenceSubmit(event)">
-                <div class="form-group mb-4">
-                  <label class="form-label" for="bankRefInput">Bank Settlement Reference / Deposit Slip No. *</label>
-                  <input type="text" id="bankRefInput" class="form-input" placeholder="e.g. NCBA-DEP-98421" required style="font-family: monospace;">
-                </div>
-                <button type="submit" class="btn btn-block btn-primary" style="padding: 14px; font-weight: 700;">
-                  <i class="uil uil-check-shield"></i>
-                  <span>Submit Bank Reference & Activate Workspace</span>
-                </button>
-              </form>
             </div>
           <% } %>
 
@@ -469,15 +495,20 @@
     await confirmPaymentWithServer('MPESA_PAYBILL', code);
   }
 
-  // 4. Handle Bank Reference Submit
-  async function handleBankReferenceSubmit(e) {
+  // 4. Handle PayPal Manual Transaction ID Submit
+  async function handlePaypalManualSubmit(e) {
     e.preventDefault();
-    const ref = document.getElementById('bankRefInput').value.trim();
-    if (!ref) {
-      alert('Please enter a bank settlement reference.');
+    const ref = document.getElementById('paypalRefInput').value.trim();
+    if (!ref || ref.length < 5) {
+      alert('Please enter a valid PayPal Transaction ID or Order Reference (min 5 characters).');
       return;
     }
-    await confirmPaymentWithServer('BANK', ref);
+    const btn = document.getElementById('paypalVerifyBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Verifying PayPal Payment...';
+    }
+    await confirmPaymentWithServer('PAYPAL', ref);
   }
 
   // 5. Generic Payment Confirmation Dispatch
@@ -499,9 +530,19 @@
         window.location.href = data.redirectUrl || '/dashboard';
       } else {
         alert(data.message || 'Payment confirmation failed.');
+        const paypalBtn = document.getElementById('paypalVerifyBtn');
+        if (paypalBtn) {
+          paypalBtn.disabled = false;
+          paypalBtn.textContent = 'Verify PayPal Transaction & Activate Workspace';
+        }
       }
     } catch (err) {
       alert('Server error verifying payment.');
+      const paypalBtn = document.getElementById('paypalVerifyBtn');
+      if (paypalBtn) {
+        paypalBtn.disabled = false;
+        paypalBtn.textContent = 'Verify PayPal Transaction & Activate Workspace';
+      }
     }
   }
 
@@ -511,3 +552,51 @@
     confirmPaymentWithServer(method, randomRef);
   }
 </script>
+
+<% if (paymentSettings.paypalEnabled && paymentSettings.paypalClientId) { %>
+  <script src="https://www.paypal.com/sdk/js?client-id=<%= paymentSettings.paypalClientId %>&currency=<%= paymentSettings.paypalCurrency || 'USD' %>"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.paypal && document.getElementById('paypal-button-container')) {
+        paypal.Buttons({
+          style: {
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            label: 'paypal'
+          },
+          createOrder: async function() {
+            const res = await fetch('/subscription/paypal/create-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ invoiceId: INVOICE_ID })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+              alert(data.message || 'Failed to initialize PayPal payment.');
+              throw new Error(data.message || 'Failed to initialize PayPal order');
+            }
+            return data.orderId;
+          },
+          onApprove: async function(data) {
+            const res = await fetch('/subscription/paypal/capture-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ invoiceId: INVOICE_ID, orderId: data.orderID })
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+              window.location.href = result.redirectUrl || '/dashboard';
+            } else {
+              alert(result.message || 'Failed to capture PayPal payment.');
+            }
+          },
+          onError: function(err) {
+            console.error('PayPal checkout error:', err);
+            alert('An error occurred during PayPal checkout.');
+          }
+        }).render('#paypal-button-container');
+      }
+    });
+  </script>
+<% } %>

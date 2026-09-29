@@ -26,6 +26,13 @@ export interface PlatformPaymentSettings {
   bankAccountNumber: string;
   bankInstructions: string;
   manualPesaEnabled: boolean;
+  paypalEnabled: boolean;
+  paypalEnvironment: 'sandbox' | 'production';
+  paypalBusinessEmail: string;
+  paypalClientId: string;
+  paypalClientSecret: string;
+  paypalCurrency: string;
+  paypalExchangeRate: number;
   updatedAt: Date;
 }
 
@@ -51,6 +58,13 @@ export class PlatformPaymentSettingsModel {
       bankAccountNumber: row.bank_account_number || '0140 8920 1820',
       bankInstructions: row.bank_instructions || 'Pay to NCBA Bank Kenya / Equity Bank. Account Name: Free Style Code Technologies Ltd. Account Number: 0140 8920 1820. Use your Invoice Number as reference.',
       manualPesaEnabled: row.manual_pesa_enabled !== false,
+      paypalEnabled: row.paypal_enabled === true || (row.paypal_enabled === null && appConfig.paypal.enabled),
+      paypalEnvironment: (row.paypal_environment || appConfig.paypal.environment || 'sandbox') as 'sandbox' | 'production',
+      paypalBusinessEmail: row.paypal_business_email || appConfig.paypal.businessEmail || '',
+      paypalClientId: row.paypal_client_id || appConfig.paypal.clientId || '',
+      paypalClientSecret: row.paypal_client_secret || appConfig.paypal.clientSecret || '',
+      paypalCurrency: row.paypal_currency || appConfig.paypal.currency || 'USD',
+      paypalExchangeRate: parseFloat(row.paypal_exchange_rate) || appConfig.paypal.exchangeRate || 130.00,
       updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
     };
   }
@@ -89,6 +103,13 @@ export class PlatformPaymentSettingsModel {
       bankAccountNumber: '0140 8920 1820',
       bankInstructions: 'Pay to NCBA Bank Kenya / Equity Bank. Account Name: Free Style Code Technologies Ltd. Account Number: 0140 8920 1820. Use your Invoice Number as reference.',
       manualPesaEnabled: true,
+      paypalEnabled: appConfig.paypal.enabled,
+      paypalEnvironment: appConfig.paypal.environment,
+      paypalBusinessEmail: appConfig.paypal.businessEmail,
+      paypalClientId: appConfig.paypal.clientId,
+      paypalClientSecret: appConfig.paypal.clientSecret,
+      paypalCurrency: appConfig.paypal.currency,
+      paypalExchangeRate: appConfig.paypal.exchangeRate,
       updatedAt: new Date(),
     };
   }
@@ -105,13 +126,15 @@ export class PlatformPaymentSettingsModel {
         mpesa_consumer_key, mpesa_consumer_secret, mpesa_passkey, mpesa_callback_url,
         card_enabled, card_provider, card_public_key, card_secret_key,
         bank_enabled, bank_name, bank_account_name, bank_account_number, bank_instructions,
-        manual_pesa_enabled, updated_at
+        manual_pesa_enabled, paypal_enabled, paypal_environment, paypal_business_email,
+        paypal_client_id, paypal_client_secret, paypal_currency, paypal_exchange_rate, updated_at
       ) VALUES (
         'default', $1, $2, $3, $4,
         $5, $6, $7, $8,
         $9, $10, $11, $12,
         $13, $14, $15, $16, $17,
-        $18, NOW()
+        $18, $19, $20, $21,
+        $22, $23, $24, $25, NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
         mpesa_enabled = EXCLUDED.mpesa_enabled,
@@ -132,6 +155,13 @@ export class PlatformPaymentSettingsModel {
         bank_account_number = EXCLUDED.bank_account_number,
         bank_instructions = EXCLUDED.bank_instructions,
         manual_pesa_enabled = EXCLUDED.manual_pesa_enabled,
+        paypal_enabled = EXCLUDED.paypal_enabled,
+        paypal_environment = EXCLUDED.paypal_environment,
+        paypal_business_email = EXCLUDED.paypal_business_email,
+        paypal_client_id = EXCLUDED.paypal_client_id,
+        paypal_client_secret = EXCLUDED.paypal_client_secret,
+        paypal_currency = EXCLUDED.paypal_currency,
+        paypal_exchange_rate = EXCLUDED.paypal_exchange_rate,
         updated_at = NOW()
       RETURNING *
     `;
@@ -155,6 +185,13 @@ export class PlatformPaymentSettingsModel {
       data.bankAccountNumber !== undefined ? data.bankAccountNumber : current.bankAccountNumber,
       data.bankInstructions !== undefined ? data.bankInstructions : current.bankInstructions,
       data.manualPesaEnabled !== undefined ? data.manualPesaEnabled : current.manualPesaEnabled,
+      data.paypalEnabled !== undefined ? data.paypalEnabled : current.paypalEnabled,
+      data.paypalEnvironment !== undefined ? data.paypalEnvironment : current.paypalEnvironment,
+      data.paypalBusinessEmail !== undefined ? data.paypalBusinessEmail : current.paypalBusinessEmail,
+      data.paypalClientId !== undefined ? data.paypalClientId : current.paypalClientId,
+      data.paypalClientSecret !== undefined ? data.paypalClientSecret : current.paypalClientSecret,
+      data.paypalCurrency !== undefined ? data.paypalCurrency : current.paypalCurrency,
+      data.paypalExchangeRate !== undefined ? data.paypalExchangeRate : current.paypalExchangeRate,
     ];
 
     const res = await query(sql, values);

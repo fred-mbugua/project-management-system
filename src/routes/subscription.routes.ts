@@ -27,6 +27,8 @@ router.get('/renew', subscriptionController.showPayPage);
 
 // Payment Initiation & Verification
 router.post('/mpesa-stk', subscriptionController.initiateMpesaStk);
+router.post('/paypal/create-order', subscriptionController.createPaypalOrder);
+router.post('/paypal/capture-order', subscriptionController.capturePaypalOrder);
 router.post('/verify-payment', subscriptionController.verifyPayment);
 router.get('/status/:invoiceId', subscriptionController.checkInvoiceStatus);
 

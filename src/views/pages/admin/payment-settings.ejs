@@ -125,42 +125,68 @@
       </div>
     </div>
 
-    <!-- 3. Direct Bank Settlement -->
+    <!-- 3. PayPal Payment Gateway (Business Account) -->
     <div class="card mb-6">
       <div class="card-header flex-between">
         <div class="card-title">
-          <i class="uil uil-university text-primary" style="font-size: 1.4rem;"></i>
-          <span>3. Direct Bank Settlement (EFT / RTGS)</span>
+          <i class="uil uil-paypal" style="color: #003087; font-size: 1.4rem;"></i>
+          <span>3. PayPal Payment Gateway (Business Account)</span>
         </div>
         <label class="toggle-switch flex-align-center gap-2" style="cursor: pointer;">
-          <input type="checkbox" name="bankEnabled" <%= settings.bankEnabled ? 'checked' : '' %>>
-          <span style="font-weight: 700; font-size: 0.88rem;">Enable Bank Transfer</span>
+          <input type="checkbox" name="paypalEnabled" <%= settings.paypalEnabled ? 'checked' : '' %>>
+          <span style="font-weight: 700; font-size: 0.88rem;">Enable PayPal</span>
         </label>
       </div>
 
       <div class="card-body">
         <p class="text-xs text-muted mb-4">
-          Display official corporate bank account details on invoices and on the renewal checkout screen.
+          Accept payments worldwide via PayPal Business Account, PayPal balances, and linked debit/credit cards. Automatically activates tenant workspaces upon payment.
         </p>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;" class="mb-4">
           <div class="form-group">
-            <label class="form-label" for="bankName">Bank Name</label>
-            <input type="text" id="bankName" name="bankName" class="form-input" value="<%= settings.bankName %>" placeholder="e.g. NCBA Bank Kenya">
+            <label class="form-label" for="paypalEnvironment">Environment</label>
+            <select name="paypalEnvironment" id="paypalEnvironment" class="form-input">
+              <option value="sandbox" <%= settings.paypalEnvironment === 'sandbox' ? 'selected' : '' %>>Sandbox (Testing / Demo)</option>
+              <option value="production" <%= settings.paypalEnvironment === 'production' ? 'selected' : '' %>>Production (Live PayPal)</option>
+            </select>
           </div>
+
           <div class="form-group">
-            <label class="form-label" for="bankAccountName">Account Name</label>
-            <input type="text" id="bankAccountName" name="bankAccountName" class="form-input" value="<%= settings.bankAccountName %>" placeholder="Company Legal Name">
+            <label class="form-label" for="paypalBusinessEmail">PayPal Business Email *</label>
+            <input type="email" id="paypalBusinessEmail" name="paypalBusinessEmail" class="form-input" value="<%= settings.paypalBusinessEmail || '' %>" placeholder="e.g. payments@freestylecodetechnologies.com">
           </div>
+
           <div class="form-group">
-            <label class="form-label" for="bankAccountNumber">Account Number</label>
-            <input type="text" id="bankAccountNumber" name="bankAccountNumber" class="form-input" value="<%= settings.bankAccountNumber %>" placeholder="Bank Account Number">
+            <label class="form-label" for="paypalCurrency">Settlement Currency</label>
+            <select name="paypalCurrency" id="paypalCurrency" class="form-input">
+              <option value="USD" <%= settings.paypalCurrency === 'USD' ? 'selected' : '' %>>USD - US Dollar ($)</option>
+              <option value="EUR" <%= settings.paypalCurrency === 'EUR' ? 'selected' : '' %>>EUR - Euro (€)</option>
+              <option value="GBP" <%= settings.paypalCurrency === 'GBP' ? 'selected' : '' %>>GBP - British Pound (£)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="paypalExchangeRate">Exchange Rate (KES per 1 USD)</label>
+            <input type="number" step="0.01" min="1" id="paypalExchangeRate" name="paypalExchangeRate" class="form-input" value="<%= settings.paypalExchangeRate || 130.00 %>">
+            <span class="text-xs text-muted">Used to convert KES invoice totals to USD for PayPal checkout.</span>
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="bankInstructions">Special Settlement Instructions</label>
-          <textarea id="bankInstructions" name="bankInstructions" class="form-input" rows="3" placeholder="Enter bank instructions for clients..."><%= settings.bankInstructions %></textarea>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="paypalClientId">PayPal REST Client ID</label>
+            <input type="text" id="paypalClientId" name="paypalClientId" class="form-input" value="<%= settings.paypalClientId || '' %>" placeholder="Enter PayPal REST App Client ID">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="paypalClientSecret">PayPal REST Client Secret</label>
+            <input type="password" id="paypalClientSecret" name="paypalClientSecret" class="form-input" value="<%= settings.paypalClientSecret || '' %>" placeholder="Enter PayPal REST Secret Key">
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; padding: 12px 14px; background: var(--bg-tertiary); border-radius: 8px; font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
+          <i class="uil uil-info-circle text-primary"></i> 
+          <strong>Pro-tip:</strong> When Client ID and Secret are configured from developer.paypal.com, PayPal Smart Buttons will automatically render seamlessly on the checkout page for 1-click payment authorization.
         </div>
       </div>
     </div>

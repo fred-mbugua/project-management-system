@@ -225,4 +225,95 @@ export class SubscriptionModel {
     if (existing) return existing;
     return await this.createTenantSubscription(data, client);
   }
+
+  /**
+   * Check tenant subscription resource limits (users, projects, storage)
+   */
+  static async checkTenantResourceLimit(
+    tenantId: string,
+    resource: 'users' | 'projects' | 'storage',
+    incomingAmount: number = 1
+  ): Promise<{ allowed: boolean; current: number; max: number; isExempt: boolean; message?: string }> {
+    const subRes = await query(
+      `SELECT 
+         t.subscription_exempt,
+         COALESCE(sp.max_users, 3)::int as max_users,
+         COALESCE(sp.max_projects, 5)::int as max_projects,
+         COALESCE(sp.max_storage_mb, 500)::int as max_storage_mb,
+         sp.name as plan_name
+       FROM tenants t
+       LEFT JOIN tenant_subscriptions ts ON t.id = ts.tenant_id
+       LEFT JOIN subscription_plans sp ON ts.plan_id = sp.id
+       WHERE t.id = $1
+       LIMIT 1`,
+      [tenantId]
+    );
+
+    const isExempt = Boolean(subRes.rows[0]?.subscription_exempt);
+    const planName = subRes.rows[0]?.plan_name || 'Standard Plan';
+    const maxUsers = subRes.rows[0]?.max_users || 3;
+    const maxProjects = subRes.rows[0]?.max_projects || 5;
+    const maxStorageMb = subRes.rows[0]?.max_storage_mb || 500;
+
+    if (isExempt) {
+      return { allowed: true, current: 0, max: 999999, isExempt: true };
+    }
+
+    if (resource === 'users') {
+      const countRes = await query(
+        `SELECT COUNT(*)::int as count FROM users WHERE tenant_id = $1 AND is_active = TRUE`,
+        [tenantId]
+      );
+      const current = countRes.rows[0]?.count || 0;
+      const allowed = (current + incomingAmount) <= maxUsers;
+      return {
+        allowed,
+        current,
+        max: maxUsers,
+        isExempt: false,
+        message: allowed
+          ? undefined
+          : `Team member limit reached (${current} of ${maxUsers} active members allowed on ${planName}). Please upgrade your subscription plan to add more members.`,
+      };
+    }
+
+    if (resource === 'projects') {
+      const countRes = await query(
+        `SELECT COUNT(*)::int as count FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED'`,
+        [tenantId]
+      );
+      const current = countRes.rows[0]?.count || 0;
+      const allowed = (current + incomingAmount) <= maxProjects;
+      return {
+        allowed,
+        current,
+        max: maxProjects,
+        isExempt: false,
+        message: allowed
+          ? undefined
+          : `Project limit reached (${current} of ${maxProjects} active projects allowed on ${planName}). Please upgrade your subscription plan to create more projects.`,
+      };
+    }
+
+    if (resource === 'storage') {
+      const docsRes = await query(
+        `SELECT COALESCE(SUM(file_size), 0)::bigint as total_bytes FROM project_documents WHERE tenant_id = $1`,
+        [tenantId]
+      );
+      const usedBytes = parseInt(docsRes.rows[0]?.total_bytes || '0', 10);
+      const usedMb = Number((usedBytes / (1024 * 1024)).toFixed(2));
+      const allowed = (usedMb + incomingAmount) <= maxStorageMb;
+      return {
+        allowed,
+        current: usedMb,
+        max: maxStorageMb,
+        isExempt: false,
+        message: allowed
+          ? undefined
+          : `Storage quota limit reached (${usedMb} MB used of ${maxStorageMb} MB allocated on ${planName}). Please upgrade your subscription plan to upload additional files.`,
+      };
+    }
+
+    return { allowed: true, current: 0, max: 999999, isExempt: false };
+  }
 }

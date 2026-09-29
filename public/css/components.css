@@ -3423,6 +3423,125 @@ input.flatpickr-date::placeholder {
 .plan-card-active { border: 2px solid var(--primary) !important; }
 .plan-card-standard { border: 2px solid var(--border-color) !important; }
 
+/* ──────────────────────────────────────────────
+   Support Banner & Storage Cards (Dark & Light)
+   ────────────────────────────────────────────── */
+.support-banner-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+}
+
+.support-banner-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-6);
+}
+
+.support-banner-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--border-radius-md, 12px);
+  background: rgba(99, 102, 241, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .support-banner-icon {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818CF8;
+}
+
+.support-banner-title {
+  font-size: var(--text-base, 1rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.support-banner-desc {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.support-email-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.support-email-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+[data-theme="dark"] .support-email-btn {
+  background: #243048;
+  border-color: #3b4b66;
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .support-email-btn:hover {
+  border-color: #818cf8;
+  color: #818cf8;
+  background: #2a3754;
+}
+
+/* Storage Monitoring Mini Stats */
+.storage-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.storage-stat-tile {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+[data-theme="dark"] .storage-stat-tile {
+  background: #182234;
+  border-color: #334155;
+}
+
+.storage-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.storage-stat-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
 
 
 

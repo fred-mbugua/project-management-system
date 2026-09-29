@@ -6,6 +6,7 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../config/database';
 import { UserModel } from '../models/user.model';
+import { SubscriptionModel } from '../models/subscription.model';
 import { UserRole } from '../models/types';
 import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import { formatKES } from '../utils/taxCalculator';
@@ -99,16 +100,30 @@ export class TeamController {
     }
   };
 
-  showNew = async (_req: Request, res: Response): Promise<void> => {
-    res.render('pages/team/new', {
-      title: 'Invite Team Member',
-      roles: [
-        UserRole.PROJECT_MANAGER,
-        UserRole.ACCOUNTANT,
-        UserRole.TEAM_MEMBER,
-        UserRole.CLIENT_PORTAL,
-      ],
-    });
+  showNew = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenantId;
+      if (tenantId) {
+        const limitCheck = await SubscriptionModel.checkTenantResourceLimit(tenantId, 'users');
+        if (!limitCheck.allowed) {
+          req.flash('error', limitCheck.message || 'Team member limit reached for your subscription package.');
+          res.redirect('/team');
+          return;
+        }
+      }
+
+      res.render('pages/team/new', {
+        title: 'Invite Team Member',
+        roles: [
+          UserRole.PROJECT_MANAGER,
+          UserRole.ACCOUNTANT,
+          UserRole.TEAM_MEMBER,
+          UserRole.CLIENT_PORTAL,
+        ],
+      });
+    } catch (error) {
+      next(error);
+    }
   };
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -116,6 +131,14 @@ export class TeamController {
       const tenantId = req.tenantId;
       if (!tenantId) {
         res.redirect('/auth/login');
+        return;
+      }
+
+      // Enforce subscription user limit
+      const limitCheck = await SubscriptionModel.checkTenantResourceLimit(tenantId, 'users');
+      if (!limitCheck.allowed) {
+        req.flash('error', limitCheck.message || 'Team member limit reached for your subscription package.');
+        res.redirect('/team/new');
         return;
       }
 

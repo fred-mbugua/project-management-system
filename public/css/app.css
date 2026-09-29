@@ -154,6 +154,7 @@
 
   /* Compatibility & Semantic Aliases */
   --surface: var(--bg-elevated);
+  --bg-surface: var(--bg-elevated);
   --border-subtle: var(--border-color);
   --radius-xs: var(--border-radius-sm);
   --radius-sm: var(--border-radius-sm);
@@ -174,6 +175,7 @@
   --bg-secondary: #1E293B;
   --bg-tertiary: #1A2332;
   --bg-elevated: #1E293B;
+  --bg-surface: #1E293B;
   --bg-sidebar: #0B1120;
   --bg-sidebar-hover: #1E293B;
   --bg-sidebar-active: rgba(99, 102, 241, 0.2);
@@ -198,6 +200,7 @@
 
   /* Compatibility & Semantic Aliases */
   --surface: var(--bg-elevated);
+  --bg-surface: var(--bg-elevated);
   --border-subtle: var(--border-color);
   --brand-primary: var(--primary-400);
   --primary-subtle: rgba(99, 102, 241, 0.15);

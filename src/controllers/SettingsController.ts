@@ -128,9 +128,9 @@ export class SettingsController {
               setLogger.warn('Failed to delete replaced logo', { oldLogoUrl: existingLogoUrl, error: String(delErr) });
             }
           }
-        } catch (uploadError) {
+        } catch (uploadError: any) {
           setLogger.error('Failed to upload logo', { error: String(uploadError) });
-          req.flash('error', 'Failed to upload logo. Please check file format and try again.');
+          req.flash('error', uploadError?.message || 'Failed to upload logo. Please check file format and try again.');
         }
       } else if (removeLogo === 'true' || removeLogo === '1') {
         logoUrl = '';

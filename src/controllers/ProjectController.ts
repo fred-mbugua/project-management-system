@@ -6,6 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../config/database';
 import { ProjectModel, TaskModel, ProjectStatus, TaskPriority, TaskStatus, AuditAction } from '../models';
+import { SubscriptionModel } from '../models/subscription.model';
 import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import storageService from '../services/storage.service';
 import ActionLogService from '../services/actionLog.service';
@@ -113,6 +114,15 @@ export class ProjectController {
   showNew = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenantId;
+      if (tenantId) {
+        const limitCheck = await SubscriptionModel.checkTenantResourceLimit(tenantId, 'projects');
+        if (!limitCheck.allowed) {
+          req.flash('error', limitCheck.message || 'Project limit reached for your subscription package.');
+          res.redirect('/projects');
+          return;
+        }
+      }
+
       const clientsRes = await query(`SELECT * FROM clients WHERE tenant_id = $1 AND is_active = TRUE ORDER BY name ASC`, [tenantId]);
       
       res.render('pages/projects/new', {
@@ -132,6 +142,14 @@ export class ProjectController {
       const tenantId = req.tenantId;
       if (!tenantId) {
         res.redirect('/auth/login');
+        return;
+      }
+
+      // Enforce subscription project limit
+      const limitCheck = await SubscriptionModel.checkTenantResourceLimit(tenantId, 'projects');
+      if (!limitCheck.allowed) {
+        req.flash('error', limitCheck.message || 'Project limit reached for your subscription package.');
+        res.redirect('/projects');
         return;
       }
 

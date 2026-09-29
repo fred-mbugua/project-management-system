@@ -690,7 +690,7 @@
       <div class="card-header flex-between">
         <h3 class="card-title">
           <i class="uil uil-hard-drive text-primary"></i>
-          <span>Dedicated Storage & Folder Monitoring</span>
+          <span>Storage & Document Quota</span>
         </h3>
         <span class="badge <%= storageMetrics.isOverQuota ? 'badge-danger' : 'badge-success' %>">
           <i class="uil <%= storageMetrics.isOverQuota ? 'uil-exclamation-triangle' : 'uil-check-circle' %>"></i>
@@ -698,17 +698,18 @@
         </span>
       </div>
       <div class="card-body">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; align-items: center;">
           <div>
             <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px;">
               <span style="font-size: 2rem; font-weight: 800; color: var(--text-primary);"><%= storageMetrics.usedMb %> MB</span>
               <span style="font-size: 1rem; color: var(--text-muted);">/ <%= storageMetrics.allocatedMb %> MB Allocated</span>
             </div>
             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
-              Your organization has consumed <strong><%= storageMetrics.percentUsed %>%</strong> of its assigned storage quota. Remaining space: <strong><%= storageMetrics.remainingMb %> MB</strong>.
+              Your organization has consumed <strong><%= storageMetrics.percentUsed %>%</strong> of its assigned storage quota &bull; <strong><%= storageMetrics.remainingMb %> MB</strong> available.
             </p>
+            <% const setStorageClass = storageMetrics.isOverQuota ? 'bg-danger' : (storageMetrics.percentUsed >= 80 ? 'bg-warning' : 'bg-primary'); %>
             <div style="background: var(--bg-tertiary, #f1f5f9); border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 12px;">
-              <div style="background: <%= storageMetrics.isOverQuota ? 'var(--danger)' : (storageMetrics.percentUsed >= 80 ? '#f59e0b' : 'var(--primary)') %>; width: <%= storageMetrics.percentUsed %>%; height: 100%;"></div>
+              <div class="<%= setStorageClass %>" style="width: <%= storageMetrics.percentUsed %>%; height: 100%;"></div>
             </div>
             <div class="flex-align-center gap-2 text-xs text-muted">
               <i class="uil uil-files-landscapes-alt text-primary"></i>
@@ -716,17 +717,20 @@
             </div>
           </div>
 
-          <div style="background: var(--bg-secondary, #f8fafc); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px;">
-            <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 8px; color: var(--text-primary);">
-              <i class="uil uil-folder-network text-primary"></i> Partitioned Folder Structure
+          <!-- Client-facing High-Level Stat Tiles -->
+          <div class="storage-stat-grid">
+            <div class="storage-stat-tile">
+              <span class="storage-stat-label">Allocated Quota</span>
+              <span class="storage-stat-value"><%= storageMetrics.allocatedMb %> MB</span>
             </div>
-            <div style="font-family: monospace; font-size: 0.8rem; display: flex; flex-direction: column; gap: 4px;">
-              <div><span class="text-muted">Cloud Storage:</span> <strong>tenants/<%= tenant.id %>/</strong></div>
-              <div><span class="text-muted">Local Server:</span> <strong>public/uploads/tenants/<%= tenant.id %>/</strong></div>
+            <div class="storage-stat-tile">
+              <span class="storage-stat-label">Used Space</span>
+              <span class="storage-stat-value" style="color: var(--primary);"><%= storageMetrics.usedMb %> MB</span>
             </div>
-            <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 10px; margin-bottom: 0;">
-              Files are completely isolated in your organization's directory and automatically synchronized.
-            </p>
+            <div class="storage-stat-tile">
+              <span class="storage-stat-label">Free Space</span>
+              <span class="storage-stat-value" style="color: var(--success);"><%= storageMetrics.remainingMb %> MB</span>
+            </div>
           </div>
         </div>
       </div>
@@ -734,23 +738,25 @@
   <% } %>
 
   <!-- Platform Support Card -->
-  <div class="card mb-6" style="border: 1px solid var(--border-color);">
-    <div class="card-body flex-between" style="flex-wrap: wrap; gap: 16px; padding: 20px 24px;">
+  <div class="support-banner-card mb-6">
+    <div class="support-banner-body">
       <div class="flex-align-center gap-3">
-        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(37, 99, 235, 0.1); display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 1.4rem;">
+        <div class="support-banner-icon">
           <i class="uil uil-headset"></i>
         </div>
         <div>
-          <h4 style="margin: 0 0 2px 0; font-size: 1rem; font-weight: 700;">Account & Platform Technical Support</h4>
-          <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">
+          <h4 class="support-banner-title">Account & Platform Technical Support</h4>
+          <p class="support-banner-desc">
             Need help configuring integrations, M-Pesa credentials, or custom domain mappings?
           </p>
         </div>
       </div>
-      <a href="mailto:support@freestylecodetechnologies.com" class="btn btn-secondary" style="font-weight: 600;">
-        <i class="uil uil-envelope-alt"></i>
-        <span>support@freestylecodetechnologies.com</span>
-      </a>
+      <div class="flex-align-center gap-2">
+        <a href="mailto:support@freestylecodetechnologies.com" class="support-email-btn">
+          <i class="uil uil-envelope-alt"></i>
+          <span>support@freestylecodetechnologies.com</span>
+        </a>
+      </div>
     </div>
   </div>
 </div>

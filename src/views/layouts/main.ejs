@@ -4,10 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Enterprise Project Management, Invoicing & ERP System">
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#e8650a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PM">
+  <meta name="application-name" content="PM & ERP SaaS">
+  <meta name="msapplication-TileColor" content="#e8650a">
+  <meta name="msapplication-TileImage" content="/icons/icon-144x144.png">
+
   <title><%= typeof title !== 'undefined' ? title + ' | ' : '' %><%= appName %></title>
 
-  <!-- Favicon -->
+  <!-- Favicon & Icons -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96x96.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -53,9 +68,128 @@
     <%- include('../partials/footer') %>
   </div>
 
+  <!-- PWA Install Prompt Banner -->
+  <%- include('../partials/pwa-install') %>
+
   <!-- Flatpickr & Application Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="/js/app.js"></script>
+
+  <!-- Service Worker Registration & PWA Install Logic -->
+  <script>
+    (function() {
+      'use strict';
+
+      // ── Service Worker Registration ──
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(reg) {
+              console.log('[PWA] Service Worker registered, scope:', reg.scope);
+
+              // Check for updates periodically
+              reg.addEventListener('updatefound', function() {
+                var newWorker = reg.installing;
+                newWorker.addEventListener('statechange', function() {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New version available - show update prompt
+                    showUpdateBanner();
+                  }
+                });
+              });
+            })
+            .catch(function(err) {
+              console.warn('[PWA] Service Worker registration failed:', err);
+            });
+        });
+      }
+
+      // ── PWA Install Prompt ──
+      var deferredPrompt = null;
+      var installBanner = null;
+      var installDismissed = false;
+
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+
+        // Don't show if user dismissed recently (24h cooldown)
+        var lastDismissed = localStorage.getItem('pwa-install-dismissed');
+        if (lastDismissed) {
+          var dismissedAt = parseInt(lastDismissed, 10);
+          if (Date.now() - dismissedAt < 86400000) {
+            return;
+          }
+        }
+
+        // Show the install banner after a brief delay
+        setTimeout(function() {
+          showInstallBanner();
+        }, 3000);
+      });
+
+      window.addEventListener('appinstalled', function() {
+        console.log('[PWA] App installed successfully');
+        hideInstallBanner();
+        deferredPrompt = null;
+      });
+
+      function showInstallBanner() {
+        installBanner = document.getElementById('pwa-install-banner');
+        if (!installBanner || installDismissed) return;
+
+        installBanner.classList.add('pwa-install-show');
+
+        // Install button
+        var installBtn = document.getElementById('pwa-install-btn');
+        if (installBtn) {
+          installBtn.addEventListener('click', function() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function(choice) {
+              if (choice.outcome === 'accepted') {
+                console.log('[PWA] User accepted install');
+              }
+              deferredPrompt = null;
+              hideInstallBanner();
+            });
+          });
+        }
+
+        // Dismiss button
+        var dismissBtn = document.getElementById('pwa-install-dismiss');
+        if (dismissBtn) {
+          dismissBtn.addEventListener('click', function() {
+            installDismissed = true;
+            localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+            hideInstallBanner();
+          });
+        }
+      }
+
+      function hideInstallBanner() {
+        if (installBanner) {
+          installBanner.classList.remove('pwa-install-show');
+          installBanner.classList.add('pwa-install-hide');
+        }
+      }
+
+      function showUpdateBanner() {
+        var banner = document.getElementById('pwa-update-banner');
+        if (banner) {
+          banner.classList.add('pwa-install-show');
+          var updateBtn = document.getElementById('pwa-update-btn');
+          if (updateBtn) {
+            updateBtn.addEventListener('click', function() {
+              window.location.reload();
+            });
+          }
+        }
+      }
+    })();
+  </script>
+
   <%- script %>
 </body>
 </html>
+

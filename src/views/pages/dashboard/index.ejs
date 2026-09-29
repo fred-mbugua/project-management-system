@@ -94,12 +94,12 @@
       </div>
       <div class="card-body-table">
         <% if (recentProjects && recentProjects.length > 0) { %>
-          <div class="table-scroll-hint">
+          <div class="table-scroll-hint dashboard-table-scroll-hint">
             <i class="uil uil-arrows-h"></i>
             <span>Swipe to view all</span>
           </div>
           <div class="table-responsive">
-            <table class="table">
+            <table class="table dashboard-table">
               <thead>
                 <tr>
                   <th>Code</th>
@@ -111,10 +111,14 @@
               <tbody>
                 <% recentProjects.forEach(function(proj) { %>
                   <tr>
-                    <td><span class="badge badge-subtle"><%= proj.code %></span></td>
-                    <td><strong><%= proj.name %></strong></td>
-                    <td><%= proj.client_name || 'Internal' %></td>
-                    <td>
+                    <td data-label="Code"><span class="badge badge-subtle"><%= proj.code %></span></td>
+                    <td data-label="Project" class="cell-primary">
+                      <a href="/projects/<%= proj.id %>" class="font-semibold text-primary">
+                        <%= proj.name %>
+                      </a>
+                    </td>
+                    <td data-label="Client"><%= proj.client_name || 'Internal' %></td>
+                    <td data-label="Status">
                       <% if (proj.status === 'IN_PROGRESS') { %>
                         <span class="badge badge-info"><span class="badge-dot"></span>In Progress</span>
                       <% } else if (proj.status === 'COMPLETED') { %>
@@ -157,12 +161,12 @@
       </div>
       <div class="card-body-table">
         <% if (recentInvoices && recentInvoices.length > 0) { %>
-          <div class="table-scroll-hint">
+          <div class="table-scroll-hint dashboard-table-scroll-hint">
             <i class="uil uil-arrows-h"></i>
             <span>Swipe to view all</span>
           </div>
           <div class="table-responsive">
-            <table class="table">
+            <table class="table dashboard-table">
               <thead>
                 <tr>
                   <th>Number</th>
@@ -174,10 +178,14 @@
               <tbody>
                 <% recentInvoices.forEach(function(inv) { %>
                   <tr>
-                    <td><strong><%= inv.invoice_number %></strong></td>
-                    <td><%= inv.client_name || 'N/A' %></td>
-                    <td><strong><%= formatKES(parseFloat(inv.total_amount)) %></strong></td>
-                    <td>
+                    <td data-label="Invoice #" class="cell-primary">
+                      <a href="/invoices/<%= inv.id %>" class="font-semibold text-primary">
+                        <%= inv.invoice_number %>
+                      </a>
+                    </td>
+                    <td data-label="Client"><%= inv.client_name || 'N/A' %></td>
+                    <td data-label="Amount"><strong><%= formatKES(parseFloat(inv.total_amount)) %></strong></td>
+                    <td data-label="Status">
                       <% if (inv.status === 'PAID') { %>
                         <span class="badge badge-success"><span class="badge-dot"></span>Paid</span>
                       <% } else if (inv.status === 'SENT') { %>
@@ -215,12 +223,12 @@
     </div>
     <div class="card-body-table">
       <% if (recentTasks && recentTasks.length > 0) { %>
-        <div class="table-scroll-hint">
+        <div class="table-scroll-hint dashboard-table-scroll-hint">
           <i class="uil uil-arrows-h"></i>
           <span>Swipe to view all</span>
         </div>
         <div class="table-responsive">
-          <table class="table">
+          <table class="table dashboard-table">
             <thead>
               <tr>
                 <th>Task Title</th>
@@ -233,10 +241,10 @@
             <tbody>
               <% recentTasks.forEach(function(task) { %>
                 <tr>
-                  <td><strong><%= task.title %></strong></td>
-                  <td><%= task.project_name || 'N/A' %></td>
-                  <td><%= task.first_name ? task.first_name + ' ' + task.last_name : 'Unassigned' %></td>
-                  <td>
+                  <td data-label="Task" class="cell-primary"><strong><%= task.title %></strong></td>
+                  <td data-label="Project"><%= task.project_name || 'N/A' %></td>
+                  <td data-label="Assigned To"><%= task.first_name ? task.first_name + ' ' + task.last_name : 'Unassigned' %></td>
+                  <td data-label="Priority">
                     <% if (task.priority === 'URGENT') { %>
                       <span class="badge badge-danger">Urgent</span>
                     <% } else if (task.priority === 'HIGH') { %>
@@ -245,7 +253,7 @@
                       <span class="badge badge-subtle"><%= task.priority %></span>
                     <% } %>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <% if (task.status === 'COMPLETED') { %>
                       <span class="badge badge-success"><span class="badge-dot"></span>Done</span>
                     <% } else if (task.status === 'IN_PROGRESS') { %>

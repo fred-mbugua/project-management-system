@@ -104,6 +104,8 @@ app.use(
           'https://www.sandbox.paypal.com',
           'https://*.paypalobjects.com',
         ],
+        workerSrc: ["'self'"],
+        manifestSrc: ["'self'"],
       },
     },
   })

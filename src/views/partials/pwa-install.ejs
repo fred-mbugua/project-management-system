@@ -1,0 +1,47 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     PWA Install Prompt - Animated bottom banner
+     Shows when the browser fires the beforeinstallprompt event
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<!-- Install Banner -->
+<div class="pwa-install-banner" id="pwa-install-banner" role="alert" aria-live="polite">
+  <div class="pwa-install-content">
+    <div class="pwa-install-icon-wrapper">
+      <img src="/icons/icon-96x96.png" alt="PM App" class="pwa-install-icon" width="48" height="48">
+    </div>
+    <div class="pwa-install-text">
+      <strong class="pwa-install-title">Install PM App</strong>
+      <span class="pwa-install-desc">Add to your home screen for quick access and offline support.</span>
+    </div>
+    <div class="pwa-install-actions">
+      <button class="pwa-install-btn-install" id="pwa-install-btn" type="button">
+        <i class="uil uil-download-alt"></i>
+        <span>Install</span>
+      </button>
+      <button class="pwa-install-btn-dismiss" id="pwa-install-dismiss" type="button" aria-label="Dismiss">
+        <i class="uil uil-times"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Update Available Banner -->
+<div class="pwa-install-banner pwa-update-banner" id="pwa-update-banner" role="alert" aria-live="polite">
+  <div class="pwa-install-content">
+    <div class="pwa-install-icon-wrapper">
+      <div class="pwa-update-icon-circle">
+        <i class="uil uil-sync"></i>
+      </div>
+    </div>
+    <div class="pwa-install-text">
+      <strong class="pwa-install-title">Update Available</strong>
+      <span class="pwa-install-desc">A new version of PM is available. Refresh to update.</span>
+    </div>
+    <div class="pwa-install-actions">
+      <button class="pwa-install-btn-install" id="pwa-update-btn" type="button">
+        <i class="uil uil-refresh"></i>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+</div>

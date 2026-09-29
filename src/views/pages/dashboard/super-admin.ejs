@@ -95,12 +95,12 @@
     </div>
     <div class="card-body-table">
       <% if (recentTenants && recentTenants.length > 0) { %>
-        <div class="table-scroll-hint">
+        <div class="table-scroll-hint dashboard-table-scroll-hint">
           <i class="uil uil-arrows-h"></i>
           <span>Swipe to view all</span>
         </div>
         <div class="table-responsive">
-          <table class="table">
+          <table class="table dashboard-table">
             <thead>
               <tr>
                 <th>Organization</th>
@@ -115,7 +115,7 @@
             <tbody>
               <% recentTenants.forEach(function(t) { %>
                 <tr>
-                  <td>
+                  <td data-label="Organization" class="cell-primary">
                     <div class="flex-align-center gap-3">
                       <div class="avatar-circle">
                         <%= t.name.charAt(0) %>
@@ -128,18 +128,18 @@
                       </div>
                     </div>
                   </td>
-                  <td><code><%= t.slug %></code></td>
-                  <td><%= t.email %></td>
-                  <td><span class="badge badge-info"><span class="badge-dot"></span><%= t.plan_tier || 'STARTER' %></span></td>
-                  <td>
+                  <td data-label="Slug"><code><%= t.slug %></code></td>
+                  <td data-label="Email"><%= t.email %></td>
+                  <td data-label="Plan Tier"><span class="badge badge-info"><span class="badge-dot"></span><%= t.plan_tier || 'STARTER' %></span></td>
+                  <td data-label="Status">
                     <% if (t.is_active) { %>
                       <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
                     <% } else { %>
                       <span class="badge badge-subtle">Inactive</span>
                     <% } %>
                   </td>
-                  <td><%= new Date(t.created_at).toLocaleDateString() %></td>
-                  <td>
+                  <td data-label="Created"><%= new Date(t.created_at).toLocaleDateString() %></td>
+                  <td data-label="Actions">
                     <a href="/admin/tenants" class="btn btn-xs btn-secondary" title="Manage Tenant">
                       <i class="uil uil-sliders-v-alt"></i>
                       <span>Manage</span>

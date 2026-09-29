@@ -708,3 +708,255 @@
     flex: 1 1 100%;
   }
 }
+
+/* ──────────────────────────────────────────────
+   Dashboard Page - Overflow Containment
+   ────────────────────────────────────────────── */
+
+.dashboard-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* ──────────────────────────────────────────────
+   Dashboard Home Page Tables - Responsive Mobile Cards
+   ────────────────────────────────────────────── */
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* KPI card responsive sizing for tablets */
+@media (max-width: 768px) {
+  .kpi-card {
+    padding: var(--space-4) var(--space-4);
+  }
+
+  .kpi-value {
+    font-size: var(--text-2xl, 1.5rem);
+  }
+
+  .kpi-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .kpi-icon .uil {
+    font-size: 20px;
+  }
+}
+
+/* KPI card responsive sizing for small mobile */
+@media (max-width: 480px) {
+  .kpi-card {
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .kpi-value {
+    font-size: var(--text-xl, 1.25rem);
+    word-break: break-all;
+    overflow-wrap: break-word;
+  }
+
+  .kpi-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .kpi-icon .uil {
+    font-size: 18px;
+  }
+
+  .kpi-label {
+    font-size: 0.65rem;
+  }
+
+  .kpi-change {
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Hide the horizontal scroll hint on mobile since table transforms into cards */
+  .dashboard-table-scroll-hint {
+    display: none !important;
+  }
+
+  .card-body-table .table-responsive:has(.dashboard-table) {
+    overflow-x: visible !important;
+    overflow: visible !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .dashboard-table {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border-collapse: separate;
+    table-layout: auto !important;
+  }
+
+  .dashboard-table thead {
+    display: none !important;
+  }
+
+  .dashboard-table tbody {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .dashboard-table tr {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: var(--space-3-5, 14px) var(--space-4, 16px) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    background: var(--bg-elevated);
+    transition: background-color var(--transition-fast);
+  }
+
+  .dashboard-table tr:nth-child(even) {
+    background: var(--bg-tertiary);
+  }
+
+  .dashboard-table tr:hover {
+    background-color: rgba(99, 102, 241, 0.05);
+  }
+
+  [data-theme="dark"] .dashboard-table tr:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .dashboard-table tr:last-child {
+    border-bottom: none !important;
+  }
+
+  /* Override card-body-table first/last child padding for mobile card layout */
+  .card-body-table .dashboard-table td:first-child,
+  .card-body-table .dashboard-table td:last-child {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .dashboard-table td {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0 !important;
+    border: none !important;
+    font-size: var(--text-sm);
+    text-align: right;
+    gap: 12px;
+    box-sizing: border-box !important;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .dashboard-table td::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .dashboard-table td.cell-primary {
+    padding-bottom: 8px !important;
+    margin-bottom: 4px;
+    border-bottom: 1px dashed var(--border-color) !important;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .dashboard-table td.cell-primary a {
+    color: var(--primary-600);
+    text-decoration: none;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  [data-theme="dark"] .dashboard-table td.cell-primary a {
+    color: var(--primary-400);
+  }
+
+  .dashboard-table td.cell-primary a:hover {
+    text-decoration: underline;
+  }
+
+  .dashboard-table .badge {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .dashboard-table td > strong {
+    color: var(--text-primary);
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Card title group responsive on mobile */
+  .card-header .card-title-group {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .card-header .card-action-link span {
+    display: none;
+  }
+
+  .card-header .card-action-link i {
+    font-size: 1.2rem;
+  }
+
+  /* Active Team Tasks card header responsive fix */
+  .card-header .text-sm {
+    white-space: nowrap;
+  }
+}
+
+/* Very small screens - extra compression */
+@media (max-width: 380px) {
+  .dashboard-table tr {
+    padding: var(--space-3, 12px) var(--space-3, 12px) !important;
+  }
+
+  .dashboard-table td {
+    font-size: var(--text-xs);
+    gap: 8px;
+  }
+
+  .dashboard-table td::before {
+    font-size: 0.65rem;
+  }
+
+  .dashboard-table td.cell-primary {
+    font-size: 0.85rem;
+  }
+
+  .page-title {
+    font-size: 1.1rem !important;
+  }
+
+  .page-subtitle {
+    font-size: 0.8rem !important;
+  }
+
+  .page-actions .btn {
+    font-size: 0.8rem !important;
+    padding: 6px 10px !important;
+  }
+}

@@ -105,6 +105,7 @@ export class TenantModel {
       cardSecretKey: row.card_secret_key,
       cardEnabled: Boolean(row.card_enabled),
       receiptFields: typeof row.receipt_fields === 'string' ? JSON.parse(row.receipt_fields) : row.receipt_fields,
+      subscriptionExempt: Boolean(row.subscription_exempt),
       isActive: row.is_active,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
@@ -278,6 +279,21 @@ export class TenantModel {
     ];
     const runner = client ? client.query.bind(client) : query;
     const res = await runner(sql, values);
+    return res.rows[0] ? this.mapRow(res.rows[0]) : null;
+  }
+
+  /**
+   * Set or toggle subscription fee exemption (whitelist)
+   */
+  static async setSubscriptionExemption(id: string, exempt: boolean, client?: PoolClient): Promise<Tenant | null> {
+    const sql = `
+      UPDATE tenants
+      SET subscription_exempt = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING *
+    `;
+    const runner = client ? client.query.bind(client) : query;
+    const res = await runner(sql, [exempt, id]);
     return res.rows[0] ? this.mapRow(res.rows[0]) : null;
   }
 }

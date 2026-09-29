@@ -1,0 +1,513 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Workspace Subscription Renewal Payment Portal
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="subscription-pay-page" style="max-width: 860px; margin: 0 auto; padding: 20px 0;">
+  <!-- Header Banner -->
+  <div class="card mb-6" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%); color: white; border: none; border-radius: var(--radius-lg, 16px); padding: 28px 32px; box-shadow: 0 10px 25px -5px rgba(49, 46, 129, 0.25);">
+    <div class="flex-between" style="flex-wrap: wrap; gap: 16px;">
+      <div>
+        <span class="badge" style="background: rgba(255, 255, 255, 0.2); color: #ffffff; margin-bottom: 8px; font-weight: 600;">
+          <i class="uil uil-shield-check"></i> Official SaaS Platform Renewal
+        </span>
+        <h1 style="color: #ffffff; font-size: 1.75rem; font-weight: 800; margin: 0 0 6px 0;">
+          Workspace Subscription Settlement
+        </h1>
+        <p style="color: rgba(255, 255, 255, 0.85); font-size: 0.92rem; margin: 0;">
+          Organization: <strong><%= tenant.name %></strong> &bull; Invoice Ref: <strong><%= invoice.invoice_number %></strong>
+        </p>
+      </div>
+
+      <div style="text-align: right; background: rgba(255, 255, 255, 0.12); padding: 12px 20px; border-radius: 12px; backdrop-filter: blur(8px);">
+        <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9;">Total Payable</div>
+        <div style="font-size: 1.85rem; font-weight: 800; color: #ffffff;">
+          <%= formatKES(invoice.total_amount) %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Payment Grid -->
+  <div class="payment-grid" style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+    <!-- Invoice Details Card -->
+    <div class="card">
+      <div class="card-header flex-between">
+        <h3 class="card-title">
+          <i class="uil uil-file-bookmark-alt text-primary"></i>
+          <span>Renewal Invoice Overview</span>
+        </h3>
+        <span class="badge <%= invoice.status === 'PAID' ? 'badge-success' : 'badge-danger' %>">
+          <%= invoice.status %>
+        </span>
+      </div>
+      <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; font-size: 0.88rem;">
+          <div>
+            <span class="text-muted" style="display: block; font-size: 0.78rem;">Subscription Package:</span>
+            <strong style="font-size: 1rem;"><%= invoice.plan_name || 'Standard Plan' %></strong>
+          </div>
+          <div>
+            <span class="text-muted" style="display: block; font-size: 0.78rem;">Invoice Number:</span>
+            <strong style="font-family: monospace;"><%= invoice.invoice_number %></strong>
+          </div>
+          <div>
+            <span class="text-muted" style="display: block; font-size: 0.78rem;">Due Date:</span>
+            <strong><%= new Date(invoice.due_date).toLocaleDateString('en-KE', { dateStyle: 'medium' }) %></strong>
+          </div>
+          <div>
+            <span class="text-muted" style="display: block; font-size: 0.78rem;">Renewal Duration:</span>
+            <strong><%= invoice.interval_months || 1 %> Month(s)</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <% if (invoice.status === 'PAID') { %>
+      <!-- Already Paid State -->
+      <div class="card" style="text-align: center; padding: 48px 24px;">
+        <i class="uil uil-check-circle text-success" style="font-size: 4rem; display: block; margin-bottom: 16px;"></i>
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">
+          Subscription Already Settled!
+        </h2>
+        <p class="text-muted" style="max-width: 480px; margin: 0 auto 24px auto;">
+          This invoice has been successfully paid and your organization workspace is active.
+        </p>
+        <a href="/dashboard" class="btn btn-primary" style="padding: 12px 32px; font-weight: 700;">
+          <i class="uil uil-arrow-right"></i> Return to Workspace Dashboard
+        </a>
+      </div>
+    <% } else { %>
+      <!-- Payment Methods Selection (Filtered by Super Admin Settings) -->
+      <div class="card">
+        <div class="card-header flex-between">
+          <div class="card-title">
+            <i class="uil uil-credit-card text-primary"></i>
+            <span>Select Payment Method</span>
+          </div>
+          <span class="text-xs text-muted">Secured Platform Checkout</span>
+        </div>
+
+        <div class="card-body">
+          <!-- Method Selection Tabs -->
+          <div class="payment-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+            <% if (paymentSettings.mpesaEnabled) { %>
+              <button type="button" class="btn btn-sm tab-btn active" id="tab-btn-mpesa-stk" onclick="switchPaymentTab('mpesa-stk')">
+                <i class="uil uil-mobile-android" style="color: #008751;"></i>
+                <span>M-Pesa Express (STK Push)</span>
+              </button>
+            <% } %>
+
+            <% if (paymentSettings.manualPesaEnabled) { %>
+              <button type="button" class="btn btn-sm tab-btn <%= !paymentSettings.mpesaEnabled ? 'active' : '' %>" id="tab-btn-mpesa-paybill" onclick="switchPaymentTab('mpesa-paybill')">
+                <i class="uil uil-bill" style="color: #008751;"></i>
+                <span>M-Pesa Paybill / Till</span>
+              </button>
+            <% } %>
+
+            <% if (paymentSettings.cardEnabled) { %>
+              <button type="button" class="btn btn-sm tab-btn <%= (!paymentSettings.mpesaEnabled && !paymentSettings.manualPesaEnabled) ? 'active' : '' %>" id="tab-btn-card-pay" onclick="switchPaymentTab('card-pay')">
+                <i class="uil uil-credit-card"></i>
+                <span>Card Checkout</span>
+              </button>
+            <% } %>
+
+            <% if (paymentSettings.bankEnabled) { %>
+              <button type="button" class="btn btn-sm tab-btn" id="tab-btn-bank-pay" onclick="switchPaymentTab('bank-pay')">
+                <i class="uil uil-university"></i>
+                <span>Direct Bank Settlement</span>
+              </button>
+            <% } %>
+          </div>
+
+          <!-- TAB 1: M-Pesa STK Push -->
+          <% if (paymentSettings.mpesaEnabled) { %>
+            <div id="tab-content-mpesa-stk" class="tab-content-panel">
+              <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;">
+                <div class="flex-align-center gap-2" style="font-weight: 700; color: #166534; font-size: 0.95rem;">
+                  <i class="uil uil-bolt-alt" style="font-size: 1.25rem;"></i>
+                  <span>Instant Automatic Activation</span>
+                </div>
+                <p style="margin: 4px 0 0 0; font-size: 0.84rem; color: #14532d; line-height: 1.5;">
+                  Enter your Safaricom phone number. A PIN prompt will instantly pop up on your phone. Once you enter your PIN, your workspace is activated automatically in seconds.
+                </p>
+              </div>
+
+              <form id="stkPushForm" onsubmit="handleMpesaStkPush(event)">
+                <div class="form-group mb-4">
+                  <label class="form-label" for="mpesaPhoneInput">Safaricom Phone Number *</label>
+                  <div style="position: relative;">
+                    <i class="uil uil-phone" style="position: absolute; left: 14px; top: 12px; color: var(--text-muted); font-size: 1.15rem;"></i>
+                    <input 
+                      type="tel" 
+                      id="mpesaPhoneInput" 
+                      class="form-input" 
+                      placeholder="e.g. 0712 345 678 or 254712345678" 
+                      value="<%= ownerPhone || '' %>" 
+                      required
+                      style="padding-left: 42px; font-size: 1rem; font-weight: 600;"
+                    >
+                  </div>
+                  <span class="text-xs text-muted" style="margin-top: 4px; display: block;">The Safaricom line that will authorize the subscription renewal payment.</span>
+                </div>
+
+                <div class="form-group mb-4">
+                  <label class="form-label">Amount Payable (KES)</label>
+                  <input 
+                    type="text" 
+                    class="form-input" 
+                    value="<%= formatKES(invoice.total_amount) %>" 
+                    readonly 
+                    style="background: var(--bg-tertiary, #f8fafc); font-weight: 800; font-size: 1.1rem; color: #008751;"
+                  >
+                </div>
+
+                <button type="submit" id="stkSubmitBtn" class="btn btn-block" style="background: #008751; color: white; padding: 14px; font-size: 1rem; font-weight: 700; border: none; border-radius: var(--radius-md); cursor: pointer; box-shadow: 0 4px 14px rgba(0, 135, 81, 0.25);">
+                  <i class="uil uil-arrow-circle-right"></i>
+                  <span>Send M-Pesa PIN Prompt &rarr;</span>
+                </button>
+              </form>
+
+              <!-- Sandbox Testing Fast-Track -->
+              <% if (paymentSettings.mpesaEnvironment === 'sandbox') { %>
+                <div style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border-color); text-align: center;">
+                  <span class="badge badge-warning mb-2"><i class="uil uil-flask"></i> Sandbox Mode</span>
+                  <p class="text-xs text-muted mb-2">Simulate instant successful payment confirmation for testing without a real handset prompt:</p>
+                  <button type="button" class="btn btn-sm btn-secondary" onclick="simulateInstantConfirm('MPESA_STK')">
+                    <i class="uil uil-check-circle text-success"></i> Simulate Instant M-Pesa Success
+                  </button>
+                </div>
+              <% } %>
+            </div>
+          <% } %>
+
+          <!-- TAB 2: M-Pesa Paybill / Till (Manual C2B) -->
+          <% if (paymentSettings.manualPesaEnabled) { %>
+            <div id="tab-content-mpesa-paybill" class="tab-content-panel" style="<%= paymentSettings.mpesaEnabled ? 'display: none;' : '' %>">
+              <div style="background: var(--bg-tertiary, #f8fafc); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 24px;">
+                <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; font-weight: 700;">Manual Lipa na M-Pesa Instructions:</h4>
+                <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.88rem;">
+                  <div>1. Go to your Safaricom SIM Toolkit or M-Pesa App.</div>
+                  <div>2. Select <strong>Lipa na M-Pesa</strong> &rarr; <strong><%= paymentSettings.mpesaShortcodeType === 'TILL' ? 'Buy Goods and Services' : 'Paybill' %></strong>.</div>
+                  <div>
+                    3. Enter <%= paymentSettings.mpesaShortcodeType === 'TILL' ? 'Till Number' : 'Business No.' %>: 
+                    <strong style="font-family: monospace; font-size: 1rem; color: #008751; background: #ffffff; padding: 2px 8px; border-radius: 4px; border: 1px solid #cbd5e1; cursor: pointer;" onclick="copyToClipboard('<%= paymentSettings.mpesaShortcode %>')" title="Click to copy">
+                      <%= paymentSettings.mpesaShortcode %> <i class="uil uil-copy"></i>
+                    </strong>
+                  </div>
+                  <% if (paymentSettings.mpesaShortcodeType !== 'TILL') { %>
+                    <div>
+                      4. Enter Account No: 
+                      <strong style="font-family: monospace; font-size: 1rem; color: #008751; background: #ffffff; padding: 2px 8px; border-radius: 4px; border: 1px solid #cbd5e1; cursor: pointer;" onclick="copyToClipboard('<%= invoice.invoice_number %>')" title="Click to copy">
+                        <%= invoice.invoice_number %> <i class="uil uil-copy"></i>
+                      </strong>
+                    </div>
+                  <% } %>
+                  <div>5. Enter Exact Amount: <strong><%= formatKES(invoice.total_amount) %></strong></div>
+                  <div>6. Enter your PIN and complete transaction.</div>
+                </div>
+              </div>
+
+              <form id="paybillVerifyForm" onsubmit="handlePaybillVerification(event)">
+                <div class="form-group mb-4">
+                  <label class="form-label" for="mpesaCodeInput">M-Pesa Confirmation Code * (e.g. QGH47DX89K)</label>
+                  <div style="position: relative;">
+                    <i class="uil uil-receipt" style="position: absolute; left: 14px; top: 12px; color: var(--text-muted); font-size: 1.15rem;"></i>
+                    <input 
+                      type="text" 
+                      id="mpesaCodeInput" 
+                      class="form-input" 
+                      placeholder="e.g. QGH47DX89K" 
+                      required 
+                      style="padding-left: 42px; text-transform: uppercase; font-family: monospace; font-size: 1.05rem; font-weight: 700; letter-spacing: 1px;"
+                      maxlength="15"
+                    >
+                  </div>
+                  <span class="text-xs text-muted" style="margin-top: 4px; display: block;">Enter the 10-character code from the Safaricom SMS receipt.</span>
+                </div>
+
+                <button type="submit" id="paybillSubmitBtn" class="btn btn-block btn-primary" style="padding: 14px; font-weight: 700; font-size: 1rem;">
+                  <i class="uil uil-shield-check"></i>
+                  <span>Verify M-Pesa Code & Activate Workspace</span>
+                </button>
+              </form>
+            </div>
+          <% } %>
+
+          <!-- TAB 3: Card Checkout -->
+          <% if (paymentSettings.cardEnabled) { %>
+            <div id="tab-content-card-pay" class="tab-content-panel" style="<%= (paymentSettings.mpesaEnabled || paymentSettings.manualPesaEnabled) ? 'display: none;' : '' %>">
+              <div style="background: var(--bg-tertiary, #f8fafc); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 20px;">
+                <div class="flex-between mb-4">
+                  <span style="font-size: 0.85rem; color: var(--text-secondary);">International Visa / Mastercard</span>
+                  <i class="uil uil-credit-card text-primary" style="font-size: 1.5rem;"></i>
+                </div>
+
+                <div class="form-group mb-3">
+                  <label class="form-label">Card Number</label>
+                  <input type="text" id="cardNumberInput" class="form-input" placeholder="4242 &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; 4242" style="font-family: monospace;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                  <div class="form-group">
+                    <label class="form-label">MM / YY</label>
+                    <input type="text" id="cardExpiryInput" class="form-input" placeholder="12/28">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">CVC</label>
+                    <input type="password" id="cardCvcInput" class="form-input" placeholder="123" maxlength="4">
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" class="btn btn-block btn-primary" onclick="simulateInstantConfirm('CARD')" style="padding: 14px; font-weight: 700; font-size: 1rem;">
+                <i class="uil uil-lock"></i>
+                <span>Pay <%= formatKES(invoice.total_amount) %> by Card & Activate</span>
+              </button>
+            </div>
+          <% } %>
+
+          <!-- TAB 4: Direct Bank Settlement -->
+          <% if (paymentSettings.bankEnabled) { %>
+            <div id="tab-content-bank-pay" class="tab-content-panel" style="display: none;">
+              <div style="background: var(--bg-tertiary, #f8fafc); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; font-weight: 700;">Direct Bank Account Details:</h4>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem;">
+                  <div class="flex-between">
+                    <span class="text-muted">Bank Name:</span>
+                    <strong><%= paymentSettings.bankName %></strong>
+                  </div>
+                  <div class="flex-between">
+                    <span class="text-muted">Account Name:</span>
+                    <strong><%= paymentSettings.bankAccountName %></strong>
+                  </div>
+                  <div class="flex-between">
+                    <span class="text-muted">Account Number:</span>
+                    <strong style="font-family: monospace; font-size: 1rem; color: var(--primary);"><%= paymentSettings.bankAccountNumber %></strong>
+                  </div>
+                  <div class="flex-between">
+                    <span class="text-muted">Payment Reference:</span>
+                    <strong style="font-family: monospace;"><%= invoice.invoice_number %></strong>
+                  </div>
+                </div>
+
+                <% if (paymentSettings.bankInstructions) { %>
+                  <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">
+                    <%= paymentSettings.bankInstructions %>
+                  </div>
+                <% } %>
+              </div>
+
+              <form id="bankVerifyForm" onsubmit="handleBankReferenceSubmit(event)">
+                <div class="form-group mb-4">
+                  <label class="form-label" for="bankRefInput">Bank Settlement Reference / Deposit Slip No. *</label>
+                  <input type="text" id="bankRefInput" class="form-input" placeholder="e.g. NCBA-DEP-98421" required style="font-family: monospace;">
+                </div>
+                <button type="submit" class="btn btn-block btn-primary" style="padding: 14px; font-weight: 700;">
+                  <i class="uil uil-check-shield"></i>
+                  <span>Submit Bank Reference & Activate Workspace</span>
+                </button>
+              </form>
+            </div>
+          <% } %>
+
+        </div>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<!-- STK Push Waiting Modal Overlay -->
+<div id="stkWaitingModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+  <div style="background: var(--bg-secondary, #ffffff); border-radius: 16px; padding: 36px 28px; max-width: 440px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);">
+    <!-- Pulse Animation -->
+    <div style="width: 72px; height: 72px; border-radius: 50%; background: #dcfce7; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; color: #16a34a; font-size: 2.2rem; animation: pulse 2s infinite;">
+      <i class="uil uil-mobile-android-alt"></i>
+    </div>
+
+    <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-primary); margin: 0 0 8px 0;">
+      Check Your Phone
+    </h3>
+    <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0 0 20px 0;">
+      An M-Pesa payment prompt of <strong><%= formatKES(invoice.total_amount) %></strong> has been sent to <strong id="modalPhoneDisplay">your phone</strong>. Please enter your PIN to confirm.
+    </p>
+
+    <!-- Polling Countdown -->
+    <div style="background: var(--bg-tertiary, #f8fafc); padding: 12px; border-radius: 8px; margin-bottom: 24px; font-size: 0.85rem; color: var(--text-muted);">
+      <i class="uil uil-spinner-alt" style="animation: spin 1s linear infinite; display: inline-block;"></i>
+      <span id="stkTimerLabel">Waiting for payment confirmation (45s)...</span>
+    </div>
+
+    <div style="display: flex; gap: 10px; justify-content: center;">
+      <button type="button" class="btn btn-sm btn-secondary" onclick="closeStkModal()">
+        Cancel
+      </button>
+      <button type="button" class="btn btn-sm btn-primary" onclick="simulateInstantConfirm('MPESA_STK')">
+        <i class="uil uil-check-circle"></i> I have approved payment
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+  @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); } 70% { transform: scale(1); box-shadow: 0 0 0 14px rgba(22, 163, 74, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); } }
+  .tab-btn.active { background: var(--primary) !important; color: white !important; }
+</style>
+
+<script>
+  const INVOICE_ID = "<%= invoice.id %>";
+  let pollInterval = null;
+  let pollCountdown = 45;
+
+  function switchPaymentTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content-panel').forEach(panel => panel.style.display = 'none');
+
+    const activeBtn = document.getElementById('tab-btn-' + tabId);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const activeContent = document.getElementById('tab-content-' + tabId);
+    if (activeContent) activeContent.style.display = 'block';
+  }
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Copied to clipboard: ' + text);
+    }).catch(() => {});
+  }
+
+  // 1. Handle STK Push Submission
+  async function handleMpesaStkPush(e) {
+    e.preventDefault();
+    const phone = document.getElementById('mpesaPhoneInput').value.trim();
+    if (!phone) {
+      alert('Please enter a valid Safaricom phone number.');
+      return;
+    }
+
+    const btn = document.getElementById('stkSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Initiating M-Pesa Prompt...';
+
+    try {
+      const res = await fetch('/subscription/mpesa-stk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId: INVOICE_ID, phoneNumber: phone })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.message || 'Failed to dispatch M-Pesa prompt.');
+        btn.disabled = false;
+        btn.textContent = 'Send M-Pesa PIN Prompt →';
+        return;
+      }
+
+      // Show waiting modal & start polling
+      document.getElementById('modalPhoneDisplay').textContent = data.phoneNumber || phone;
+      document.getElementById('stkWaitingModal').style.display = 'flex';
+      startPollingInvoice();
+
+    } catch (err) {
+      alert('Network error communicating with payment server.');
+      btn.disabled = false;
+      btn.textContent = 'Send M-Pesa PIN Prompt →';
+    }
+  }
+
+  // 2. Poll invoice status
+  function startPollingInvoice() {
+    pollCountdown = 45;
+    if (pollInterval) clearInterval(pollInterval);
+
+    pollInterval = setInterval(async () => {
+      pollCountdown--;
+      const label = document.getElementById('stkTimerLabel');
+      if (label) label.textContent = 'Waiting for payment confirmation (' + pollCountdown + 's)...';
+
+      try {
+        const checkRes = await fetch('/subscription/status/' + INVOICE_ID);
+        const checkData = await checkRes.json();
+        if (checkData.isPaid) {
+          clearInterval(pollInterval);
+          window.location.href = '/dashboard';
+          return;
+        }
+      } catch (e) {}
+
+      if (pollCountdown <= 0) {
+        clearInterval(pollInterval);
+        if (label) label.textContent = 'Prompt timeout. If you entered your PIN, click "I have approved payment".';
+      }
+    }, 2000);
+  }
+
+  function closeStkModal() {
+    if (pollInterval) clearInterval(pollInterval);
+    document.getElementById('stkWaitingModal').style.display = 'none';
+    const btn = document.getElementById('stkSubmitBtn');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Send M-Pesa PIN Prompt →';
+    }
+  }
+
+  // 3. Handle Paybill Code Verification
+  async function handlePaybillVerification(e) {
+    e.preventDefault();
+    const code = document.getElementById('mpesaCodeInput').value.trim();
+    if (!code || code.length < 5) {
+      alert('Please enter a valid 10-character M-Pesa confirmation code.');
+      return;
+    }
+
+    const btn = document.getElementById('paybillSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Verifying Code & Activating...';
+
+    await confirmPaymentWithServer('MPESA_PAYBILL', code);
+  }
+
+  // 4. Handle Bank Reference Submit
+  async function handleBankReferenceSubmit(e) {
+    e.preventDefault();
+    const ref = document.getElementById('bankRefInput').value.trim();
+    if (!ref) {
+      alert('Please enter a bank settlement reference.');
+      return;
+    }
+    await confirmPaymentWithServer('BANK', ref);
+  }
+
+  // 5. Generic Payment Confirmation Dispatch
+  async function confirmPaymentWithServer(method, ref) {
+    try {
+      const res = await fetch('/subscription/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: INVOICE_ID,
+          paymentMethod: method,
+          transactionRef: ref || ('REC_' + Math.random().toString(36).substring(2, 10).toUpperCase()),
+          phoneNumber: document.getElementById('mpesaPhoneInput') ? document.getElementById('mpesaPhoneInput').value : ''
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        window.location.href = data.redirectUrl || '/dashboard';
+      } else {
+        alert(data.message || 'Payment confirmation failed.');
+      }
+    } catch (err) {
+      alert('Server error verifying payment.');
+    }
+  }
+
+  // Quick simulation helper
+  function simulateInstantConfirm(method) {
+    const randomRef = 'SIM_' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    confirmPaymentWithServer(method, randomRef);
+  }
+</script>

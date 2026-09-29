@@ -295,7 +295,7 @@ export class ProjectController {
         return;
       }
 
-      const uploadResult = await storageService.uploadFile(req.file, `projects/${projectId}`);
+      const uploadResult = await storageService.uploadTenantFile(tenantId, req.file, `projects/${projectId}`);
       const documentName = req.body.documentName?.trim() || req.file.originalname;
 
       await query(`
@@ -314,14 +314,12 @@ export class ProjectController {
         req.user?.id || null,
       ]);
 
-      const storageTypeLabel = uploadResult.storageType === 'r2' ? 'Cloudflare R2' : 'storage';
-
       // Record Action Log
       await ActionLogService.record(req, {
         action: AuditAction.CREATE,
         entityType: 'PROJECT_DOCUMENT',
         entityId: projectId,
-        description: `Uploaded file "${documentName}" (${uploadResult.storageType.toUpperCase()}) to project`,
+        description: `Uploaded file "${documentName}" to project`,
         metadata: {
           documentName,
           fileSize: req.file.size,
@@ -330,11 +328,11 @@ export class ProjectController {
         },
       });
 
-      req.flash('success', `File "${documentName}" successfully uploaded to ${storageTypeLabel}.`);
+      req.flash('success', `File "${documentName}" uploaded successfully.`);
       res.redirect(`/projects/${projectId}`);
-    } catch (error) {
+    } catch (error: any) {
       projectLogger.error('Failed to upload project document', { error: String(error) });
-      req.flash('error', 'Failed to upload document.');
+      req.flash('error', error?.message || 'Failed to upload document.');
       res.redirect(`/projects/${req.params.id}`);
     }
   };

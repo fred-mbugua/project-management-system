@@ -14,25 +14,40 @@
       <p class="page-subtitle">Commercial Tax Invoice &bull; Client: <strong><%= invoice.client_name || 'Valued Client' %></strong></p>
     </div>
     <div class="page-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
-      <a href="/invoices/<%= invoice.id %>/pdf" class="btn btn-secondary" id="btn-download-pdf" target="_blank">
-        <i class="uil uil-file-download-alt"></i>
-        <span>Download PDF</span>
-      </a>
-      <button type="button" class="btn btn-secondary" id="btn-print-invoice" data-action="print">
-        <i class="uil uil-print"></i>
-        <span>Print</span>
-      </button>
+      <% if (typeof isSubscriptionCancelled !== 'undefined' && isSubscriptionCancelled) { %>
+        <button type="button" class="btn btn-secondary disabled" title="Subscription cancelled. Renew to download PDF." disabled style="opacity: 0.55; cursor: not-allowed;">
+          <i class="uil uil-lock"></i>
+          <span>Download PDF (Locked)</span>
+        </button>
+        <button type="button" class="btn btn-secondary disabled" title="Subscription cancelled. Renew to print." disabled style="opacity: 0.55; cursor: not-allowed;">
+          <i class="uil uil-lock"></i>
+          <span>Print (Locked)</span>
+        </button>
+        <button type="button" class="btn btn-secondary disabled" title="Subscription cancelled. Transactions are disabled." disabled style="opacity: 0.55; cursor: not-allowed;">
+          <i class="uil uil-lock"></i>
+          <span>Record Payment (Locked)</span>
+        </button>
+      <% } else { %>
+        <a href="/invoices/<%= invoice.id %>/pdf" class="btn btn-secondary" id="btn-download-pdf" target="_blank">
+          <i class="uil uil-file-download-alt"></i>
+          <span>Download PDF</span>
+        </a>
+        <button type="button" class="btn btn-secondary" id="btn-print-invoice" data-action="print">
+          <i class="uil uil-print"></i>
+          <span>Print</span>
+        </button>
+
+        <!-- Record Manual Payment -->
+        <button type="button" class="btn btn-success" onclick="openManualPaymentModal()">
+          <i class="uil uil-bill"></i>
+          <span>Record Manual Payment</span>
+        </button>
+      <% } %>
 
       <!-- Manual Status Update -->
       <button type="button" class="btn btn-secondary" onclick="openStatusModal()">
         <i class="uil uil-exchange"></i>
         <span>Status: <strong><%= invoice.status %></strong></span>
-      </button>
-
-      <!-- Record Manual Payment -->
-      <button type="button" class="btn btn-success" onclick="openManualPaymentModal()">
-        <i class="uil uil-bill"></i>
-        <span>Record Manual Payment</span>
       </button>
 
       <% if (parseFloat(invoice.balance_due) > 0) { %>
@@ -43,6 +58,25 @@
       <% } %>
     </div>
   </div>
+
+  <% if (typeof isSubscriptionCancelled !== 'undefined' && isSubscriptionCancelled) { %>
+    <div class="alert alert-danger mb-4" style="border-left: 4px solid var(--danger); background: #fef2f2; padding: 14px 18px; border-radius: 8px;">
+      <div class="flex-between">
+        <div class="flex-align-center gap-2">
+          <i class="uil uil-lock text-danger" style="font-size: 1.4rem;"></i>
+          <div>
+            <strong style="color: #991b1b;">Document Access Restricted &bull; Subscription Cancelled</strong>
+            <div style="font-size: 0.85rem; color: #7f1d1d;">
+              Printing, PDF downloads, and transaction settlements are locked until your organization renews its subscription.
+            </div>
+          </div>
+        </div>
+        <a href="/subscription/pay" class="btn btn-sm btn-danger">
+          <i class="uil uil-sync"></i> Renew Subscription
+        </a>
+      </div>
+    </div>
+  <% } %>
 
   <!-- Document Customization Toolbar -->
   <div class="doc-customizer-bar">

@@ -90,13 +90,19 @@ export class AuditLogModel {
   /**
    * Find audit logs with user details for display tables
    */
+  /**
+   * Find audit logs with user details for display tables
+   */
   static async findWithUser(options: {
     tenantId?: string | null;
-    action?: string;
+    action?: string | null;
+    search?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
     limit?: number;
     offset?: number;
   } = {}): Promise<any[]> {
-    const { tenantId, action, limit = 50, offset = 0 } = options;
+    const { tenantId, action, search, startDate, endDate, limit = 50, offset = 0 } = options;
     const conditions: string[] = [];
     const values: any[] = [];
     let paramIdx = 1;
@@ -109,6 +115,28 @@ export class AuditLogModel {
     if (action) {
       conditions.push(`a.action = $${paramIdx++}`);
       values.push(action);
+    }
+
+    if (search) {
+      conditions.push(`(
+        a.description ILIKE $${paramIdx} OR
+        a.entity_type ILIKE $${paramIdx} OR
+        u.first_name ILIKE $${paramIdx} OR
+        u.last_name ILIKE $${paramIdx} OR
+        u.email ILIKE $${paramIdx}
+      )`);
+      values.push(`%${search}%`);
+      paramIdx++;
+    }
+
+    if (startDate) {
+      conditions.push(`a.created_at >= $${paramIdx++}::timestamptz`);
+      values.push(`${startDate}T00:00:00Z`);
+    }
+
+    if (endDate) {
+      conditions.push(`a.created_at <= $${paramIdx++}::timestamptz`);
+      values.push(`${endDate}T23:59:59Z`);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -140,25 +168,55 @@ export class AuditLogModel {
    */
   static async count(options: {
     tenantId?: string | null;
-    action?: string;
+    action?: string | null;
+    search?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
   } = {}): Promise<number> {
-    const { tenantId, action } = options;
+    const { tenantId, action, search, startDate, endDate } = options;
     const conditions: string[] = [];
     const values: any[] = [];
     let paramIdx = 1;
 
     if (tenantId) {
-      conditions.push(`tenant_id = $${paramIdx++}`);
+      conditions.push(`a.tenant_id = $${paramIdx++}`);
       values.push(tenantId);
     }
 
     if (action) {
-      conditions.push(`action = $${paramIdx++}`);
+      conditions.push(`a.action = $${paramIdx++}`);
       values.push(action);
     }
 
+    if (search) {
+      conditions.push(`(
+        a.description ILIKE $${paramIdx} OR
+        a.entity_type ILIKE $${paramIdx} OR
+        u.first_name ILIKE $${paramIdx} OR
+        u.last_name ILIKE $${paramIdx} OR
+        u.email ILIKE $${paramIdx}
+      )`);
+      values.push(`%${search}%`);
+      paramIdx++;
+    }
+
+    if (startDate) {
+      conditions.push(`a.created_at >= $${paramIdx++}::timestamptz`);
+      values.push(`${startDate}T00:00:00Z`);
+    }
+
+    if (endDate) {
+      conditions.push(`a.created_at <= $${paramIdx++}::timestamptz`);
+      values.push(`${endDate}T23:59:59Z`);
+    }
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const sql = `SELECT COUNT(*) FROM audit_logs ${whereClause}`;
+    const sql = `
+      SELECT COUNT(*)::int as count 
+      FROM audit_logs a 
+      LEFT JOIN users u ON a.user_id = u.id 
+      ${whereClause}
+    `;
     const res = await query(sql, values);
     return parseInt(res.rows[0].count, 10);
   }

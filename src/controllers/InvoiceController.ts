@@ -109,6 +109,12 @@ export class InvoiceController {
 
   showNew = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if ((req as any).isSubscriptionCancelled) {
+        req.flash('error', 'Your subscription is cancelled. Creating new transactions is disabled until your subscription is renewed.');
+        res.redirect('/subscription/pay');
+        return;
+      }
+
       const tenantId = req.tenantId;
       const [clientsRes, projectsRes] = await Promise.all([
         query(`SELECT id, name, kra_pin FROM clients WHERE tenant_id = $1 AND is_active = TRUE ORDER BY name ASC`, [tenantId]),
@@ -133,6 +139,12 @@ export class InvoiceController {
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if ((req as any).isSubscriptionCancelled) {
+        req.flash('error', 'Your subscription is cancelled. Creating new transactions is disabled until your subscription is renewed.');
+        res.redirect('/subscription/pay');
+        return;
+      }
+
       const tenantId = req.tenantId;
       if (!tenantId) {
         res.redirect('/auth/login');
@@ -310,9 +322,15 @@ export class InvoiceController {
 
   downloadPdf = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const invoiceId = req.params.id as string;
+      if ((req as any).isSubscriptionCancelled) {
+        req.flash('error', 'Your subscription is cancelled. Downloading and printing invoices is disabled until your subscription is renewed.');
+        res.redirect(`/invoices/${invoiceId}`);
+        return;
+      }
+
       const isSuper = req.user?.role === 'SUPER_ADMIN';
       const tenantId = req.tenantId;
-      const invoiceId = req.params.id as string;
 
       let sql = `
         SELECT i.*, 
@@ -556,6 +574,12 @@ export class InvoiceController {
       const tenantId = req.tenantId;
       const isSuper = req.user?.role === 'SUPER_ADMIN';
 
+      if ((req as any).isSubscriptionCancelled) {
+        req.flash('error', 'Your subscription is cancelled. Recording transactions is disabled until your subscription is renewed.');
+        res.redirect(`/invoices/${invoiceId}`);
+        return;
+      }
+
       let findSql = `SELECT * FROM invoices WHERE id = $1`;
       const findParams: any[] = [invoiceId];
       if (tenantId && !isSuper) {
@@ -585,9 +609,9 @@ export class InvoiceController {
       let proofUrl: string | null = null;
       let proofFilename: string | null = null;
 
-      if (req.file) {
+      if (req.file && tenantId) {
         try {
-          const uploadRes = await storageService.uploadFile(req.file, 'payment-proofs');
+          const uploadRes = await storageService.uploadTenantFile(tenantId, req.file, 'payment-proofs');
           proofUrl = uploadRes.url;
           proofFilename = req.file.originalname;
         } catch (uploadErr) {

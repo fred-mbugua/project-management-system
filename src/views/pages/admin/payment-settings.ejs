@@ -1,0 +1,178 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Super Admin: Platform Payment Gateways & Subscription Methods
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="admin-payment-settings-page">
+  <div class="page-header mb-6">
+    <div class="page-title-group">
+      <div class="flex-align-center gap-3">
+        <h1 class="page-title">Platform Payment Gateways</h1>
+        <span class="badge badge-primary">Super Admin Only</span>
+      </div>
+      <p class="page-subtitle">Enable and configure the payment methods available to tenants for paying their SaaS subscription renewals.</p>
+    </div>
+  </div>
+
+  <form action="/admin/payment-settings" method="POST" class="form-stack">
+    <!-- 1. Safaricom M-Pesa Configuration -->
+    <div class="card mb-6">
+      <div class="card-header flex-between">
+        <div class="card-title">
+          <i class="uil uil-mobile-android" style="color: #008751; font-size: 1.4rem;"></i>
+          <span>1. Safaricom M-Pesa (Daraja API & STK Push)</span>
+        </div>
+        <label class="toggle-switch flex-align-center gap-2" style="cursor: pointer;">
+          <input type="checkbox" name="mpesaEnabled" <%= settings.mpesaEnabled ? 'checked' : '' %>>
+          <span style="font-weight: 700; font-size: 0.88rem;">Enable M-Pesa</span>
+        </label>
+      </div>
+
+      <div class="card-body">
+        <p class="text-xs text-muted mb-4">
+          Allows tenants to renew subscriptions via instantaneous Safaricom M-Pesa STK push prompts sent directly to their phones.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;" class="mb-4">
+          <div class="form-group">
+            <label class="form-label" for="mpesaEnvironment">Environment</label>
+            <select name="mpesaEnvironment" id="mpesaEnvironment" class="form-input">
+              <option value="production" <%= settings.mpesaEnvironment === 'production' ? 'selected' : '' %>>Production (Live Safaricom)</option>
+              <option value="sandbox" <%= settings.mpesaEnvironment === 'sandbox' ? 'selected' : '' %>>Sandbox (Testing / Demo)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="mpesaShortcodeType">Shortcode Type</label>
+            <select name="mpesaShortcodeType" id="mpesaShortcodeType" class="form-input">
+              <option value="PAYBILL" <%= settings.mpesaShortcodeType === 'PAYBILL' ? 'selected' : '' %>>Paybill</option>
+              <option value="TILL" <%= settings.mpesaShortcodeType === 'TILL' ? 'selected' : '' %>>Buy Goods / Till</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="mpesaShortcode">Business Shortcode / Till *</label>
+            <input type="text" id="mpesaShortcode" name="mpesaShortcode" class="form-input" value="<%= settings.mpesaShortcode %>" required>
+          </div>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label" for="mpesaPasskey">Daraja Passkey (Online LNM)</label>
+          <input type="password" id="mpesaPasskey" name="mpesaPasskey" class="form-input" value="<%= settings.mpesaPasskey %>" placeholder="Enter Daraja Passkey">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="mpesaConsumerKey">Daraja Consumer Key</label>
+            <input type="text" id="mpesaConsumerKey" name="mpesaConsumerKey" class="form-input" value="<%= settings.mpesaConsumerKey %>" placeholder="Consumer Key">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="mpesaConsumerSecret">Daraja Consumer Secret</label>
+            <input type="password" id="mpesaConsumerSecret" name="mpesaConsumerSecret" class="form-input" value="<%= settings.mpesaConsumerSecret %>" placeholder="Consumer Secret">
+          </div>
+        </div>
+
+        <!-- Manual Paybill Toggle -->
+        <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border-color);" class="flex-between">
+          <div>
+            <div style="font-weight: 600; font-size: 0.9rem;">Allow Manual M-Pesa Code Verification</div>
+            <div class="text-xs text-muted">Tenants can pay to your shortcode manually and paste their 10-character M-Pesa receipt code.</div>
+          </div>
+          <label class="toggle-switch flex-align-center gap-2" style="cursor: pointer;">
+            <input type="checkbox" name="manualPesaEnabled" <%= settings.manualPesaEnabled ? 'checked' : '' %>>
+            <span style="font-weight: 600; font-size: 0.85rem;">Enabled</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Credit & Debit Card Checkout (Stripe) -->
+    <div class="card mb-6">
+      <div class="card-header flex-between">
+        <div class="card-title">
+          <i class="uil uil-credit-card text-primary" style="font-size: 1.4rem;"></i>
+          <span>2. Credit & Debit Cards (Stripe / International)</span>
+        </div>
+        <label class="toggle-switch flex-align-center gap-2" style="cursor: pointer;">
+          <input type="checkbox" name="cardEnabled" <%= settings.cardEnabled ? 'checked' : '' %>>
+          <span style="font-weight: 700; font-size: 0.88rem;">Enable Card Checkout</span>
+        </label>
+      </div>
+
+      <div class="card-body">
+        <p class="text-xs text-muted mb-4">
+          Accept Visa, Mastercard, and American Express from international and corporate clients for workspace subscription fees.
+        </p>
+
+        <div class="form-group mb-4">
+          <label class="form-label" for="cardProvider">Gateway Provider</label>
+          <select name="cardProvider" id="cardProvider" class="form-input">
+            <option value="STRIPE" <%= settings.cardProvider === 'STRIPE' ? 'selected' : '' %>>Stripe Payments</option>
+            <option value="PAYSTACK" <%= settings.cardProvider === 'PAYSTACK' ? 'selected' : '' %>>Paystack</option>
+            <option value="FLUTTERWAVE" <%= settings.cardProvider === 'FLUTTERWAVE' ? 'selected' : '' %>>Flutterwave</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="cardPublicKey">Public / Publishable Key</label>
+            <input type="text" id="cardPublicKey" name="cardPublicKey" class="form-input" value="<%= settings.cardPublicKey %>" placeholder="pk_test_... or pk_live_...">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cardSecretKey">Secret Key</label>
+            <input type="password" id="cardSecretKey" name="cardSecretKey" class="form-input" value="<%= settings.cardSecretKey %>" placeholder="sk_test_... or sk_live_...">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Direct Bank Settlement -->
+    <div class="card mb-6">
+      <div class="card-header flex-between">
+        <div class="card-title">
+          <i class="uil uil-university text-primary" style="font-size: 1.4rem;"></i>
+          <span>3. Direct Bank Settlement (EFT / RTGS)</span>
+        </div>
+        <label class="toggle-switch flex-align-center gap-2" style="cursor: pointer;">
+          <input type="checkbox" name="bankEnabled" <%= settings.bankEnabled ? 'checked' : '' %>>
+          <span style="font-weight: 700; font-size: 0.88rem;">Enable Bank Transfer</span>
+        </label>
+      </div>
+
+      <div class="card-body">
+        <p class="text-xs text-muted mb-4">
+          Display official corporate bank account details on invoices and on the renewal checkout screen.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;" class="mb-4">
+          <div class="form-group">
+            <label class="form-label" for="bankName">Bank Name</label>
+            <input type="text" id="bankName" name="bankName" class="form-input" value="<%= settings.bankName %>" placeholder="e.g. NCBA Bank Kenya">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bankAccountName">Account Name</label>
+            <input type="text" id="bankAccountName" name="bankAccountName" class="form-input" value="<%= settings.bankAccountName %>" placeholder="Company Legal Name">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bankAccountNumber">Account Number</label>
+            <input type="text" id="bankAccountNumber" name="bankAccountNumber" class="form-input" value="<%= settings.bankAccountNumber %>" placeholder="Bank Account Number">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bankInstructions">Special Settlement Instructions</label>
+          <textarea id="bankInstructions" name="bankInstructions" class="form-input" rows="3" placeholder="Enter bank instructions for clients..."><%= settings.bankInstructions %></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Button -->
+    <div class="flex-between">
+      <a href="/admin/plans" class="btn btn-secondary">
+        <i class="uil uil-arrow-left"></i> Back to Plans
+      </a>
+      <button type="submit" class="btn btn-primary" style="padding: 12px 28px; font-weight: 700;">
+        <i class="uil uil-save"></i> Save Platform Gateway Settings
+      </button>
+    </div>
+  </form>
+</div>

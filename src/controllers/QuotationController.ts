@@ -106,6 +106,12 @@ export class QuotationController {
 
   showNew = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if ((req as any).isSubscriptionCancelled) {
+        req.flash('error', 'Your subscription is cancelled. Creating new transactions is disabled until your subscription is renewed.');
+        res.redirect('/subscription/pay');
+        return;
+      }
+
       const isSuper = req.user?.role === 'SUPER_ADMIN';
       const tenantId = req.tenantId;
       if (!tenantId && !isSuper) {
@@ -141,6 +147,12 @@ export class QuotationController {
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if ((req as any).isSubscriptionCancelled) {
+        req.flash('error', 'Your subscription is cancelled. Creating new transactions is disabled until your subscription is renewed.');
+        res.redirect('/subscription/pay');
+        return;
+      }
+
       const isSuper = req.user?.role === 'SUPER_ADMIN';
       let tenantId = req.tenantId;
       if (!tenantId && isSuper) {
@@ -264,6 +276,12 @@ export class QuotationController {
 
   convertToInvoice = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if ((req as any).isSubscriptionCancelled) {
+        req.flash('error', 'Your subscription is cancelled. Creating new transactions is disabled until your subscription is renewed.');
+        res.redirect('/subscription/pay');
+        return;
+      }
+
       const isSuper = req.user?.role === 'SUPER_ADMIN';
       const tenantId = req.tenantId;
       const quoteId = req.params.id as string;
@@ -368,9 +386,15 @@ export class QuotationController {
 
   downloadPdf = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const quoteId = req.params.id as string;
+      if ((req as any).isSubscriptionCancelled) {
+        req.flash('error', 'Your subscription is cancelled. Downloading and printing quotations is disabled until your subscription is renewed.');
+        res.redirect(`/quotations/${quoteId}`);
+        return;
+      }
+
       const isSuper = req.user?.role === 'SUPER_ADMIN';
       const tenantId = req.tenantId;
-      const quoteId = req.params.id as string;
 
       let sql = `
         SELECT 

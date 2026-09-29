@@ -11,47 +11,57 @@
     </div>
   </div>
 
-  <!-- Filters & Search Toolbar -->
-  <div class="card mb-6">
-    <div class="card-body py-4">
-      <form method="GET" action="/audit-logs" class="filter-toolbar">
-        <div class="search-input-group flex-1">
-          <i class="uil uil-search search-icon"></i>
-          <input 
-            type="text" 
-            name="search" 
-            class="form-input" 
-            placeholder="Search action descriptions..."
-            value="<%= typeof search !== 'undefined' ? search : '' %>"
-          >
-        </div>
+  <!-- Search & Filter Section (Standardized System Layout) -->
+  <div class="search-filter-section">
+    <form action="/audit-logs" method="GET" class="filter-form">
+      <div class="search-input-wrapper">
+        <i class="uil uil-search"></i>
+        <input 
+          type="text" 
+          name="q" 
+          class="form-input" 
+          placeholder="Search action descriptions, modules, or users..."
+          value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : (typeof search !== 'undefined' ? search : '') %>"
+        >
+      </div>
 
-        <div class="filter-group">
-          <select name="action" class="form-select filter-select" onchange="this.form.submit()">
-            <option value="">All Actions</option>
-            <option value="CREATE" <%= selectedAction === 'CREATE' ? 'selected' : '' %>>CREATE</option>
-            <option value="UPDATE" <%= selectedAction === 'UPDATE' ? 'selected' : '' %>>UPDATE</option>
-            <option value="DELETE" <%= selectedAction === 'DELETE' ? 'selected' : '' %>>DELETE</option>
-            <option value="LOGIN" <%= selectedAction === 'LOGIN' ? 'selected' : '' %>>LOGIN</option>
-            <option value="LOGOUT" <%= selectedAction === 'LOGOUT' ? 'selected' : '' %>>LOGOUT</option>
-            <option value="SETTINGS_CHANGE" <%= selectedAction === 'SETTINGS_CHANGE' ? 'selected' : '' %>>SETTINGS CHANGE</option>
-            <option value="PAYMENT" <%= selectedAction === 'PAYMENT' ? 'selected' : '' %>>PAYMENT</option>
-          </select>
+      <div class="date-filter-group">
+        <div class="date-filter-item">
+          <span>From:</span>
+          <input type="date" name="startDate" class="form-input" placeholder="e.g. 2026-09-01" value="<%= (typeof filters !== 'undefined' && filters.startDate) ? filters.startDate : '' %>">
         </div>
+        <div class="date-filter-item">
+          <span>To:</span>
+          <input type="date" name="endDate" class="form-input" placeholder="e.g. 2026-09-30" value="<%= (typeof filters !== 'undefined' && filters.endDate) ? filters.endDate : '' %>">
+        </div>
+      </div>
 
-        <button type="submit" class="btn btn-secondary">
+      <div class="filter-status-wrapper">
+        <select name="action" class="form-select form-select-sm">
+          <option value="">All Actions</option>
+          <option value="CREATE" <%= selectedAction === 'CREATE' ? 'selected' : '' %>>CREATE</option>
+          <option value="UPDATE" <%= selectedAction === 'UPDATE' ? 'selected' : '' %>>UPDATE</option>
+          <option value="DELETE" <%= selectedAction === 'DELETE' ? 'selected' : '' %>>DELETE</option>
+          <option value="LOGIN" <%= selectedAction === 'LOGIN' ? 'selected' : '' %>>LOGIN</option>
+          <option value="LOGOUT" <%= selectedAction === 'LOGOUT' ? 'selected' : '' %>>LOGOUT</option>
+          <option value="SETTINGS_CHANGE" <%= selectedAction === 'SETTINGS_CHANGE' ? 'selected' : '' %>>SETTINGS CHANGE</option>
+          <option value="PAYMENT" <%= selectedAction === 'PAYMENT' ? 'selected' : '' %>>PAYMENT</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-sm btn-primary">
           <i class="uil uil-filter"></i>
           <span>Filter</span>
         </button>
-
-        <% if ((typeof search !== 'undefined' && search) || selectedAction) { %>
-          <a href="/audit-logs" class="btn btn-subtle" title="Clear filters">
+        <% if ((typeof filters !== 'undefined' && (filters.search || filters.startDate || filters.endDate || filters.action)) || (typeof search !== 'undefined' && search) || selectedAction) { %>
+          <a href="/audit-logs" class="btn btn-sm btn-secondary" title="Clear all filters">
             <i class="uil uil-times"></i>
             <span>Clear</span>
           </a>
         <% } %>
-      </form>
-    </div>
+      </div>
+    </form>
   </div>
 
   <!-- Logs Table -->

@@ -187,16 +187,16 @@
     </div>
   </div>
 
-  <!-- Project Documents & Cloudflare R2 Object Storage Section -->
+  <!-- Project Documents Section -->
   <div class="project-layout-grid mt-6">
     <div class="card">
       <div class="card-header flex-between">
         <div>
           <h2 class="card-title">Project Documents & Files</h2>
-          <span class="text-xs text-muted">Stored securely in Cloudflare R2 Object Storage &bull; <%= (typeof documents !== 'undefined' && documents) ? documents.length : 0 %> files</span>
+          <span class="text-xs text-muted">Stored securely in cloud storage &bull; <%= (typeof documents !== 'undefined' && documents) ? documents.length : 0 %> files</span>
         </div>
         <span class="badge badge-subtle">
-          <i class="uil uil-cloud"></i> Cloudflare R2
+          <i class="uil uil-cloud"></i> Cloud Storage
         </span>
       </div>
       <div class="card-body-table">
@@ -243,11 +243,11 @@
                     <td><%= new Date(doc.created_at).toLocaleDateString() %></td>
                     <td>
                       <div class="table-actions">
-                        <a href="<%= doc.file_url %>" class="btn btn-sm btn-secondary" target="_blank" download title="View/Download from R2">
+                        <a href="<%= doc.file_url %>" class="btn btn-sm btn-secondary" target="_blank" download title="View/Download Document">
                           <i class="uil uil-download-alt"></i>
                           <span>Download</span>
                         </a>
-                        <form action="/projects/<%= project.id %>/documents/<%= doc.id %>/delete" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this document from Cloudflare R2?');">
+                        <form action="/projects/<%= project.id %>/documents/<%= doc.id %>/delete" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this document?');">
                           <button type="submit" class="btn btn-sm btn-danger" title="Delete file">
                             <i class="uil uil-trash-alt"></i>
                           </button>
@@ -272,7 +272,7 @@
     <!-- Upload Document Form -->
     <div class="card">
       <div class="card-header">
-        <h2 class="card-title">Upload File to Cloudflare R2</h2>
+        <h2 class="card-title">Upload Project Document</h2>
       </div>
       <div class="card-body">
         <form action="/projects/<%= project.id %>/documents" method="POST" enctype="multipart/form-data" class="form-stack">
@@ -290,7 +290,7 @@
 
           <div class="bg-tertiary p-3 rounded mb-3 flex-align-center gap-2">
             <i class="uil uil-shield-check text-success" style="font-size: 1.25rem;"></i>
-            <span class="text-xs text-secondary">Uploaded files are stored with high durability on Cloudflare R2 object storage.</span>
+            <span class="text-xs text-secondary">Uploaded files are stored securely with high durability.</span>
           </div>
 
           <button type="submit" class="btn btn-primary btn-block">

@@ -14,6 +14,7 @@ import {
 import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import { formatKES } from '../utils/taxCalculator';
 import subscriptionBillingService from '../services/subscriptionBilling.service';
+import PlatformPaymentSettingsModel from '../models/platformSettings.model';
 import logger from '../utils/logger';
 
 const adminLogger = logger.child('AdminController');
@@ -484,6 +485,65 @@ export class AdminController {
   };
 
   /**
+   * Toggle Subscription Fee Whitelist (Exemption) for an Organization
+   * When whitelisted, account does not pay subscription fees and bypasses expiration locks.
+   */
+  toggleTenantWhitelist = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.params.id as string;
+
+      const tenantRes = await query(`SELECT * FROM tenants WHERE id = $1`, [tenantId]);
+      const tenant = tenantRes.rows[0];
+      if (!tenant) {
+        req.flash('error', 'Organization not found.');
+        res.redirect('/admin/tenants');
+        return;
+      }
+
+      const newExemptStatus = !Boolean(tenant.subscription_exempt);
+
+      await withTransaction(async (client) => {
+        await client.query(
+          `UPDATE tenants SET subscription_exempt = $1, updated_at = NOW() WHERE id = $2`,
+          [newExemptStatus, tenantId]
+        );
+
+        // If whitelisted, ensure tenant and subscription are active
+        if (newExemptStatus) {
+          await client.query(`UPDATE tenants SET is_active = TRUE, updated_at = NOW() WHERE id = $1`, [tenantId]);
+          await client.query(
+            `UPDATE tenant_subscriptions SET status = 'ACTIVE', updated_at = NOW() WHERE tenant_id = $1`,
+            [tenantId]
+          );
+        }
+
+        await client.query(
+          `INSERT INTO audit_logs (id, tenant_id, user_id, action, entity_type, entity_id, description, created_at)
+           VALUES (gen_random_uuid()::text, $1, $2, 'UPDATE', 'Tenant', $1, $3, NOW())`,
+          [
+            tenantId,
+            req.user?.id,
+            newExemptStatus
+              ? `Super Admin whitelisted organization "${tenant.name}" from paying subscription fees (Complimentary Exemption).`
+              : `Super Admin revoked subscription fee whitelist for organization "${tenant.name}".`,
+          ]
+        );
+      });
+
+      req.flash(
+        'success',
+        newExemptStatus
+          ? `Organization "${tenant.name}" is now WHITELISTED from paying subscription fees.`
+          : `Subscription fee whitelist removed for organization "${tenant.name}". Account will be billed normally.`
+      );
+      res.redirect('/admin/tenants');
+    } catch (error) {
+      adminLogger.error('Failed to toggle tenant whitelist', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
    * Change or update tenant subscription package
    */
   updateTenantSubscription = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -527,14 +587,85 @@ export class AdminController {
    */
   scanSubscriptions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await subscriptionBillingService.checkAndEnforceExpiredSubscriptions();
+      const remindersResult = await subscriptionBillingService.checkAndSendExpiringReminders();
+      const expirationResult = await subscriptionBillingService.checkAndEnforceExpiredSubscriptions();
       req.flash(
         'success',
-        `Expiration Scan Complete: Scanned ${result.totalScanned} account(s), deactivated ${result.totalDeactivated} expired, issued ${result.invoicesGenerated} renewal invoice(s).`
+        `Subscription Scan Complete: Sent ${remindersResult.remindersSent} daily 3-day reminder(s). Scanned ${expirationResult.totalScanned} account(s), deactivated ${expirationResult.totalDeactivated} expired, issued ${expirationResult.invoicesGenerated} renewal invoice(s).`
       );
       res.redirect('/admin/tenants');
     } catch (error) {
       adminLogger.error('Failed to scan subscriptions', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Get Platform Payment Gateways & Subscription Payment Methods Configuration
+   */
+  getPaymentSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const settings = await PlatformPaymentSettingsModel.getSettings();
+      res.render('pages/admin/payment-settings', {
+        title: 'Platform Payment Gateways',
+        settings,
+      });
+    } catch (error) {
+      adminLogger.error('Failed to load platform payment settings', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Update Platform Payment Gateways & Subscription Payment Methods Configuration
+   */
+  updatePaymentSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const body = req.body || {};
+      const {
+        mpesaEnabled,
+        mpesaEnvironment,
+        mpesaShortcode,
+        mpesaShortcodeType,
+        mpesaConsumerKey,
+        mpesaConsumerSecret,
+        mpesaPasskey,
+        cardEnabled,
+        cardProvider,
+        cardPublicKey,
+        cardSecretKey,
+        bankEnabled,
+        bankName,
+        bankAccountName,
+        bankAccountNumber,
+        bankInstructions,
+        manualPesaEnabled,
+      } = body;
+
+      await PlatformPaymentSettingsModel.updateSettings({
+        mpesaEnabled: mpesaEnabled === 'on' || mpesaEnabled === '1' || mpesaEnabled === 'true' || mpesaEnabled === true,
+        mpesaEnvironment: mpesaEnvironment || 'production',
+        mpesaShortcode: mpesaShortcode || '4814641',
+        mpesaShortcodeType: mpesaShortcodeType || 'PAYBILL',
+        mpesaConsumerKey: mpesaConsumerKey ? mpesaConsumerKey.trim() : '',
+        mpesaConsumerSecret: mpesaConsumerSecret ? mpesaConsumerSecret.trim() : '',
+        mpesaPasskey: mpesaPasskey ? mpesaPasskey.trim() : '',
+        cardEnabled: cardEnabled === 'on' || cardEnabled === '1' || cardEnabled === 'true' || cardEnabled === true,
+        cardProvider: cardProvider || 'STRIPE',
+        cardPublicKey: cardPublicKey ? cardPublicKey.trim() : '',
+        cardSecretKey: cardSecretKey ? cardSecretKey.trim() : '',
+        bankEnabled: bankEnabled === 'on' || bankEnabled === '1' || bankEnabled === 'true' || bankEnabled === true,
+        bankName: bankName ? bankName.trim() : '',
+        bankAccountName: bankAccountName ? bankAccountName.trim() : '',
+        bankAccountNumber: bankAccountNumber ? bankAccountNumber.trim() : '',
+        bankInstructions: bankInstructions ? bankInstructions.trim() : '',
+        manualPesaEnabled: manualPesaEnabled === 'on' || manualPesaEnabled === '1' || manualPesaEnabled === 'true' || manualPesaEnabled === true,
+      });
+
+      req.flash('success', 'Platform payment gateways and subscription payment methods updated successfully.');
+      res.redirect('/admin/payment-settings');
+    } catch (error) {
+      adminLogger.error('Failed to update platform payment settings', { error: String(error) });
       next(error);
     }
   };

@@ -3355,6 +3355,74 @@ input.flatpickr-date::placeholder {
   line-height: 1.2;
 }
 
+/* ──────────────────────────────────────────────
+   Subtle Application Footer
+   ────────────────────────────────────────────── */
+.app-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-surface, var(--bg-elevated));
+  padding: var(--space-4) var(--space-6);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  transition: background-color var(--transition-base), border-color var(--transition-base);
+}
+
+.footer-content {
+  max-width: var(--content-max-width, 1400px);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.footer-left,
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.footer-text {
+  color: var(--text-tertiary);
+}
+
+.footer-attribution {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.footer-link {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--transition-fast);
+}
+
+.footer-link:hover {
+  color: var(--primary);
+}
+
+@media (max-width: 640px) {
+  .footer-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Utility Background & Plan Card Classes
+   ────────────────────────────────────────────── */
+.bg-primary { background-color: var(--primary) !important; }
+.bg-success { background-color: var(--success) !important; }
+.bg-warning { background-color: #f59e0b !important; }
+.bg-danger { background-color: var(--danger) !important; }
+.plan-card-active { border: 2px solid var(--primary) !important; }
+.plan-card-standard { border: 2px solid var(--border-color) !important; }
+
 
 
 

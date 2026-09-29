@@ -58,22 +58,80 @@ export async function resolveTenant(req: Request, res: Response, next: NextFunct
 
     const tenant = await TenantModel.findById(tenantId);
 
-    if (!tenant || !tenant.isActive) {
-      tenantLogger.error('Tenant not found or inactive', { tenantId });
-      req.flash('error', 'Your organization account has been deactivated.');
+    if (!tenant) {
+      tenantLogger.error('Tenant not found', { tenantId });
+      req.flash('error', 'Your organization account could not be found.');
       req.session.destroy(() => {
         res.redirect('/auth/login');
       });
       return;
     }
 
-    // Attach tenant context to request
+    // Query tenant subscription status
+    const subRes = await query(
+      `SELECT ts.*, sp.name as plan_name, sp.tier as plan_tier 
+       FROM tenant_subscriptions ts 
+       LEFT JOIN subscription_plans sp ON ts.plan_id = sp.id 
+       WHERE ts.tenant_id = $1 LIMIT 1`,
+      [tenantId]
+    );
+
+    const subscription = subRes.rows[0] || null;
+    const isExempt = Boolean(tenant.subscriptionExempt);
+    const isCancelled = Boolean(
+      !isExempt &&
+      subscription && (
+        subscription.status === 'CANCELLED' || subscription.status === 'CANCELED'
+      )
+    );
+    const isSubscriptionExpired = Boolean(
+      !isExempt &&
+      !isCancelled &&
+      subscription && (
+        subscription.status === 'EXPIRED' ||
+        (subscription.current_period_end && new Date(subscription.current_period_end) < new Date())
+      )
+    );
+
+    // Attach tenant context to request & templates
     req.tenantId = tenant.id;
     req.tenant = tenant;
-
-    // Make tenant available in all EJS templates
     res.locals.tenant = tenant;
     res.locals.isSuperAdmin = false;
+    res.locals.subscription = subscription;
+    res.locals.isSubscriptionExpired = isSubscriptionExpired;
+    res.locals.isSubscriptionCancelled = isCancelled;
+    res.locals.subscriptionExempt = isExempt;
+    (req as any).isSubscriptionCancelled = isCancelled;
+    (req as any).subscriptionExempt = isExempt;
+
+    // If subscription is expired or tenant is marked inactive
+    if (!isExempt && (isSubscriptionExpired || !tenant.isActive)) {
+      // If tenant was suspended manually by Super Admin (not expired subscription)
+      if (!isSubscriptionExpired && !tenant.isActive) {
+        tenantLogger.warn('Tenant suspended by administrator', { tenantId });
+        req.flash('error', 'Your organization account has been suspended by the platform administrator.');
+        req.session.destroy(() => {
+          res.redirect('/auth/login');
+        });
+        return;
+      }
+
+      // If subscription is expired:
+      // Whitelist routes that allow viewing subscription details, initiating payment, verifying payment, or logging out
+      const originalPath = req.originalUrl.split('?')[0];
+      const isSubscriptionRoute = originalPath.startsWith('/subscription') || originalPath === '/auth/logout';
+
+      if (isSubscriptionRoute) {
+        next();
+        return;
+      }
+
+      // Any other page in the portal -> redirect to subscription payment page!
+      req.flash('warning', 'Your subscription has expired. Please settle your renewal invoice to restore full access.');
+      res.redirect('/subscription/pay');
+      return;
+    }
 
     next();
   } catch (error) {

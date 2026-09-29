@@ -13,30 +13,71 @@
       <p class="page-subtitle"><%= quotation.title || 'Official Commercial Estimate' %> &bull; Client: <strong><%= quotation.client_name || 'Valued Client' %></strong></p>
     </div>
     <div class="page-actions">
-      <a href="/quotations/<%= quotation.id %>/pdf" class="btn btn-secondary" id="btn-download-quote-pdf" target="_blank">
-        <i class="uil uil-file-download-alt"></i>
-        <span>Download PDF</span>
-      </a>
-      <button type="button" class="btn btn-secondary" id="btn-print-quotation" data-action="print">
-        <i class="uil uil-print"></i>
-        <span>Print Quotation</span>
-      </button>
-
-      <% if (quotation.status !== 'CONVERTED') { %>
-        <form action="/quotations/<%= quotation.id %>/convert" method="POST" class="inline-block">
-          <button type="submit" class="btn btn-primary" id="btn-convert-invoice">
-            <i class="uil uil-file-check-alt"></i>
-            <span>Convert to Invoice</span>
+      <% if (typeof isSubscriptionCancelled !== 'undefined' && isSubscriptionCancelled) { %>
+        <button type="button" class="btn btn-secondary disabled" title="Subscription cancelled. Renew to download PDF." disabled style="opacity: 0.55; cursor: not-allowed;">
+          <i class="uil uil-lock"></i>
+          <span>Download PDF (Locked)</span>
+        </button>
+        <button type="button" class="btn btn-secondary disabled" title="Subscription cancelled. Renew to print." disabled style="opacity: 0.55; cursor: not-allowed;">
+          <i class="uil uil-lock"></i>
+          <span>Print Quotation (Locked)</span>
+        </button>
+        <% if (quotation.status !== 'CONVERTED') { %>
+          <button type="button" class="btn btn-primary disabled" title="Subscription cancelled. Creating transactions is disabled." disabled style="opacity: 0.55; cursor: not-allowed;">
+            <i class="uil uil-lock"></i>
+            <span>Convert to Invoice (Locked)</span>
           </button>
-        </form>
+        <% } else { %>
+          <a href="/invoices/<%= quotation.converted_invoice_id %>" class="btn btn-primary">
+            <i class="uil uil-receipt"></i>
+            <span>View Converted Invoice</span>
+          </a>
+        <% } %>
       <% } else { %>
-        <a href="/invoices/<%= quotation.converted_invoice_id %>" class="btn btn-primary">
-          <i class="uil uil-receipt"></i>
-          <span>View Converted Invoice</span>
+        <a href="/quotations/<%= quotation.id %>/pdf" class="btn btn-secondary" id="btn-download-quote-pdf" target="_blank">
+          <i class="uil uil-file-download-alt"></i>
+          <span>Download PDF</span>
         </a>
+        <button type="button" class="btn btn-secondary" id="btn-print-quotation" data-action="print">
+          <i class="uil uil-print"></i>
+          <span>Print Quotation</span>
+        </button>
+
+        <% if (quotation.status !== 'CONVERTED') { %>
+          <form action="/quotations/<%= quotation.id %>/convert" method="POST" class="inline-block">
+            <button type="submit" class="btn btn-primary" id="btn-convert-invoice">
+              <i class="uil uil-file-check-alt"></i>
+              <span>Convert to Invoice</span>
+            </button>
+          </form>
+        <% } else { %>
+          <a href="/invoices/<%= quotation.converted_invoice_id %>" class="btn btn-primary">
+            <i class="uil uil-receipt"></i>
+            <span>View Converted Invoice</span>
+          </a>
+        <% } %>
       <% } %>
     </div>
   </div>
+
+  <% if (typeof isSubscriptionCancelled !== 'undefined' && isSubscriptionCancelled) { %>
+    <div class="alert alert-danger mb-4" style="border-left: 4px solid var(--danger); background: #fef2f2; padding: 14px 18px; border-radius: 8px;">
+      <div class="flex-between">
+        <div class="flex-align-center gap-2">
+          <i class="uil uil-lock text-danger" style="font-size: 1.4rem;"></i>
+          <div>
+            <strong style="color: #991b1b;">Document Access Restricted &bull; Subscription Cancelled</strong>
+            <div style="font-size: 0.85rem; color: #7f1d1d;">
+              Printing, PDF downloads, and converting estimates to invoices are locked until your organization renews its subscription.
+            </div>
+          </div>
+        </div>
+        <a href="/subscription/pay" class="btn btn-sm btn-danger">
+          <i class="uil uil-sync"></i> Renew Subscription
+        </a>
+      </div>
+    </div>
+  <% } %>
 
   <!-- Document Customization Toolbar -->
   <div class="doc-customizer-bar">

@@ -6,7 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { withTransaction } from '../config/database';
+import { query, withTransaction } from '../config/database';
 import {
   UserModel,
   TenantModel,
@@ -88,9 +88,24 @@ export class AuthController {
         return;
       }
 
-      // Check tenant is active (for non-super-admin users)
-      if (user.role !== UserRole.SUPER_ADMIN && user.tenant && !user.tenant.isActive) {
-        req.flash('error', 'Your organization account has been deactivated. Please contact support.');
+      // Check subscription status for non-super-admin users
+      let isSubscriptionExpired = false;
+      if (user.role !== UserRole.SUPER_ADMIN && user.tenantId) {
+        const subRes = await query(
+          `SELECT status, current_period_end FROM tenant_subscriptions WHERE tenant_id = $1 LIMIT 1`,
+          [user.tenantId]
+        );
+        if (subRes.rows.length > 0) {
+          const sub = subRes.rows[0];
+          if (sub.status === 'EXPIRED' || (sub.current_period_end && new Date(sub.current_period_end) < new Date())) {
+            isSubscriptionExpired = true;
+          }
+        }
+      }
+
+      // Check tenant is active (if deactivated not due to expired subscription, block)
+      if (user.role !== UserRole.SUPER_ADMIN && user.tenant && !user.tenant.isActive && !isSubscriptionExpired) {
+        req.flash('error', 'Your organization account has been suspended by the platform administrator. Please contact support.');
         res.redirect('/auth/login');
         return;
       }
@@ -117,6 +132,13 @@ export class AuthController {
         description: `User ${user.email} signed into workspace`,
         metadata: { role: user.role, email: user.email },
       });
+
+      // If subscription is expired, direct immediately to the subscription payment page
+      if (isSubscriptionExpired) {
+        req.flash('warning', 'Your organization subscription has expired. Please settle your renewal invoice to restore full access.');
+        res.redirect('/subscription/pay');
+        return;
+      }
 
       // Redirect to intended page or dashboard
       const returnTo = req.session.returnTo || '/dashboard';

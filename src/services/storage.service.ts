@@ -9,6 +9,7 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import appConfig from '../config/app';
 import logger from '../utils/logger';
+import { query } from '../config/database';
 
 const storageLogger = logger.child('StorageService');
 
@@ -16,6 +17,21 @@ export interface UploadResult {
   url: string;
   key: string;
   storageType: 'r2' | 'local';
+}
+
+export interface TenantStorageMetrics {
+  tenantId: string;
+  usedBytes: number;
+  usedMb: number;
+  allocatedMb: number;
+  remainingMb: number;
+  percentUsed: number;
+  isOverQuota: boolean;
+  isExempt: boolean;
+  fileCount: number;
+  documentCount: number;
+  folderPath: string;
+  storageType: 'r2' | 'local' | 'hybrid';
 }
 
 class StorageService {
@@ -220,6 +236,158 @@ class StorageService {
     }
 
     return deleted;
+  }
+
+  /**
+   * Ensure tenant isolated folder structure exists on local server
+   */
+  ensureTenantStorageFolder(tenantId: string): string {
+    const tenantDir = path.join(process.cwd(), 'public', 'uploads', 'tenants', tenantId);
+    const subfolders = ['projects', 'branding', 'payment-proofs', 'documents'];
+    try {
+      if (!fs.existsSync(tenantDir)) {
+        fs.mkdirSync(tenantDir, { recursive: true });
+      }
+      for (const sub of subfolders) {
+        const subPath = path.join(tenantDir, sub);
+        if (!fs.existsSync(subPath)) {
+          fs.mkdirSync(subPath, { recursive: true });
+        }
+      }
+    } catch (e: any) {
+      storageLogger.warn('Failed to ensure tenant directory structure', { tenantId, error: e.message });
+    }
+    return tenantDir;
+  }
+
+  /**
+   * Helper to recursively calculate disk size and file count of a directory
+   */
+  private getDiskDirectorySizeBytes(dirPath: string): { totalBytes: number; fileCount: number } {
+    let totalBytes = 0;
+    let fileCount = 0;
+    try {
+      if (!fs.existsSync(dirPath)) return { totalBytes: 0, fileCount: 0 };
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+          const sub = this.getDiskDirectorySizeBytes(fullPath);
+          totalBytes += sub.totalBytes;
+          fileCount += sub.fileCount;
+        } else if (entry.isFile()) {
+          const stats = fs.statSync(fullPath);
+          totalBytes += stats.size;
+          fileCount += 1;
+        }
+      }
+    } catch (e) {
+      // Ignore directory access error
+    }
+    return { totalBytes, fileCount };
+  }
+
+  /**
+   * Fetch comprehensive tenant storage usage metrics against subscription allocation
+   */
+  async getTenantStorageUsage(tenantId: string): Promise<TenantStorageMetrics> {
+    try {
+      // 1. Ensure directory exists
+      this.ensureTenantStorageFolder(tenantId);
+
+      // 2. Query project_documents sum and count
+      const docsRes = await query(
+        `SELECT COALESCE(SUM(file_size), 0)::bigint as total_bytes, COUNT(*)::int as count 
+         FROM project_documents WHERE tenant_id = $1`,
+        [tenantId]
+      );
+      const dbBytes = parseInt(docsRes.rows[0]?.total_bytes || '0', 10);
+      const dbCount = parseInt(docsRes.rows[0]?.count || '0', 10);
+
+      // 3. Inspect local disk directory
+      const localTenantDir = path.join(process.cwd(), 'public', 'uploads', 'tenants', tenantId);
+      const diskMetrics = this.getDiskDirectorySizeBytes(localTenantDir);
+
+      const usedBytes = Math.max(dbBytes, diskMetrics.totalBytes);
+      const fileCount = Math.max(dbCount, diskMetrics.fileCount);
+      const usedMb = Number((usedBytes / (1024 * 1024)).toFixed(2));
+
+      // 4. Fetch subscription allocation and exemption
+      const subRes = await query(
+        `SELECT 
+           t.subscription_exempt,
+           COALESCE(sp.max_storage_mb, 1000)::int as max_storage_mb
+         FROM tenants t
+         LEFT JOIN tenant_subscriptions ts ON t.id = ts.tenant_id
+         LEFT JOIN subscription_plans sp ON ts.plan_id = sp.id
+         WHERE t.id = $1
+         LIMIT 1`,
+        [tenantId]
+      );
+
+      const isExempt = Boolean(subRes.rows[0]?.subscription_exempt);
+      const allocatedMb = subRes.rows[0]?.max_storage_mb || 1000;
+      const remainingMb = Math.max(0, Number((allocatedMb - usedMb).toFixed(2)));
+      const percentUsed = Math.min(100, Math.round((usedMb / allocatedMb) * 100));
+      const isOverQuota = !isExempt && (usedBytes >= allocatedMb * 1024 * 1024);
+
+      return {
+        tenantId,
+        usedBytes,
+        usedMb,
+        allocatedMb,
+        remainingMb,
+        percentUsed,
+        isOverQuota,
+        isExempt,
+        fileCount,
+        documentCount: fileCount,
+        folderPath: `tenants/${tenantId}`,
+        storageType: this.isR2Configured ? 'r2' : 'local',
+      };
+    } catch (err: any) {
+      storageLogger.error('Failed to get tenant storage usage', { tenantId, error: err.message });
+      return {
+        tenantId,
+        usedBytes: 0,
+        usedMb: 0,
+        allocatedMb: 1000,
+        remainingMb: 1000,
+        percentUsed: 0,
+        isOverQuota: false,
+        isExempt: false,
+        fileCount: 0,
+        documentCount: 0,
+        folderPath: `tenants/${tenantId}`,
+        storageType: 'local',
+      };
+    }
+  }
+
+  /**
+   * Upload a file strictly partitioned under tenant isolated folder structure
+   * on Cloudflare R2 and server filesystem: tenants/{tenantId}/{subfolder}
+   * Enforces storage quota check against tenant subscription allocation.
+   */
+  async uploadTenantFile(tenantId: string, file: Express.Multer.File, subfolder: string = 'documents'): Promise<UploadResult> {
+    if (!tenantId) {
+      throw new Error('Tenant context required for tenant-scoped file upload');
+    }
+
+    // Check storage limits
+    const usage = await this.getTenantStorageUsage(tenantId);
+    if (!usage.isExempt && (usage.usedBytes + file.size > usage.allocatedMb * 1024 * 1024)) {
+      throw new Error(
+        `Storage limit reached (${usage.usedMb} MB used of ${usage.allocatedMb} MB allocated). Please upgrade your subscription plan or delete unused files to upload new files.`
+      );
+    }
+
+    // Ensure tenant directory exists on server
+    this.ensureTenantStorageFolder(tenantId);
+
+    // Target folder structure: tenants/{tenantId}/{subfolder}
+    const tenantFolder = `tenants/${tenantId}/${subfolder}`;
+    return this.uploadFile(file, tenantFolder);
   }
 }
 

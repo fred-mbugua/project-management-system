@@ -34,6 +34,7 @@ import calendarRoutes from './routes/calendar.routes';
 import settingsRoutes from './routes/settings.routes';
 import auditRoutes from './routes/audit.routes';
 import paymentPortalRoutes from './routes/paymentPortal.routes';
+import subscriptionRoutes from './routes/subscription.routes';
 import { recurringBillingService } from './services/recurringBilling.service';
 import { subscriptionBillingService } from './services/subscriptionBilling.service';
 
@@ -177,6 +178,7 @@ app.use('/team', teamRoutes);
 app.use('/maintenance', maintenanceRoutes);
 app.use('/calendar', calendarRoutes);
 app.use('/settings', settingsRoutes);
+app.use('/subscription', subscriptionRoutes);
 app.use('/audit-logs', auditRoutes);
 
 // Health check

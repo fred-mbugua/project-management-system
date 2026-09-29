@@ -34,12 +34,18 @@ export class AuditController {
         AuditLogModel.findWithUser({
           tenantId: effectiveTenantId,
           action: actionFilter && actionFilter.trim() !== '' ? actionFilter : undefined,
+          search: params.search,
+          startDate: params.startDate || undefined,
+          endDate: params.endDate || undefined,
           limit: params.limit,
           offset: params.offset,
         }),
         AuditLogModel.count({
           tenantId: effectiveTenantId,
           action: actionFilter && actionFilter.trim() !== '' ? actionFilter : undefined,
+          search: params.search,
+          startDate: params.startDate || undefined,
+          endDate: params.endDate || undefined,
         }),
       ]);
 
@@ -50,6 +56,7 @@ export class AuditController {
         logs,
         pagination,
         search: params.search,
+        filters: params,
         selectedAction: actionFilter || '',
         currentPath: req.baseUrl || '/audit-logs',
       });

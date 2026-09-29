@@ -127,6 +127,7 @@ export enum SubscriptionStatus {
   ACTIVE = 'ACTIVE',
   PAST_DUE = 'PAST_DUE',
   CANCELLED = 'CANCELLED',
+  CANCELED = 'CANCELED',
   TRIAL = 'TRIAL',
   SUSPENDED = 'SUSPENDED',
   EXPIRED = 'EXPIRED',
@@ -241,6 +242,7 @@ export interface Tenant {
   cardSecretKey?: string | null;
   cardEnabled?: boolean;
   receiptFields?: Record<string, any> | null;
+  subscriptionExempt?: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

@@ -125,6 +125,12 @@ export class ExpenseController {
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if ((req as any).isSubscriptionCancelled) {
+        req.flash('error', 'Your subscription is cancelled. Creating new transactions is disabled until your subscription is renewed.');
+        res.redirect('/subscription/pay');
+        return;
+      }
+
       const isSuper = req.user?.role === 'SUPER_ADMIN';
       let tenantId = req.tenantId;
       if (!tenantId && isSuper) {

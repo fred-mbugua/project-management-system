@@ -36,9 +36,13 @@ export class SettingsController {
         return;
       }
 
+      // Fetch storage metrics for tenant monitoring
+      const storageMetrics = await storageService.getTenantStorageUsage(tenantId);
+
       res.render('pages/settings/index', {
         title: 'Organization Settings',
         tenant,
+        storageMetrics,
       });
     } catch (error) {
       setLogger.error('Failed to load tenant settings', { error: String(error) });
@@ -106,7 +110,7 @@ export class SettingsController {
       // Handle logo upload to Cloudflare R2 / local server disk
       if (req.file) {
         try {
-          const uploadRes = await storageService.uploadFile(req.file, 'logos');
+          const uploadRes = await storageService.uploadTenantFile(tenantId, req.file, 'branding');
           logoUrl = uploadRes.url;
           setLogger.info('Uploaded new tenant logo to storage', { tenantId, url: logoUrl, storage: uploadRes.storageType });
 

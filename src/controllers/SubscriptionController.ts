@@ -584,6 +584,8 @@ export class SubscriptionController {
             application_context: {
               brand_name: 'Free Style Code Technologies',
               user_action: 'PAY_NOW',
+              shipping_preference: 'NO_SHIPPING',
+              landing_page: 'NO_PREFERENCE',
               return_url: `${appConfig.appUrl}/subscription/pay?status=paypal-success`,
               cancel_url: `${appConfig.appUrl}/subscription/pay?status=paypal-cancelled`,
             },

@@ -2,7 +2,7 @@
      Workspace Subscription Renewal Payment Portal
      ═══════════════════════════════════════════════════════════════════ -->
 
-<div class="subscription-pay-page" style="max-width: 860px; margin: 0 auto; padding: 20px 0;">
+<div class="subscription-pay-page" style="max-width: 860px; margin: 0 auto; padding: 20px 16px;">
   <!-- Header Banner -->
   <div class="card mb-6" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%); color: white; border: none; border-radius: var(--radius-lg, 16px); padding: 28px 32px; box-shadow: 0 10px 25px -5px rgba(49, 46, 129, 0.25);">
     <div class="flex-between" style="flex-wrap: wrap; gap: 16px;">
@@ -88,32 +88,33 @@
         </div>
 
         <div class="card-body">
+          <% const initialTab = paymentSettings.mpesaEnabled ? 'mpesa-stk' : (paymentSettings.manualPesaEnabled ? 'mpesa-paybill' : (paymentSettings.cardEnabled ? 'card-pay' : 'paypal-pay')); %>
           <!-- Method Selection Tabs -->
-          <div class="payment-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+          <div class="payment-tabs">
             <% if (paymentSettings.mpesaEnabled) { %>
-              <button type="button" class="btn btn-sm tab-btn active" id="tab-btn-mpesa-stk" onclick="switchPaymentTab('mpesa-stk')">
-                <i class="uil uil-mobile-android" style="color: #008751;"></i>
+              <button type="button" class="tab-btn <%= initialTab === 'mpesa-stk' ? 'active' : '' %>" id="tab-btn-mpesa-stk" onclick="switchPaymentTab('mpesa-stk')">
+                <i class="uil uil-mobile-android tab-icon-mpesa"></i>
                 <span>M-Pesa Express (STK Push)</span>
               </button>
             <% } %>
 
             <% if (paymentSettings.manualPesaEnabled) { %>
-              <button type="button" class="btn btn-sm tab-btn <%= !paymentSettings.mpesaEnabled ? 'active' : '' %>" id="tab-btn-mpesa-paybill" onclick="switchPaymentTab('mpesa-paybill')">
-                <i class="uil uil-bill" style="color: #008751;"></i>
+              <button type="button" class="tab-btn <%= initialTab === 'mpesa-paybill' ? 'active' : '' %>" id="tab-btn-mpesa-paybill" onclick="switchPaymentTab('mpesa-paybill')">
+                <i class="uil uil-bill tab-icon-mpesa"></i>
                 <span>M-Pesa Paybill / Till</span>
               </button>
             <% } %>
 
             <% if (paymentSettings.cardEnabled) { %>
-              <button type="button" class="btn btn-sm tab-btn <%= (!paymentSettings.mpesaEnabled && !paymentSettings.manualPesaEnabled) ? 'active' : '' %>" id="tab-btn-card-pay" onclick="switchPaymentTab('card-pay')">
-                <i class="uil uil-credit-card"></i>
+              <button type="button" class="tab-btn <%= initialTab === 'card-pay' ? 'active' : '' %>" id="tab-btn-card-pay" onclick="switchPaymentTab('card-pay')">
+                <i class="uil uil-credit-card tab-icon-card"></i>
                 <span>Card Checkout</span>
               </button>
             <% } %>
 
             <% if (paymentSettings.paypalEnabled) { %>
-              <button type="button" class="btn btn-sm tab-btn <%= (!paymentSettings.mpesaEnabled && !paymentSettings.manualPesaEnabled && !paymentSettings.cardEnabled) ? 'active' : '' %>" id="tab-btn-paypal-pay" onclick="switchPaymentTab('paypal-pay')">
-                <i class="uil uil-paypal" style="color: #003087;"></i>
+              <button type="button" class="tab-btn <%= initialTab === 'paypal-pay' ? 'active' : '' %>" id="tab-btn-paypal-pay" onclick="switchPaymentTab('paypal-pay')">
+                <i class="uil uil-paypal tab-icon-paypal"></i>
                 <span>PayPal Business</span>
               </button>
             <% } %>
@@ -121,7 +122,7 @@
 
           <!-- TAB 1: M-Pesa STK Push -->
           <% if (paymentSettings.mpesaEnabled) { %>
-            <div id="tab-content-mpesa-stk" class="tab-content-panel">
+            <div id="tab-content-mpesa-stk" class="tab-content-panel" style="display: <%= initialTab === 'mpesa-stk' ? 'block' : 'none' %>;">
               <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;">
                 <div class="flex-align-center gap-2" style="font-weight: 700; color: #166534; font-size: 0.95rem;">
                   <i class="uil uil-bolt-alt" style="font-size: 1.25rem;"></i>
@@ -182,7 +183,7 @@
 
           <!-- TAB 2: M-Pesa Paybill / Till (Manual C2B) -->
           <% if (paymentSettings.manualPesaEnabled) { %>
-            <div id="tab-content-mpesa-paybill" class="tab-content-panel" style="<%= paymentSettings.mpesaEnabled ? 'display: none;' : '' %>">
+            <div id="tab-content-mpesa-paybill" class="tab-content-panel" style="display: <%= initialTab === 'mpesa-paybill' ? 'block' : 'none' %>;">
               <div style="background: var(--bg-tertiary, #f8fafc); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 24px;">
                 <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; font-weight: 700;">Manual Lipa na M-Pesa Instructions:</h4>
                 <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.88rem;">
@@ -235,7 +236,7 @@
 
           <!-- TAB 3: Card Checkout -->
           <% if (paymentSettings.cardEnabled) { %>
-            <div id="tab-content-card-pay" class="tab-content-panel" style="<%= (paymentSettings.mpesaEnabled || paymentSettings.manualPesaEnabled) ? 'display: none;' : '' %>">
+            <div id="tab-content-card-pay" class="tab-content-panel" style="display: <%= initialTab === 'card-pay' ? 'block' : 'none' %>;">
               <div style="background: var(--bg-tertiary, #f8fafc); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 20px;">
                 <div class="flex-between mb-4">
                   <span style="font-size: 0.85rem; color: var(--text-secondary);">International Visa / Mastercard</span>
@@ -268,7 +269,7 @@
 
           <!-- TAB: PayPal Business Account -->
           <% if (paymentSettings.paypalEnabled) { %>
-            <div id="tab-content-paypal-pay" class="tab-content-panel" style="<%= (!paymentSettings.mpesaEnabled && !paymentSettings.manualPesaEnabled && !paymentSettings.cardEnabled) ? '' : 'display: none;' %>">
+            <div id="tab-content-paypal-pay" class="tab-content-panel" style="display: <%= initialTab === 'paypal-pay' ? 'block' : 'none' %>;">
               <div style="background: var(--bg-tertiary, #f8fafc); border: 1.5px solid var(--border-color); border-radius: var(--radius-md); padding: 22px; margin-bottom: 20px;">
                 <div class="flex-between mb-3" style="align-items: center; flex-wrap: wrap; gap: 12px;">
                   <div class="flex-align-center gap-2">
@@ -293,8 +294,24 @@
                 </p>
 
                 <% if (paymentSettings.paypalClientId) { %>
-                  <!-- PayPal Smart Buttons Container -->
-                  <div id="paypal-button-container" style="max-width: 440px; margin: 0 auto 16px auto;"></div>
+                  <!-- PayPal Smart Buttons & Card Island -->
+                  <div class="paypal-smart-card-wrapper">
+                    <div class="paypal-card-header">
+                      <div class="flex-align-center gap-2">
+                        <i class="uil uil-shield-check" style="color: #0070ba; font-size: 1.35rem;"></i>
+                        <div>
+                          <div style="font-weight: 700; font-size: 0.88rem; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">PayPal & Card Platform Checkout</div>
+                          <div style="font-size: 0.74rem; color: #64748b;">Instant Workspace Activation &bull; 256-Bit SSL Encrypted</div>
+                        </div>
+                      </div>
+                      <span style="font-size: 0.8rem; font-weight: 700; color: #0070ba; background: #eff6ff; padding: 4px 10px; border-radius: 6px; border: 1px solid #bfdbfe;">
+                        $<%= estUsd %> <%= paymentSettings.paypalCurrency || 'USD' %>
+                      </span>
+                    </div>
+
+                    <!-- PayPal and Debit/Credit Card Smart Buttons render here -->
+                    <div id="paypal-button-container" style="max-width: 440px; margin: 0 auto; min-height: 100px;"></div>
+                  </div>
                 <% } %>
 
                 <!-- Direct / Manual PayPal Verification Form -->
@@ -377,13 +394,166 @@
 <style>
   @keyframes spin { 100% { transform: rotate(360deg); } }
   @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); } 70% { transform: scale(1); box-shadow: 0 0 0 14px rgba(22, 163, 74, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); } }
-  .tab-btn.active { background: var(--primary) !important; color: white !important; }
+
+  /* Payment Selection Tabs */
+  .payment-tabs {
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 14px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--border-radius-md, 10px);
+    border: 1.5px solid var(--border-color);
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    line-height: 1.2;
+    text-decoration: none;
+    box-shadow: var(--shadow-xs);
+  }
+  .tab-btn span {
+    color: inherit !important;
+  }
+  .tab-btn .tab-icon-mpesa { color: #16a34a; font-size: 1.15rem; }
+  .tab-btn .tab-icon-paypal { color: #0070ba; font-size: 1.15rem; }
+  .tab-btn .tab-icon-card { color: #6366f1; font-size: 1.15rem; }
+
+  .tab-btn:hover {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--primary-400);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+  .tab-btn.active {
+    background: #4F46E5 !important;
+    color: #ffffff !important;
+    border-color: #4338CA !important;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+  }
+  .tab-btn.active i,
+  .tab-btn.active span,
+  .tab-btn.active .tab-icon-mpesa,
+  .tab-btn.active .tab-icon-paypal,
+  .tab-btn.active .tab-icon-card {
+    color: #ffffff !important;
+  }
+
+  /* PayPal & Credit Card High-Contrast Island Container */
+  .paypal-smart-card-wrapper {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    color-scheme: light !important;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 22px 20px;
+    margin: 18px auto 22px auto;
+    max-width: 480px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  }
+  .paypal-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  #paypal-button-container {
+    background: #ffffff !important;
+    border-radius: 8px;
+  }
+  #paypal-button-container iframe {
+    background-color: #ffffff !important;
+    border-radius: 8px;
+  }
+
+  @media (max-width: 640px) {
+    .subscription-pay-page { padding: 12px 10px !important; }
+    .payment-tabs { display: flex; flex-direction: column; width: 100%; gap: 8px !important; }
+    .payment-tabs .tab-btn { width: 100%; justify-content: flex-start; }
+    .paypal-smart-card-wrapper { padding: 16px 14px; }
+  }
 </style>
 
 <script>
   const INVOICE_ID = "<%= invoice.id %>";
   let pollInterval = null;
   let pollCountdown = 45;
+
+  let paypalRendered = false;
+
+  function initPaypalButtonsIfVisible() {
+    if (paypalRendered) return;
+    const container = document.getElementById('paypal-button-container');
+    const panel = document.getElementById('tab-content-paypal-pay');
+    if (!container || !panel) return;
+    if (panel.style.display === 'none') return;
+    if (!window.paypal) {
+      setTimeout(initPaypalButtonsIfVisible, 150);
+      return;
+    }
+
+    paypalRendered = true;
+    container.innerHTML = '';
+
+    try {
+      paypal.Buttons({
+        style: {
+          layout: 'vertical',
+          color: 'gold',
+          shape: 'rect',
+          label: 'paypal'
+        },
+        createOrder: async function() {
+          const res = await fetch('/subscription/paypal/create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ invoiceId: INVOICE_ID })
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            alert(data.message || 'Failed to initialize PayPal payment.');
+            throw new Error(data.message || 'Failed to initialize PayPal order');
+          }
+          return data.orderId;
+        },
+        onApprove: async function(data) {
+          const res = await fetch('/subscription/paypal/capture-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ invoiceId: INVOICE_ID, orderId: data.orderID })
+          });
+          const result = await res.json();
+          if (res.ok && result.success) {
+            window.location.href = result.redirectUrl || '/dashboard';
+          } else {
+            alert(result.message || 'Failed to capture PayPal payment.');
+          }
+        },
+        onCancel: function(data) {
+          console.log('PayPal checkout window closed/cancelled:', data);
+        },
+        onError: function(err) {
+          console.error('PayPal checkout error:', err);
+        }
+      }).render('#paypal-button-container');
+    } catch (renderErr) {
+      console.error('Failed to render PayPal Buttons:', renderErr);
+      paypalRendered = false;
+    }
+  }
 
   function switchPaymentTab(tabId) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -393,7 +563,12 @@
     if (activeBtn) activeBtn.classList.add('active');
 
     const activeContent = document.getElementById('tab-content-' + tabId);
-    if (activeContent) activeContent.style.display = 'block';
+    if (activeContent) {
+      activeContent.style.display = 'block';
+      if (tabId === 'paypal-pay') {
+        setTimeout(initPaypalButtonsIfVisible, 60);
+      }
+    }
   }
 
   function copyToClipboard(text) {
@@ -554,48 +729,12 @@
 </script>
 
 <% if (paymentSettings.paypalEnabled && paymentSettings.paypalClientId) { %>
-  <script src="https://www.paypal.com/sdk/js?client-id=<%= paymentSettings.paypalClientId %>&currency=<%= paymentSettings.paypalCurrency || 'USD' %>"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=<%= paymentSettings.paypalClientId %>&currency=<%= paymentSettings.paypalCurrency || 'USD' %>&intent=capture"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      if (window.paypal && document.getElementById('paypal-button-container')) {
-        paypal.Buttons({
-          style: {
-            layout: 'vertical',
-            color: 'gold',
-            shape: 'rect',
-            label: 'paypal'
-          },
-          createOrder: async function() {
-            const res = await fetch('/subscription/paypal/create-order', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ invoiceId: INVOICE_ID })
-            });
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-              alert(data.message || 'Failed to initialize PayPal payment.');
-              throw new Error(data.message || 'Failed to initialize PayPal order');
-            }
-            return data.orderId;
-          },
-          onApprove: async function(data) {
-            const res = await fetch('/subscription/paypal/capture-order', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ invoiceId: INVOICE_ID, orderId: data.orderID })
-            });
-            const result = await res.json();
-            if (res.ok && result.success) {
-              window.location.href = result.redirectUrl || '/dashboard';
-            } else {
-              alert(result.message || 'Failed to capture PayPal payment.');
-            }
-          },
-          onError: function(err) {
-            console.error('PayPal checkout error:', err);
-            alert('An error occurred during PayPal checkout.');
-          }
-        }).render('#paypal-button-container');
+      const paypalPanel = document.getElementById('tab-content-paypal-pay');
+      if (paypalPanel && paypalPanel.style.display !== 'none') {
+        setTimeout(initPaypalButtonsIfVisible, 100);
       }
     });
   </script>

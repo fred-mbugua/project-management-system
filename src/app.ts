@@ -68,17 +68,42 @@ app.set('layout extractStyles', true);
 // Security headers
 app.use(
   helmet({
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unicons.iconscout.com', 'https://cdn.jsdelivr.net'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unicons.iconscout.com', 'https://cdn.jsdelivr.net', 'https://*.paypal.com', 'https://*.paypalobjects.com'],
         styleSrcAttr: ["'self'", "'unsafe-inline'"],
         fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://unicons.iconscout.com'],
-        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://www.paypal.com', 'https://*.paypal.com'],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://cdn.jsdelivr.net',
+          'https://www.paypal.com',
+          'https://*.paypal.com',
+          'https://*.paypalobjects.com',
+          'https://static.cloudflareinsights.com',
+          'https://*.cloudflareinsights.com',
+        ],
         scriptSrcAttr: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-        connectSrc: ["'self'", 'https://www.paypal.com', 'https://*.paypal.com', 'https://www.sandbox.paypal.com'],
-        frameSrc: ["'self'", 'https://www.paypal.com', 'https://*.paypal.com', 'https://www.sandbox.paypal.com'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:', 'https://*.paypalobjects.com', 'https://*.paypal.com'],
+        connectSrc: [
+          "'self'",
+          'https://www.paypal.com',
+          'https://*.paypal.com',
+          'https://www.sandbox.paypal.com',
+          'https://*.paypalobjects.com',
+          'https://cloudflareinsights.com',
+          'https://*.cloudflareinsights.com',
+        ],
+        frameSrc: [
+          "'self'",
+          'https://www.paypal.com',
+          'https://*.paypal.com',
+          'https://www.sandbox.paypal.com',
+          'https://*.paypalobjects.com',
+        ],
       },
     },
   })

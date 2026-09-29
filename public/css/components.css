@@ -3614,13 +3614,11 @@ input.flatpickr-date::placeholder {
   color: var(--text-primary);
 }
 
+/* PWA Banner Safeguards */
+.pwa-install-banner {
+  display: none !important;
+}
 
-
-
-
-
-
-
-
-
-
+.pwa-install-banner.pwa-install-show {
+  display: block !important;
+}

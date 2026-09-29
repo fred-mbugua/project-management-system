@@ -129,6 +129,20 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Cookie parsing
 app.use(cookieParser(appConfig.sessionSecret));
 
+// PWA Service Worker & Manifest Route Handlers (Ensures no-cache and proper headers)
+app.get('/sw.js', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.sendFile(path.join(__dirname, '..', 'public', 'sw.js'));
+});
+
+app.get('/manifest.json', (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.sendFile(path.join(__dirname, '..', 'public', 'manifest.json'));
+});
+
 // Static files (Zero Inline Asset Constraint - all CSS/JS served from /public/)
 app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1d' }));
 

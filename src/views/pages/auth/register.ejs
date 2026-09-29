@@ -1,74 +1,239 @@
 <!-- ═══════════════════════════════════════════════════════════════════
-     Registration Page - Tenant Onboarding
+     Registration Page - Enhanced Tenant Onboarding with Plan Selection
      ═══════════════════════════════════════════════════════════════════ -->
 
-<div class="auth-form-wrapper">
+<div class="auth-form-wrapper auth-form-wide">
   <div class="auth-form-header">
     <h1 class="auth-form-title">Create your workspace</h1>
-    <p class="auth-form-subtitle">Start managing projects and invoices in minutes</p>
+    <p class="auth-form-subtitle">Start managing projects, invoicing, and operations in minutes</p>
   </div>
 
   <form class="auth-form" action="/auth/register" method="POST" id="registerForm">
+    <!-- Step 1: Workspace & Admin Details -->
+    <div class="form-section-title">
+      <span class="step-badge">1</span>
+      <span>Organization & Account</span>
+    </div>
+
     <div class="form-group">
       <label class="form-label" for="companyName">Company / Organization Name</label>
       <div class="input-wrapper">
         <i class="uil uil-building input-icon"></i>
-        <input type="text" class="form-input" id="companyName" name="companyName" placeholder="Acme Engineering Ltd" required autofocus>
+        <input type="text" class="form-input" id="companyName" name="companyName" placeholder="Acme Technologies Ltd" required autofocus>
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
         <label class="form-label" for="firstName">First Name</label>
-        <input type="text" class="form-input" id="firstName" name="firstName" placeholder="John" required>
+        <div class="input-wrapper">
+          <i class="uil uil-user input-icon"></i>
+          <input type="text" class="form-input" id="firstName" name="firstName" placeholder="John" required>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label" for="lastName">Last Name</label>
-        <input type="text" class="form-input" id="lastName" name="lastName" placeholder="Doe" required>
+        <div class="input-wrapper">
+          <i class="uil uil-user input-icon"></i>
+          <input type="text" class="form-input" id="lastName" name="lastName" placeholder="Doe" required>
+        </div>
       </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label" for="regEmail">Email Address</label>
-      <div class="input-wrapper">
-        <i class="uil uil-envelope input-icon"></i>
-        <input type="email" class="form-input" id="regEmail" name="email" placeholder="you@company.com" required autocomplete="email">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="regEmail">Work Email Address</label>
+        <div class="input-wrapper">
+          <i class="uil uil-envelope input-icon"></i>
+          <input type="email" class="form-input" id="regEmail" name="email" placeholder="you@company.com" required autocomplete="email">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="phone">Phone Number (Optional)</label>
+        <div class="input-wrapper">
+          <i class="uil uil-phone input-icon"></i>
+          <input type="tel" class="form-input" id="phone" name="phone" placeholder="+254 7XX XXX XXX">
+        </div>
       </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label" for="phone">Phone Number (Optional)</label>
-      <div class="input-wrapper">
-        <i class="uil uil-phone input-icon"></i>
-        <input type="tel" class="form-input" id="phone" name="phone" placeholder="+254 7XX XXX XXX">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="regPassword">Password</label>
+        <div class="input-wrapper">
+          <i class="uil uil-lock-alt input-icon"></i>
+          <input type="password" class="form-input" id="regPassword" name="password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="confirmPassword">Confirm Password</label>
+        <div class="input-wrapper">
+          <i class="uil uil-shield-check input-icon"></i>
+          <input type="password" class="form-input" id="confirmPassword" name="confirmPassword" placeholder="Repeat password" required autocomplete="new-password">
+        </div>
       </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label" for="regPassword">Password</label>
-      <div class="input-wrapper">
-        <i class="uil uil-lock-alt input-icon"></i>
-        <input type="password" class="form-input" id="regPassword" name="password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password">
-      </div>
+    <!-- Step 2: Choose Subscription Tier -->
+    <div class="form-section-title mt-4">
+      <span class="step-badge">2</span>
+      <span>Choose Your Preferred Subscription Plan</span>
     </div>
 
-    <div class="form-group">
-      <label class="form-label" for="confirmPassword">Confirm Password</label>
-      <div class="input-wrapper">
-        <i class="uil uil-shield-check input-icon"></i>
-        <input type="password" class="form-input" id="confirmPassword" name="confirmPassword" placeholder="Repeat your password" required autocomplete="new-password">
-      </div>
+    <p class="plan-section-subtitle">
+      <i class="uil uil-gift" style="color: #e8650a;"></i>
+      <strong>30-Day Free Trial</strong> included with all plans. No credit card required to start.
+    </p>
+
+    <!-- Hidden input storing selected plan ID -->
+    <% 
+      const defaultPlan = (plans && plans.length > 0)
+        ? (plans.find(p => p.tier === 'PROFESSIONAL') || plans.find(p => p.tier === 'STARTER') || plans[0])
+        : null;
+      const defaultPlanId = defaultPlan ? defaultPlan.id : '';
+    %>
+    <input type="hidden" name="planId" id="selectedPlanId" value="<%= defaultPlanId %>">
+    <input type="hidden" name="billingCycle" id="selectedBillingCycle" value="monthly">
+
+    <div class="onboarding-plans-grid" id="plansSelector">
+      <% if (plans && plans.length > 0) { %>
+        <% plans.forEach(function(plan) { %>
+          <% const isSelected = defaultPlan && defaultPlan.id === plan.id; %>
+          <% const isPro = plan.tier === 'PROFESSIONAL'; %>
+          <div class="onboarding-plan-card<%= isSelected ? ' selected' : '' %><%= isPro ? ' is-popular' : '' %>"
+               data-plan-id="<%= plan.id %>"
+               tabindex="0"
+               role="radio"
+               aria-checked="<%= isSelected ? 'true' : 'false' %>">
+            
+            <% if (isPro) { %>
+              <div class="onboarding-plan-badge">
+                <i class="uil uil-star"></i> Most Popular
+              </div>
+            <% } %>
+
+            <div class="plan-card-header">
+              <div class="plan-check-icon">
+                <i class="uil uil-check-circle"></i>
+              </div>
+              <h3 class="plan-card-name"><%= plan.name %></h3>
+              <p class="plan-card-desc"><%= plan.description || 'Full-featured enterprise suite' %></p>
+            </div>
+
+            <div class="plan-card-pricing">
+              <span class="plan-price-currency">KES</span>
+              <span class="plan-price-amount"><%= Number(plan.monthlyPrice).toLocaleString() %></span>
+              <span class="plan-price-period">/ month</span>
+            </div>
+
+            <div class="plan-trial-tag">
+              <i class="uil uil-check"></i> Free 30-Day Trial
+            </div>
+
+            <ul class="plan-features-list">
+              <li>
+                <i class="uil uil-check text-success"></i>
+                <span>Up to <strong><%= plan.maxUsers %></strong> Users</span>
+              </li>
+              <li>
+                <i class="uil uil-check text-success"></i>
+                <span>Up to <strong><%= plan.maxProjects %></strong> Projects</span>
+              </li>
+              <li>
+                <i class="uil uil-check text-success"></i>
+                <span><strong><%= plan.maxStorageMb >= 1000 ? (plan.maxStorageMb/1000) + ' GB' : plan.maxStorageMb + ' MB' %></strong> Cloud Storage</span>
+              </li>
+              <li>
+                <i class="uil uil-check text-success"></i>
+                <span>Invoicing & M-Pesa</span>
+              </li>
+              <% if (plan.features && plan.features.reports) { %>
+              <li>
+                <i class="uil uil-check text-success"></i>
+                <span>Financial & Tax Reports</span>
+              </li>
+              <% } %>
+              <% if (plan.features && plan.features.maintenance) { %>
+              <li>
+                <i class="uil uil-check text-success"></i>
+                <span>Maintenance SLAs</span>
+              </li>
+              <% } %>
+              <% if (plan.features && (plan.features.api || plan.features.whitelabel)) { %>
+              <li>
+                <i class="uil uil-check text-success"></i>
+                <span>API & Whitelabel</span>
+              </li>
+              <% } %>
+            </ul>
+          </div>
+        <% }); %>
+      <% } else { %>
+        <!-- Fallback Starter Card -->
+        <div class="onboarding-plan-card selected" data-plan-id="default" role="radio" aria-checked="true">
+          <div class="plan-card-header">
+            <h3 class="plan-card-name">Starter Plan</h3>
+            <p class="plan-card-desc">Perfect for small businesses and growing teams</p>
+          </div>
+          <div class="plan-card-pricing">
+            <span class="plan-price-currency">KES</span>
+            <span class="plan-price-amount">1,500</span>
+            <span class="plan-price-period">/ month</span>
+          </div>
+          <div class="plan-trial-tag">30-Day Free Trial</div>
+        </div>
+      <% } %>
     </div>
 
-    <button type="submit" class="btn btn-primary btn-block" id="registerBtn">
-      <span class="btn-text">Create Workspace</span>
+    <!-- Submit Button -->
+    <button type="submit" class="btn btn-primary btn-block btn-lg" id="registerBtn">
+      <span class="btn-text">
+        <i class="uil uil-rocket" style="margin-right: 6px;"></i>
+        Start 30-Day Free Trial
+      </span>
       <span class="btn-loader">
         <i class="uil uil-spinner-alt spinner"></i>
       </span>
     </button>
+
+    <div class="auth-guarantee-note">
+      <i class="uil uil-shield-check" style="color: #10b981; font-size: 1.15rem;"></i>
+      <span>Zero risk: No payment required upfront. Upgrade, change, or cancel anytime.</span>
+    </div>
   </form>
 
   <div class="auth-form-footer">
     <p>Already have an account? <a href="/auth/login" class="auth-link">Sign in</a></p>
   </div>
 </div>
+
+<script>
+  (function() {
+    'use strict';
+    // Plan card selection interactions
+    var planCards = document.querySelectorAll('.onboarding-plan-card');
+    var planInput = document.getElementById('selectedPlanId');
+
+    planCards.forEach(function(card) {
+      function selectCard() {
+        planCards.forEach(function(c) {
+          c.classList.remove('selected');
+          c.setAttribute('aria-checked', 'false');
+        });
+        card.classList.add('selected');
+        card.setAttribute('aria-checked', 'true');
+        if (planInput && card.dataset.planId) {
+          planInput.value = card.dataset.planId;
+        }
+      }
+
+      card.addEventListener('click', selectCard);
+      card.addEventListener('keydown', function(e) {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          selectCard();
+        }
+      });
+    });
+  })();
+</script>

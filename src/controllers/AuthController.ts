@@ -39,6 +39,8 @@ const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   phone: z.string().optional(),
+  planId: z.string().optional(),
+  billingCycle: z.enum(['monthly', 'annual']).optional().default('monthly'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],
@@ -156,10 +158,37 @@ export class AuthController {
    * Render registration page (Tenant Onboarding)
    */
   showRegister = async (_req: Request, res: Response): Promise<void> => {
-    res.render('pages/auth/register', {
-      title: 'Create Account',
-      layout: 'layouts/auth',
-    });
+    try {
+      const plansRes = await query(
+        `SELECT * FROM subscription_plans WHERE is_active = TRUE ORDER BY monthly_price ASC`
+      );
+      const plans = plansRes.rows.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        tier: p.tier,
+        monthlyPrice: parseFloat(p.monthly_price || 0),
+        annualPrice: parseFloat(p.annual_price || 0),
+        price: parseFloat(p.price || p.monthly_price || 0),
+        description: p.description,
+        maxUsers: p.max_users,
+        maxProjects: p.max_projects,
+        maxStorageMb: p.max_storage_mb,
+        features: typeof p.features === 'string' ? JSON.parse(p.features) : (p.features || {}),
+      }));
+
+      res.render('pages/auth/register', {
+        title: 'Create Account',
+        layout: 'layouts/auth',
+        plans,
+      });
+    } catch (error) {
+      authLogger.error('Failed to load plans for registration', { error: String(error) });
+      res.render('pages/auth/register', {
+        title: 'Create Account',
+        layout: 'layouts/auth',
+        plans: [],
+      });
+    }
   };
 
   /**
@@ -176,7 +205,7 @@ export class AuthController {
         return;
       }
 
-      const { companyName, email, password, firstName, lastName, phone } = validation.data;
+      const { companyName, email, password, firstName, lastName, phone, planId, billingCycle } = validation.data;
 
       // Check if email already exists
       const existingUser = await UserModel.findByEmail(email);
@@ -229,21 +258,27 @@ export class AuthController {
           client
         );
 
-        // 3. Create trial subscription
-        const starterPlan = await SubscriptionModel.findPlanByTier(
-          SubscriptionTier.STARTER,
-          client
-        );
+        // 3. Resolve preferred subscription plan (or fallback to Starter)
+        let chosenPlan = null;
+        if (planId) {
+          chosenPlan = await SubscriptionModel.findPlanById(planId, client);
+        }
+        if (!chosenPlan) {
+          chosenPlan = await SubscriptionModel.findPlanByTier(
+            SubscriptionTier.STARTER,
+            client
+          );
+        }
 
-        if (starterPlan) {
+        if (chosenPlan) {
           await SubscriptionModel.createTenantSubscription(
             {
               tenantId: tenant.id,
-              planId: starterPlan.id,
+              planId: chosenPlan.id,
               status: SubscriptionStatus.TRIAL,
-              billingCycle: 'monthly',
+              billingCycle: billingCycle || 'monthly',
               currentPeriodStart: new Date(),
-              currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30-day trial
+              currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30-day trial on selected plan
               autoRenew: true,
             },
             client
@@ -258,19 +293,20 @@ export class AuthController {
             action: AuditAction.CREATE,
             entityType: 'Tenant',
             entityId: tenant.id,
-            description: `New tenant "${companyName}" registered by ${firstName} ${lastName}`,
+            description: `New tenant "${companyName}" registered on ${chosenPlan ? chosenPlan.name : 'Starter'} plan by ${firstName} ${lastName}`,
             ipAddress: req.ip || 'unknown',
           },
           client
         );
 
-        return { tenant, user };
+        return { tenant, user, planName: chosenPlan ? chosenPlan.name : 'Starter' };
       });
 
       authLogger.info('New tenant registered', {
         tenantId: result.tenant.id,
         userId: result.user.id,
         companyName,
+        planName: result.planName,
       });
 
       // Auto-login after registration
@@ -278,7 +314,7 @@ export class AuthController {
       req.session.tenantId = result.tenant.id;
       req.session.role = result.user.role;
 
-      req.flash('success', `Welcome to PM & ERP! Your workspace "${companyName}" is ready.`);
+      req.flash('success', `Welcome to PM & ERP! Your workspace "${companyName}" is ready on the ${result.planName} plan with a 30-day free trial.`);
       res.redirect('/dashboard');
     } catch (error) {
       authLogger.error('Registration error', { error: String(error) });

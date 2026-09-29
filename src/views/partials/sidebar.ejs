@@ -137,10 +137,7 @@
 
   <!-- Sidebar Footer -->
   <div class="sidebar-footer">
-    <div class="sidebar-support-note" style="padding: 6px 10px 10px 10px; font-size: 11px; color: var(--text-tertiary); display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border-color); margin-bottom: 8px;">
-      <i class="uil uil-headset" style="color: var(--primary); font-size: 13px;"></i>
-      <span>Support: <a href="mailto:support@freestylecodetechnologies.com" style="color: var(--text-secondary); text-decoration: underline; font-weight: 500;">support@freestylecodetechnologies.com</a></span>
-    </div>
+    <!-- User Profile Card -->
     <div class="sidebar-user">
       <div class="sidebar-user-avatar">
         <% if (typeof currentUser !== 'undefined' && currentUser && currentUser.avatarUrl) { %>
@@ -153,6 +150,18 @@
         <span class="sidebar-user-name"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.firstName + ' ' + currentUser.lastName : 'User' %></span>
         <span class="sidebar-user-role"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.role.replace(/_/g, ' ') : '' %></span>
       </div>
+    </div>
+
+    <!-- PWA Install Action Button -->
+    <button type="button" class="btn-install-pwa sidebar-pwa-install-btn hidden" id="sidebar-pwa-install" title="Install PM & ERP app on your device">
+      <i class="uil uil-arrow-to-bottom"></i>
+      <span>Install PM App</span>
+    </button>
+
+    <!-- Support Contact -->
+    <div class="sidebar-support-note">
+      <i class="uil uil-headset"></i>
+      <span>Support: <a href="mailto:support@freestylecodetechnologies.com">support@freestylecodetechnologies.com</a></span>
     </div>
   </div>
 </aside>

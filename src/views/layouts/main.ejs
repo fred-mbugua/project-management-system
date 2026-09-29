@@ -33,9 +33,9 @@
   <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/line.css">
 
   <!-- Stylesheets (Zero Inline Style Constraint) -->
-  <link rel="stylesheet" href="/css/app.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/app.css?v=2.2">
+  <link rel="stylesheet" href="/css/components.css?v=2.2">
+  <link rel="stylesheet" href="/css/dashboard.css?v=2.2">
 
   <!-- Flatpickr Date Picker Library -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -73,121 +73,10 @@
 
   <!-- Flatpickr & Application Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="/js/app.js"></script>
+  <script src="/js/app.js?v=2.2"></script>
 
-  <!-- Service Worker Registration & PWA Install Logic -->
-  <script>
-    (function() {
-      'use strict';
-
-      // ── Service Worker Registration ──
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/sw.js', { scope: '/' })
-            .then(function(reg) {
-              console.log('[PWA] Service Worker registered, scope:', reg.scope);
-
-              // Check for updates periodically
-              reg.addEventListener('updatefound', function() {
-                var newWorker = reg.installing;
-                newWorker.addEventListener('statechange', function() {
-                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    // New version available - show update prompt
-                    showUpdateBanner();
-                  }
-                });
-              });
-            })
-            .catch(function(err) {
-              console.warn('[PWA] Service Worker registration failed:', err);
-            });
-        });
-      }
-
-      // ── PWA Install Prompt ──
-      var deferredPrompt = null;
-      var installBanner = null;
-      var installDismissed = false;
-
-      window.addEventListener('beforeinstallprompt', function(e) {
-        e.preventDefault();
-        deferredPrompt = e;
-
-        // Don't show if user dismissed recently (24h cooldown)
-        var lastDismissed = localStorage.getItem('pwa-install-dismissed');
-        if (lastDismissed) {
-          var dismissedAt = parseInt(lastDismissed, 10);
-          if (Date.now() - dismissedAt < 86400000) {
-            return;
-          }
-        }
-
-        // Show the install banner after a brief delay
-        setTimeout(function() {
-          showInstallBanner();
-        }, 3000);
-      });
-
-      window.addEventListener('appinstalled', function() {
-        console.log('[PWA] App installed successfully');
-        hideInstallBanner();
-        deferredPrompt = null;
-      });
-
-      function showInstallBanner() {
-        installBanner = document.getElementById('pwa-install-banner');
-        if (!installBanner || installDismissed) return;
-
-        installBanner.classList.add('pwa-install-show');
-
-        // Install button
-        var installBtn = document.getElementById('pwa-install-btn');
-        if (installBtn) {
-          installBtn.addEventListener('click', function() {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(function(choice) {
-              if (choice.outcome === 'accepted') {
-                console.log('[PWA] User accepted install');
-              }
-              deferredPrompt = null;
-              hideInstallBanner();
-            });
-          });
-        }
-
-        // Dismiss button
-        var dismissBtn = document.getElementById('pwa-install-dismiss');
-        if (dismissBtn) {
-          dismissBtn.addEventListener('click', function() {
-            installDismissed = true;
-            localStorage.setItem('pwa-install-dismissed', Date.now().toString());
-            hideInstallBanner();
-          });
-        }
-      }
-
-      function hideInstallBanner() {
-        if (installBanner) {
-          installBanner.classList.remove('pwa-install-show');
-          installBanner.classList.add('pwa-install-hide');
-        }
-      }
-
-      function showUpdateBanner() {
-        var banner = document.getElementById('pwa-update-banner');
-        if (banner) {
-          banner.classList.add('pwa-install-show');
-          var updateBtn = document.getElementById('pwa-update-btn');
-          if (updateBtn) {
-            updateBtn.addEventListener('click', function() {
-              window.location.reload();
-            });
-          }
-        }
-      }
-    })();
-  </script>
+  <!-- PWA Lifecycle, Service Worker & Install Prompt -->
+  <script src="/js/pwa.js?v=2.2"></script>
 
   <%- script %>
 </body>

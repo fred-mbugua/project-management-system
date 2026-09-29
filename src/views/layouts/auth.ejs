@@ -6,8 +6,22 @@
   <meta name="description" content="Sign in to your PM & ERP workspace">
   <title><%= typeof title !== 'undefined' ? title + ' | ' : '' %><%= appName %></title>
 
-  <!-- Favicon -->
+  <!-- PWA & Mobile Meta -->
+  <meta name="theme-color" content="#e8650a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="PM & ERP">
+  <meta name="application-name" content="PM & ERP">
+
+  <!-- Manifest -->
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Favicon & Touch Icons -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,8 +32,9 @@
   <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/line.css">
 
   <!-- Stylesheets (Zero Inline Style Constraint) -->
-  <link rel="stylesheet" href="/css/app.css">
-  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/app.css?v=2.2">
+  <link rel="stylesheet" href="/css/components.css?v=2.2">
+  <link rel="stylesheet" href="/css/dashboard.css?v=2.2">
 
   <%- style %>
 </head>
@@ -74,8 +89,13 @@
     </div>
   </div>
 
+  <!-- PWA Install Prompt Banner -->
+  <%- include('../partials/pwa-install') %>
+
   <!-- Scripts (Zero Inline Script Constraint) -->
-  <script src="/js/app.js"></script>
+  <script src="/js/app.js?v=2.2"></script>
+  <!-- PWA Lifecycle, Service Worker & Install Prompt -->
+  <script src="/js/pwa.js?v=2.2"></script>
   <%- script %>
 </body>
 </html>

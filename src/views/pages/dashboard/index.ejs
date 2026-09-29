@@ -102,8 +102,8 @@
             <table class="table dashboard-table">
               <thead>
                 <tr>
-                  <th>Code</th>
                   <th>Project Name</th>
+                  <th>Code</th>
                   <th>Client</th>
                   <th>Status</th>
                 </tr>
@@ -111,12 +111,12 @@
               <tbody>
                 <% recentProjects.forEach(function(proj) { %>
                   <tr>
-                    <td data-label="Code"><span class="badge badge-subtle"><%= proj.code %></span></td>
                     <td data-label="Project" class="cell-primary">
                       <a href="/projects/<%= proj.id %>" class="font-semibold text-primary">
                         <%= proj.name %>
                       </a>
                     </td>
+                    <td data-label="Code"><span class="badge badge-subtle"><%= proj.code %></span></td>
                     <td data-label="Client"><%= proj.client_name || 'Internal' %></td>
                     <td data-label="Status">
                       <% if (proj.status === 'IN_PROGRESS') { %>

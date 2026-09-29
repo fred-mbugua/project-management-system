@@ -1,0 +1,237 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Targeted SEO Landing: Pricing, Plans & Monetization
+     Target Keywords: Invoicing Software Pricing, Project Management Plans,
+                      SaaS Subscription, Business ERP Pricing
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<section class="hero-section">
+  <div class="hero-content">
+    <div class="hero-pill">
+      <i class="uil uil-tag-alt"></i>
+      <span>Transparent Plans &amp; Pricing</span>
+    </div>
+
+    <h1 class="hero-title">
+      Simple, Predictable Pricing for <span class="highlight">Every Stage</span>
+    </h1>
+
+    <p class="hero-desc">
+      Get started with our 100% Free Starter plan, or upgrade to Professional and Enterprise for unlimited projects, automated M-Pesa STK push billing, and full financial accounting.
+    </p>
+
+    <div class="hero-badges">
+      <div class="hero-badge-item">
+        <i class="uil uil-check-circle"></i>
+        <span>Free Starter Forever</span>
+      </div>
+      <div class="hero-badge-item">
+        <i class="uil uil-check-circle"></i>
+        <span>Convenient M-Pesa or Card Billing</span>
+      </div>
+      <div class="hero-badge-item">
+        <i class="uil uil-check-circle"></i>
+        <span>Cancel Anytime with No Penalties</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing Grid Section -->
+<section class="pricing-section" style="border-top: none;">
+  <div class="pricing-grid">
+    <% if (typeof plans !== 'undefined' && plans && plans.length > 0) { %>
+      <% plans.forEach(function(plan) { %>
+        <% const isPopular = plan.tier === 'PROFESSIONAL'; %>
+        <div class="pricing-card<%= isPopular ? ' popular' : '' %>">
+          <% if (isPopular) { %>
+            <div class="pricing-badge">Most Popular</div>
+          <% } %>
+          <h3 class="plan-name"><%= plan.name %></h3>
+          <p class="plan-desc"><%= plan.description || 'Full-featured ERP and Project Management suite' %></p>
+          
+          <div class="plan-price-wrap">
+            <span class="plan-price">KES <%= Number(plan.monthlyPrice).toLocaleString('en-KE') %></span>
+            <span class="plan-cycle">/ <%= (plan.frequency || 'monthly').toLowerCase() %></span>
+          </div>
+
+          <ul class="plan-features-list">
+            <li class="plan-feature-item">
+              <i class="uil uil-check"></i>
+              <span><strong><%= plan.maxUsers %></strong> <%= plan.maxUsers === 1 ? 'Team Member' : 'Team Members' %></span>
+            </li>
+            <li class="plan-feature-item">
+              <i class="uil uil-check"></i>
+              <span><strong><%= plan.maxProjects %></strong> Active Projects</span>
+            </li>
+            <li class="plan-feature-item">
+              <i class="uil uil-check"></i>
+              <span><strong><%= plan.maxStorageMb >= 1024 ? (plan.maxStorageMb / 1024) + ' GB' : plan.maxStorageMb + ' MB' %></strong> Storage Space</span>
+            </li>
+            <li class="plan-feature-item">
+              <i class="uil uil-check"></i>
+              <span>Unlimited Free Invoices &amp; PDF Downloads</span>
+            </li>
+            <li class="plan-feature-item">
+              <i class="uil uil-check"></i>
+              <span>Unlimited Free Quotations Generator</span>
+            </li>
+            <% if (plan.tier === 'STARTER') { %>
+            <li class="plan-feature-item">
+              <i class="uil uil-check"></i>
+              <span>Standard Email Support</span>
+            </li>
+            <% } %>
+            <% if (plan.tier === 'PROFESSIONAL' || plan.tier === 'ENTERPRISE') { %>
+            <li class="plan-feature-item">
+              <i class="uil uil-check"></i>
+              <span>Automated Safaricom M-Pesa STK Push</span>
+            </li>
+            <li class="plan-feature-item">
+              <i class="uil uil-check"></i>
+              <span>Branded Client Payment Portal &amp; SLAs</span>
+            </li>
+            <% } %>
+            <% if (plan.tier === 'ENTERPRISE') { %>
+            <li class="plan-feature-item">
+              <i class="uil uil-check"></i>
+              <span>Double-Entry Accounting &amp; Tax Exports</span>
+            </li>
+            <li class="plan-feature-item">
+              <i class="uil uil-check"></i>
+              <span>Immutable Audit Logs &amp; Priority 24/7 SLA</span>
+            </li>
+            <% } %>
+          </ul>
+
+          <a href="/auth/register?plan=<%= plan.id %>" class="btn-plan <%= isPopular ? 'btn-plan-primary' : 'btn-plan-outline' %>" id="btn-pricing-<%= plan.tier.toLowerCase() %>">
+            <%= isPopular ? 'Start 30-Day Pro Trial' : 'Get Started with ' + plan.name %>
+          </a>
+        </div>
+      <% }); %>
+    <% } %>
+  </div>
+</section>
+
+<!-- Plan Feature Comparison Table (SEO rich) -->
+<section class="section">
+  <div class="section-header">
+    <span class="section-pill">Feature Comparison</span>
+    <h2 class="section-title">Compare All Features Side-by-Side</h2>
+  </div>
+
+  <div style="background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-lg); overflow-x: auto; box-shadow: var(--shadow-sm);">
+    <table style="width: 100%; min-width: 600px; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+      <thead>
+        <tr style="background: var(--bg-subtle); border-bottom: 1px solid var(--border-light);">
+          <th style="padding: 16px 20px; font-weight: 700; color: var(--dark-900);">Feature</th>
+          <% if (typeof plans !== 'undefined' && plans && plans.length > 0) { %>
+            <% plans.forEach(function(plan) { %>
+              <th style="padding: 16px 20px; font-weight: 700; color: <%= plan.tier === 'PROFESSIONAL' ? 'var(--primary)' : 'var(--dark-900)' %>; width: 23%;">
+                <%= plan.name %>
+                <div style="font-size: 0.8rem; font-weight: 500; color: var(--text-muted); margin-top: 2px;">
+                  KES <%= Number(plan.monthlyPrice).toLocaleString('en-KE') %> / mo
+                </div>
+              </th>
+            <% }); %>
+          <% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid var(--border-light);">
+          <td style="padding: 14px 20px; font-weight: 600;">Team Collaboration Seats</td>
+          <% if (typeof plans !== 'undefined' && plans) { plans.forEach(function(plan) { %>
+            <td style="padding: 14px 20px; <%= plan.tier === 'PROFESSIONAL' ? 'font-weight: 600; color: var(--primary);' : '' %>">
+              <%= plan.maxUsers %> <%= plan.maxUsers === 1 ? 'User' : 'Users' %>
+            </td>
+          <% }); } %>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border-light);">
+          <td style="padding: 14px 20px; font-weight: 600;">Active Client Projects</td>
+          <% if (typeof plans !== 'undefined' && plans) { plans.forEach(function(plan) { %>
+            <td style="padding: 14px 20px; <%= plan.tier === 'PROFESSIONAL' ? 'font-weight: 600; color: var(--primary);' : '' %>">
+              Up to <%= plan.maxProjects %> Projects
+            </td>
+          <% }); } %>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border-light);">
+          <td style="padding: 14px 20px; font-weight: 600;">Storage Allocation</td>
+          <% if (typeof plans !== 'undefined' && plans) { plans.forEach(function(plan) { %>
+            <td style="padding: 14px 20px;">
+              <%= plan.maxStorageMb >= 1024 ? (plan.maxStorageMb / 1024) + ' GB' : plan.maxStorageMb + ' MB' %>
+            </td>
+          <% }); } %>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border-light);">
+          <td style="padding: 14px 20px; font-weight: 600;">Free Invoices &amp; PDF Exports</td>
+          <% if (typeof plans !== 'undefined' && plans) { plans.forEach(function(_) { %>
+            <td style="padding: 14px 20px; color: var(--success);"><i class="uil uil-check"></i> Unlimited</td>
+          <% }); } %>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border-light);">
+          <td style="padding: 14px 20px; font-weight: 600;">Free Quotation Maker &amp; 1-Click Invoice Convert</td>
+          <% if (typeof plans !== 'undefined' && plans) { plans.forEach(function(_) { %>
+            <td style="padding: 14px 20px; color: var(--success);"><i class="uil uil-check"></i> Unlimited</td>
+          <% }); } %>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border-light);">
+          <td style="padding: 14px 20px; font-weight: 600;">Automated M-Pesa STK Push Integration</td>
+          <% if (typeof plans !== 'undefined' && plans) { plans.forEach(function(plan) { %>
+            <td style="padding: 14px 20px; color: <%= plan.tier === 'STARTER' ? 'var(--text-muted)' : 'var(--success)' %>;">
+              <i class="uil uil-<%= plan.tier === 'STARTER' ? 'minus' : 'check' %>"></i> <%= plan.tier === 'STARTER' ? 'Basic M-Pesa' : 'Automated STK Push' %>
+            </td>
+          <% }); } %>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border-light);">
+          <td style="padding: 14px 20px; font-weight: 600;">Branded Client Payment Portal</td>
+          <% if (typeof plans !== 'undefined' && plans) { plans.forEach(function(plan) { %>
+            <td style="padding: 14px 20px; color: <%= plan.tier === 'STARTER' ? 'var(--text-muted)' : 'var(--success)' %>;">
+              <% if (plan.tier === 'STARTER') { %>
+                &mdash;
+              <% } else if (plan.tier === 'PROFESSIONAL') { %>
+                <i class="uil uil-check"></i> Included
+              <% } else { %>
+                <i class="uil uil-check"></i> Custom White-label
+              <% } %>
+            </td>
+          <% }); } %>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border-light);">
+          <td style="padding: 14px 20px; font-weight: 600;">Maintenance &amp; SLA Tracking</td>
+          <% if (typeof plans !== 'undefined' && plans) { plans.forEach(function(plan) { %>
+            <td style="padding: 14px 20px; color: <%= plan.tier === 'STARTER' ? 'var(--text-muted)' : 'var(--success)' %>;">
+              <% if (plan.tier === 'STARTER') { %>
+                &mdash;
+              <% } else { %>
+                <i class="uil uil-check"></i> Included
+              <% } %>
+            </td>
+          <% }); } %>
+        </tr>
+        <tr>
+          <td style="padding: 14px 20px; font-weight: 600;">Audit Logs &amp; Enterprise Compliance</td>
+          <% if (typeof plans !== 'undefined' && plans) { plans.forEach(function(plan) { %>
+            <td style="padding: 14px 20px; color: <%= plan.tier === 'ENTERPRISE' ? 'var(--success)' : 'var(--text-muted)' %>;">
+              <% if (plan.tier === 'ENTERPRISE') { %>
+                <i class="uil uil-check"></i> Full Audit Trail
+              <% } else { %>
+                &mdash;
+              <% } %>
+            </td>
+          <% }); } %>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Call to Action -->
+<section class="cta-banner-section">
+  <div class="cta-banner-card">
+    <h2>Start Free Today — Upgrade When You Need More</h2>
+    <p>Sign up now with our Free Starter plan. No credit card required, set up in under 2 minutes.</p>
+    <a href="/auth/register" class="btn-hero-primary" style="margin: 0 auto;">
+      <i class="uil uil-rocket"></i>
+      <span>Create Free Account</span>
+    </a>
+  </div>
+</section>

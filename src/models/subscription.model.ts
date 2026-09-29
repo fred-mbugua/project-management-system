@@ -110,6 +110,20 @@ export class SubscriptionModel {
   }
 
   /**
+   * Find all active subscription plans ordered by price
+   */
+  static async findAllActivePlans(client?: PoolClient): Promise<SubscriptionPlan[]> {
+    const sql = `
+      SELECT * FROM subscription_plans
+      WHERE is_active = TRUE
+      ORDER BY monthly_price ASC
+    `;
+    const runner = client ? client.query.bind(client) : query;
+    const res = await runner(sql);
+    return res.rows.map((row: any) => this.mapPlanRow(row));
+  }
+
+  /**
    * Create a subscription plan
    */
   static async createPlan(

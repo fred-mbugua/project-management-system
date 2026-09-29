@@ -147,11 +147,10 @@
     <!-- Header Row -->
     <div class="invoice-header-row quotation-header-row">
       <div class="invoice-brand-block quotation-brand-block">
-        <% if (quotation.tenant_logo_url || (typeof tenant !== 'undefined' && tenant && tenant.logoUrl)) { %>
-          <div class="doc-logo-wrapper">
-            <img src="<%= quotation.tenant_logo_url || (typeof tenant !== 'undefined' && tenant ? tenant.logoUrl : '') %>" alt="<%= quotation.tenant_name || ((typeof tenant !== 'undefined' && tenant) ? tenant.name : appName) %> Logo" class="doc-brand-logo">
-          </div>
-        <% } %>
+        <% const effectiveQLogo = quotation.tenant_logo_url || (typeof tenant !== 'undefined' && tenant && tenant.logoUrl) ? (quotation.tenant_logo_url || tenant.logoUrl) : '/icons/icon-96x96.png'; %>
+        <div class="doc-logo-wrapper">
+          <img src="<%= effectiveQLogo %>" alt="<%= quotation.tenant_name || ((typeof tenant !== 'undefined' && tenant) ? tenant.name : appName) %> Logo" class="doc-brand-logo">
+        </div>
         <h2><%= quotation.tenant_name || ((typeof tenant !== 'undefined' && tenant) ? tenant.name : appName) %></h2>
         <div>
           <% if (df.showTenantAddress !== false) { %>
@@ -200,7 +199,11 @@
     </div>
 
     <!-- Items Table -->
-    <div class="invoice-table-wrapper quotation-table-wrapper">
+    <div class="table-responsive invoice-table-wrapper quotation-table-wrapper mb-6">
+      <div class="table-scroll-hint">
+        <i class="uil uil-arrows-h"></i>
+        <span>Swipe horizontally to view all</span>
+      </div>
       <table class="invoice-table quotation-table">
         <thead>
           <tr>

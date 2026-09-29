@@ -157,7 +157,7 @@ export class AuthController {
   /**
    * Render registration page (Tenant Onboarding)
    */
-  showRegister = async (_req: Request, res: Response): Promise<void> => {
+  showRegister = async (req: Request, res: Response): Promise<void> => {
     try {
       const plansRes = await query(
         `SELECT * FROM subscription_plans WHERE is_active = TRUE ORDER BY monthly_price ASC`
@@ -176,10 +176,13 @@ export class AuthController {
         features: typeof p.features === 'string' ? JSON.parse(p.features) : (p.features || {}),
       }));
 
+      const requestedPlan = (req.query.plan as string || '').trim().toLowerCase();
+
       res.render('pages/auth/register', {
         title: 'Create Account',
         layout: 'layouts/auth',
         plans,
+        requestedPlan,
       });
     } catch (error) {
       authLogger.error('Failed to load plans for registration', { error: String(error) });
@@ -187,6 +190,7 @@ export class AuthController {
         title: 'Create Account',
         layout: 'layouts/auth',
         plans: [],
+        requestedPlan: '',
       });
     }
   };

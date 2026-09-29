@@ -1,0 +1,36 @@
+# Robots.txt for FreeStyle Code Technologies PM & ERP SaaS
+# Website: https://projects.freestylecodetechnologies.com
+
+User-agent: *
+# Allow search engines to index all public marketing, generators & pricing pages
+Allow: /
+Allow: /free-invoice-generator
+Allow: /free-quotation-generator
+Allow: /free-project-management
+Allow: /pricing
+Allow: /auth/login
+Allow: /auth/register
+Allow: /manifest.json
+Allow: /favicon.svg
+Allow: /css/
+Allow: /js/
+Allow: /icons/
+
+# Disallow indexing of authenticated internal tenant data & private workspace areas
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /projects/
+Disallow: /invoices/
+Disallow: /quotations/
+Disallow: /clients/
+Disallow: /team/
+Disallow: /expenses/
+Disallow: /accounting/
+Disallow: /settings/
+Disallow: /profile/
+Disallow: /subscription/
+Disallow: /audit-logs/
+Disallow: /api/
+
+# Link XML Sitemap for Google Search Console & other crawlers
+Sitemap: https://projects.freestylecodetechnologies.com/sitemap.xml

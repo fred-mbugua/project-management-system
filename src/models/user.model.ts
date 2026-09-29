@@ -173,4 +173,87 @@ export class UserModel {
     const res = await runner(sql, [tenantId]);
     return res.rows.map(this.mapRow);
   }
+
+  /**
+   * Find user by unique ID with attached tenant metadata
+   */
+  static async findByIdWithTenant(id: string, client?: PoolClient): Promise<UserWithTenant | null> {
+    const sql = `
+      SELECT 
+        u.*,
+        t.id AS tenant_id_val,
+        t.name AS tenant_name,
+        t.is_active AS tenant_is_active
+      FROM users u
+      LEFT JOIN tenants t ON u.tenant_id = t.id
+      WHERE u.id = $1
+      LIMIT 1
+    `;
+    const runner = client ? client.query.bind(client) : query;
+    const res = await runner(sql, [id]);
+    if (!res.rows[0]) return null;
+
+    const row = res.rows[0];
+    const user = this.mapRow(row) as UserWithTenant;
+
+    if (row.tenant_id_val) {
+      user.tenant = {
+        id: row.tenant_id_val,
+        name: row.tenant_name,
+        isActive: row.tenant_is_active,
+      };
+    } else {
+      user.tenant = null;
+    }
+
+    return user;
+  }
+
+  /**
+   * Update user profile contact information
+   */
+  static async updateProfile(
+    id: string,
+    data: { firstName: string; lastName: string; phone?: string | null; mpesaNumber?: string | null },
+    client?: PoolClient
+  ): Promise<User> {
+    const sql = `
+      UPDATE users
+      SET 
+        first_name = $1,
+        last_name = $2,
+        phone = $3,
+        mpesa_number = $4,
+        updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `;
+    const values = [
+      data.firstName.trim(),
+      data.lastName.trim(),
+      data.phone ? data.phone.trim() : null,
+      data.mpesaNumber ? data.mpesaNumber.trim() : null,
+      id,
+    ];
+    const runner = client ? client.query.bind(client) : query;
+    const res = await runner(sql, values);
+    return this.mapRow(res.rows[0]);
+  }
+
+  /**
+   * Update user password hash
+   */
+  static async updatePassword(
+    id: string,
+    passwordHash: string,
+    client?: PoolClient
+  ): Promise<void> {
+    const sql = `
+      UPDATE users
+      SET password_hash = $1, updated_at = NOW()
+      WHERE id = $2
+    `;
+    const runner = client ? client.query.bind(client) : query;
+    await runner(sql, [passwordHash, id]);
+  }
 }

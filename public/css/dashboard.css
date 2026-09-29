@@ -255,9 +255,8 @@
   margin: 10px 0 6px 0 !important;
   padding: 8px 12px !important;
   background: #e8650a !important;
-  background: linear-gradient(135deg, #e8650a 0%, #f97316 100%) !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border: 1px solid #d05806 !important;
   border-radius: 8px !important;
   font-size: 0.78rem !important;
   font-weight: 600 !important;
@@ -265,14 +264,15 @@
   cursor: pointer !important;
   outline: none !important;
   text-decoration: none !important;
-  box-shadow: 0 2px 8px rgba(232, 101, 10, 0.4) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
   transition: all 0.2s ease !important;
 }
 
 .sidebar-pwa-install-btn:hover {
-  filter: brightness(1.1) !important;
+  background: #d05806 !important;
+  border-color: #b44905 !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 4px 12px rgba(232, 101, 10, 0.5) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12) !important;
 }
 
 .sidebar-pwa-install-btn i {
@@ -405,7 +405,7 @@
 .search-input:focus {
   background: var(--bg-input);
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px rgba(232, 101, 10, 0.15);
 }
 
 .search-input::placeholder {
@@ -939,7 +939,7 @@
   }
 
   .dashboard-table tr:hover {
-    background-color: rgba(99, 102, 241, 0.05) !important;
+    background-color: rgba(232, 101, 10, 0.05) !important;
   }
 
   [data-theme="dark"] .dashboard-table tr:hover {

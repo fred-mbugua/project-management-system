@@ -1,7 +1,7 @@
 {
-  "name": "PM & ERP SaaS",
-  "short_name": "PM",
-  "description": "Enterprise Project Management, Invoicing & ERP System. Manage projects, invoices, clients, teams, and finances — all in one platform.",
+  "name": "PM & ERP SaaS - Free Invoices & Projects",
+  "short_name": "PM & ERP",
+  "description": "Free Invoices, Quotation Generator & Project Management System. Generate PDF invoices, track client projects, and accept M-Pesa payments.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0F172A",

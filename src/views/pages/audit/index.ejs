@@ -66,8 +66,13 @@
 
   <!-- Logs Table -->
   <div class="card">
-    <div class="table-responsive">
-      <table class="data-table">
+    <div class="card-body-table">
+      <div class="table-scroll-hint">
+        <i class="uil uil-arrows-h"></i>
+        <span>Swipe horizontally to view all</span>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
         <thead>
           <tr>
             <th>Timestamp</th>
@@ -152,6 +157,7 @@
         </tbody>
       </table>
     </div>
+  </div>
 
     <!-- Pagination -->
     <% if (typeof pagination !== 'undefined' && pagination.totalPages > 1) { %>

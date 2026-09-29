@@ -33,8 +33,10 @@ import maintenanceRoutes from './routes/maintenance.routes';
 import calendarRoutes from './routes/calendar.routes';
 import settingsRoutes from './routes/settings.routes';
 import auditRoutes from './routes/audit.routes';
+import profileRoutes from './routes/profile.routes';
 import paymentPortalRoutes from './routes/paymentPortal.routes';
 import subscriptionRoutes from './routes/subscription.routes';
+import marketingRoutes from './routes/marketing.routes';
 import { recurringBillingService } from './services/recurringBilling.service';
 import { subscriptionBillingService } from './services/subscriptionBilling.service';
 
@@ -204,6 +206,7 @@ app.use((req, res, next) => {
 // ──────────────────────────────────────────────
 
 // Public routes (no auth required)
+app.use('/', marketingRoutes);
 app.use('/auth', authRoutes);
 app.use('/pay', paymentPortalRoutes);
 
@@ -220,21 +223,13 @@ app.use('/team', teamRoutes);
 app.use('/maintenance', maintenanceRoutes);
 app.use('/calendar', calendarRoutes);
 app.use('/settings', settingsRoutes);
+app.use('/profile', profileRoutes);
 app.use('/subscription', subscriptionRoutes);
 app.use('/audit-logs', auditRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Root redirect
-app.get('/', (req, res) => {
-  if (req.session?.userId) {
-    res.redirect('/dashboard');
-  } else {
-    res.redirect('/auth/login');
-  }
 });
 
 // ──────────────────────────────────────────────

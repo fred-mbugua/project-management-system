@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Primary SEO Meta Tags -->
+  <title><%= typeof title !== 'undefined' ? title : 'Free Invoices, Quotation Generator & Project Management System | PM & ERP SaaS' %></title>
+  <meta name="title" content="<%= typeof title !== 'undefined' ? title : 'Free Invoices, Quotation Generator & Project Management System | PM & ERP SaaS' %>">
+  <meta name="description" content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'Create free professional PDF invoices and business quotations online. Manage projects, track tasks, and accept instant M-Pesa & Card payments with PM & ERP SaaS.' %>">
+  <meta name="keywords" content="<%= typeof metaKeywords !== 'undefined' ? metaKeywords : 'free invoices, free quotations generator, free invoice generator, free project management system, online invoicing software, quotation maker, mpesa billing, erp saas, project tracker' %>">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <link rel="canonical" href="<%= typeof canonicalUrl !== 'undefined' ? canonicalUrl : 'https://projects.freestylecodetechnologies.com' + (typeof currentPath !== 'undefined' ? currentPath : '') %>">
+
+  <!-- Open Graph / Facebook / LinkedIn -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="<%= typeof canonicalUrl !== 'undefined' ? canonicalUrl : 'https://projects.freestylecodetechnologies.com/' %>">
+  <meta property="og:title" content="<%= typeof title !== 'undefined' ? title : 'Free Invoices, Quotation Generator & Project Management System' %>">
+  <meta property="og:description" content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'Create free professional PDF invoices and business quotations online. Manage projects, track tasks, and accept instant M-Pesa & Card payments.' %>">
+  <meta property="og:image" content="https://projects.freestylecodetechnologies.com/icons/icon-512x512.png">
+  <meta property="og:site_name" content="FreeStyle Code PM & ERP SaaS">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="<%= typeof canonicalUrl !== 'undefined' ? canonicalUrl : 'https://projects.freestylecodetechnologies.com/' %>">
+  <meta name="twitter:title" content="<%= typeof title !== 'undefined' ? title : 'Free Invoices, Quotation Generator & Project Management System' %>">
+  <meta name="twitter:description" content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'Create free professional PDF invoices and business quotations online. Manage projects, track tasks, and accept instant M-Pesa & Card payments.' %>">
+  <meta name="twitter:image" content="https://projects.freestylecodetechnologies.com/icons/icon-512x512.png">
+
+  <!-- PWA & Mobile Meta Tags -->
+  <meta name="theme-color" content="#e8650a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="PM &amp; ERP">
+  <meta name="application-name" content="PM &amp; ERP SaaS">
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png">
+
+  <!-- Web Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/line.css">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/css/landing.css?v=1.0">
+
+  <!-- Schema.org JSON-LD Structured Data for Google Rich Snippets -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://projects.freestylecodetechnologies.com/#website",
+        "url": "https://projects.freestylecodetechnologies.com/",
+        "name": "PM & ERP SaaS",
+        "description": "Free Invoices, Quotation Generator & Project Management System",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://projects.freestylecodetechnologies.com/search?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://projects.freestylecodetechnologies.com/#organization",
+        "name": "FreeStyle Code Technologies",
+        "url": "https://projects.freestylecodetechnologies.com/",
+        "logo": "https://projects.freestylecodetechnologies.com/icons/icon-512x512.png",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+254700000000",
+          "contactType": "Customer Support",
+          "areaServed": ["KE", "Global"],
+          "availableLanguage": ["English", "Swahili"]
+        }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "PM & ERP SaaS",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "All modern web browsers, iOS, Android, macOS, Windows",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "KES",
+          "description": "Free Starter Plan with Unlimited Quotations and Invoicing"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "reviewCount": "128"
+        }
+      }
+    ]
+  }
+  </script>
+
+  <% if (typeof faqSchema !== 'undefined' && faqSchema) { %>
+    <!-- FAQ Schema for Google Search Featured Results -->
+    <script type="application/ld+json">
+      <%- JSON.stringify(faqSchema) %>
+    </script>
+  <% } %>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="landing-header">
+    <div class="header-container">
+      <a href="/" class="landing-brand">
+        <div class="landing-brand-logo" style="background: transparent; border: none; padding: 0;">
+          <img src="/icons/icon-96x96.png" alt="PM &amp; ERP SaaS" style="width: 38px; height: 38px; border-radius: 8px; object-fit: contain; display: block;">
+        </div>
+        <div class="landing-brand-text">
+          <span class="landing-brand-name">PM &amp; ERP SaaS</span>
+          <span class="landing-brand-sub">By FreeStyle Code Technologies</span>
+        </div>
+      </a>
+
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="/free-invoice-generator" class="nav-link <%= typeof activePage !== 'undefined' && activePage === 'invoices' ? 'active' : '' %>">Free Invoices</a></li>
+          <li><a href="/free-quotation-generator" class="nav-link <%= typeof activePage !== 'undefined' && activePage === 'quotations' ? 'active' : '' %>">Quotation Maker</a></li>
+          <li><a href="/free-project-management" class="nav-link <%= typeof activePage !== 'undefined' && activePage === 'projects' ? 'active' : '' %>">Project Management</a></li>
+          <li><a href="/pricing" class="nav-link <%= typeof activePage !== 'undefined' && activePage === 'pricing' ? 'active' : '' %>">Pricing</a></li>
+          <li><a href="/#faq" class="nav-link">FAQ</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <% if (locals.isAuthenticated) { %>
+          <a href="/dashboard" class="btn-nav-cta">
+            <i class="uil uil-estate"></i> Open Dashboard
+          </a>
+        <% } else { %>
+          <a href="/auth/login" class="btn-nav-login">Sign In</a>
+          <a href="/auth/register" class="btn-nav-cta">Start Free</a>
+        <% } %>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page Content -->
+  <main id="main-content">
+    <%- body %>
+  </main>
+
+  <!-- Global SEO Footer -->
+  <footer class="landing-footer">
+    <div class="footer-container">
+      <div class="footer-col-brand">
+        <a href="/" class="landing-brand">
+          <div class="landing-brand-logo" style="background: transparent; border: none; padding: 0;">
+            <img src="/icons/icon-96x96.png" alt="PM &amp; ERP SaaS" style="width: 38px; height: 38px; border-radius: 8px; object-fit: contain; display: block;">
+          </div>
+          <div class="landing-brand-text">
+            <span class="landing-brand-name">PM &amp; ERP SaaS</span>
+            <span class="landing-brand-sub">Projects, Invoicing &amp; Operations</span>
+          </div>
+        </a>
+        <p>
+          The all-in-one business software to generate free invoices, create instant quotations, manage projects, and accept M-Pesa payments seamlessly.
+        </p>
+        <div style="display: flex; gap: 10px; font-size: 0.8rem; color: var(--text-muted);">
+          <span><i class="uil uil-shield-check" style="color: var(--success);"></i> 256-Bit SSL Secure</span>
+          <span>&bull;</span>
+          <span><i class="uil uil-check-circle" style="color: var(--primary);"></i> M-Pesa Integrated</span>
+        </div>
+      </div>
+
+      <div>
+        <h3 class="footer-col-title">Free Tools</h3>
+        <ul class="footer-links">
+          <li><a href="/free-invoice-generator" class="footer-link">Free Invoices Generator</a></li>
+          <li><a href="/free-quotation-generator" class="footer-link">Free Quotations Maker</a></li>
+          <li><a href="/free-project-management" class="footer-link">Free Project Management</a></li>
+          <li><a href="/pricing" class="footer-link">Plans &amp; Monetization</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="footer-col-title">Solutions</h3>
+        <ul class="footer-links">
+          <li><a href="/auth/register" class="footer-link">For Freelancers</a></li>
+          <li><a href="/auth/register" class="footer-link">For Digital Agencies</a></li>
+          <li><a href="/auth/register" class="footer-link">For Contractors &amp; Consultancies</a></li>
+          <li><a href="/auth/register" class="footer-link">For Small &amp; Medium Businesses</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="footer-col-title">Platform &amp; Legal</h3>
+        <ul class="footer-links">
+          <li><a href="/auth/login" class="footer-link">Client Portal Sign In</a></li>
+          <li><a href="/auth/register" class="footer-link">Create Free Workspace</a></li>
+          <li><a href="/sitemap.xml" class="footer-link" target="_blank">Sitemap (XML)</a></li>
+          <li><a href="/robots.txt" class="footer-link" target="_blank">Robots.txt</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div>
+        &copy; <%= new Date().getFullYear() %> FreeStyle Code Technologies. All rights reserved.
+      </div>
+      <div>
+        Designed for maximum speed, security, and mobile responsiveness.
+      </div>
+    </div>
+  </footer>
+
+  <!-- FAQ Accordion Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.faq-question').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const item = btn.closest('.faq-item');
+          const answer = item.querySelector('.faq-answer');
+          const icon = btn.querySelector('i');
+          const isOpen = answer.style.display !== 'none';
+          
+          if (isOpen) {
+            answer.style.display = 'none';
+            if (icon) icon.className = 'uil uil-angle-down';
+          } else {
+            answer.style.display = 'block';
+            if (icon) icon.className = 'uil uil-angle-up';
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>

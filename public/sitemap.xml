@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+  <!-- Homepage: Free Invoices, Quotation Generator & Project Management System -->
+  <url>
+    <loc>https://projects.freestylecodetechnologies.com/</loc>
+    <lastmod>2026-09-29T15:00:00+02:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Free Invoices & Online PDF Invoicing -->
+  <url>
+    <loc>https://projects.freestylecodetechnologies.com/free-invoice-generator</loc>
+    <lastmod>2026-09-29T15:00:00+02:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Free Quotations Generator & Quote Maker -->
+  <url>
+    <loc>https://projects.freestylecodetechnologies.com/free-quotation-generator</loc>
+    <lastmod>2026-09-29T15:00:00+02:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Free Project Management System & Task Tracking -->
+  <url>
+    <loc>https://projects.freestylecodetechnologies.com/free-project-management</loc>
+    <lastmod>2026-09-29T15:00:00+02:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Pricing & Subscription Monetization Plans -->
+  <url>
+    <loc>https://projects.freestylecodetechnologies.com/pricing</loc>
+    <lastmod>2026-09-29T15:00:00+02:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Free Account Registration & Onboarding -->
+  <url>
+    <loc>https://projects.freestylecodetechnologies.com/auth/register</loc>
+    <lastmod>2026-09-29T15:00:00+02:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- User Login Portal -->
+  <url>
+    <loc>https://projects.freestylecodetechnologies.com/auth/login</loc>
+    <lastmod>2026-09-29T15:00:00+02:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>

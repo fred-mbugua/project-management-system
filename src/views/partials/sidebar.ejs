@@ -10,9 +10,7 @@
       <% if (typeof tenant !== 'undefined' && tenant && tenant.logoUrl) { %>
         <img src="<%= tenant.logoUrl %>" alt="<%= tenant.name %>" class="sidebar-logo-img">
       <% } else { %>
-        <div class="sidebar-logo-icon">
-          <i class="uil uil-layer-group"></i>
-        </div>
+        <img src="/icons/icon-96x96.png" alt="<%= (typeof tenant !== 'undefined' && tenant) ? tenant.name : appName %>" class="sidebar-logo-img">
       <% } %>
       <div class="sidebar-brand-text">
         <span class="sidebar-brand-name"><%= (typeof tenant !== 'undefined' && tenant) ? tenant.name : appName %></span>
@@ -138,7 +136,7 @@
   <!-- Sidebar Footer -->
   <div class="sidebar-footer">
     <!-- User Profile Card -->
-    <div class="sidebar-user">
+    <a href="/profile" class="sidebar-user<%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/profile')) ? ' active' : '' %>" id="nav-profile" title="View & Edit My Profile">
       <div class="sidebar-user-avatar">
         <% if (typeof currentUser !== 'undefined' && currentUser && currentUser.avatarUrl) { %>
           <img src="<%= currentUser.avatarUrl %>" alt="Avatar">
@@ -150,7 +148,8 @@
         <span class="sidebar-user-name"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.firstName + ' ' + currentUser.lastName : 'User' %></span>
         <span class="sidebar-user-role"><%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.role.replace(/_/g, ' ') : '' %></span>
       </div>
-    </div>
+      <i class="uil uil-angle-right sidebar-user-arrow"></i>
+    </a>
 
     <!-- PWA Install Action Button -->
     <button type="button" class="btn-install-pwa sidebar-pwa-install-btn hidden" id="sidebar-pwa-install" title="Install PM & ERP app on your device">

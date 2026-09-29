@@ -87,9 +87,14 @@
 
     <!-- Hidden input storing selected plan ID -->
     <% 
-      const defaultPlan = (plans && plans.length > 0)
+      const reqPlan = (typeof requestedPlan !== 'undefined' && requestedPlan) ? requestedPlan.toLowerCase() : '';
+      let matchedPlan = null;
+      if (reqPlan && plans && plans.length > 0) {
+        matchedPlan = plans.find(p => p.id.toLowerCase() === reqPlan || p.tier.toLowerCase() === reqPlan || p.id.toLowerCase().includes(reqPlan) || p.name.toLowerCase() === reqPlan);
+      }
+      const defaultPlan = matchedPlan || ((plans && plans.length > 0)
         ? (plans.find(p => p.tier === 'PROFESSIONAL') || plans.find(p => p.tier === 'STARTER') || plans[0])
-        : null;
+        : null);
       const defaultPlanId = defaultPlan ? defaultPlan.id : '';
     %>
     <input type="hidden" name="planId" id="selectedPlanId" value="<%= defaultPlanId %>">

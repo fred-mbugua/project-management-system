@@ -1,0 +1,352 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     User Profile Page
+     Personal Details, Contact Info, Password Management & Security
+     Theme: #e8650a | Clean, Flat, Professional SaaS Design
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="page-container">
+  <!-- Page Header & Breadcrumb -->
+  <div class="page-header flex-between mb-6">
+    <div class="page-title-group">
+      <div class="breadcrumb">
+        <a href="/dashboard" class="breadcrumb-item">
+          <i class="uil uil-estate"></i>
+          <span>Dashboard</span>
+        </a>
+        <i class="uil uil-angle-right breadcrumb-separator"></i>
+        <span class="breadcrumb-item active">My Profile</span>
+      </div>
+      <h1 class="page-title">Account Profile & Security</h1>
+      <p class="page-subtitle">Manage your personal details, contact info, and security credentials</p>
+    </div>
+  </div>
+
+  <!-- Profile Identity Banner Card -->
+  <div class="profile-hero-card mb-6">
+    <div class="profile-hero-content">
+      <div class="profile-avatar-wrapper">
+        <% if (user.avatarUrl) { %>
+          <img src="<%= user.avatarUrl %>" alt="<%= user.firstName %> <%= user.lastName %>" class="profile-avatar-img">
+        <% } else { %>
+          <div class="profile-avatar-fallback">
+            <span><%= (user.firstName ? user.firstName.charAt(0) : 'U') + (user.lastName ? user.lastName.charAt(0) : '') %></span>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="profile-meta">
+        <div class="profile-name-row">
+          <h2 class="profile-full-name"><%= user.firstName %> <%= user.lastName %></h2>
+          <span class="badge badge-primary"><%= user.role.replace(/_/g, ' ') %></span>
+          <% if (user.isActive) { %>
+            <span class="badge badge-success">
+              <span class="badge-dot"></span>
+              Active Account
+            </span>
+          <% } else { %>
+            <span class="badge badge-neutral">Inactive</span>
+          <% } %>
+        </div>
+
+        <p class="profile-email-line">
+          <i class="uil uil-envelope-alt"></i>
+          <span><%= user.email %></span>
+        </p>
+
+        <div class="profile-badges-row">
+          <div class="profile-badge-item">
+            <i class="uil uil-building"></i>
+            <span><%= user.tenant ? user.tenant.name : 'Platform Management' %></span>
+          </div>
+          <div class="profile-badge-item">
+            <i class="uil uil-calendar-alt"></i>
+            <span>Member since <%= new Date(user.createdAt).toLocaleDateString('en-KE', { month: 'short', year: 'numeric' }) %></span>
+          </div>
+          <% if (user.lastLoginAt) { %>
+            <div class="profile-badge-item">
+              <i class="uil uil-clock-three"></i>
+              <span>Last login: <%= new Date(user.lastLoginAt).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %></span>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two-Column Profile & Security Forms Grid -->
+  <div class="profile-grid">
+    <!-- Left Column: Personal & Contact Information -->
+    <div class="profile-col">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title-icon">
+              <i class="uil uil-user"></i>
+            </div>
+            <div>
+              <h2 class="card-title">Contact Information</h2>
+              <p class="card-subtitle">Update your personal identification and communication lines</p>
+            </div>
+          </div>
+        </div>
+
+        <form action="/profile/contact" method="POST" class="profile-form">
+          <div class="card-body">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="firstName" class="form-label required">First Name</label>
+                <input 
+                  type="text" 
+                  id="firstName" 
+                  name="firstName" 
+                  class="form-control form-input" 
+                  value="<%= user.firstName %>" 
+                  required 
+                  maxlength="100"
+                  autocomplete="given-name"
+                >
+              </div>
+
+              <div class="form-group">
+                <label for="lastName" class="form-label required">Last Name</label>
+                <input 
+                  type="text" 
+                  id="lastName" 
+                  name="lastName" 
+                  class="form-control form-input" 
+                  value="<%= user.lastName %>" 
+                  required 
+                  maxlength="100"
+                  autocomplete="family-name"
+                >
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="profileEmail" class="form-label">Email Address (Login ID)</label>
+              <div class="input-with-badge">
+                <input 
+                  type="email" 
+                  id="profileEmail" 
+                  class="form-control form-input input-readonly" 
+                  value="<%= user.email %>" 
+                  readonly 
+                  disabled
+                >
+                <span class="input-inline-badge">
+                  <i class="uil uil-shield-check"></i>
+                  <span>Verified</span>
+                </span>
+              </div>
+              <small class="form-hint">Email serves as your primary secure sign-in handle. Contact your organization administrator to modify.</small>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="phone" class="form-label">Phone Number</label>
+                <div class="input-icon-wrapper">
+                  <i class="uil uil-phone input-icon"></i>
+                  <input 
+                    type="tel" 
+                    id="phone" 
+                    name="phone" 
+                    class="form-control form-input input-has-icon" 
+                    value="<%= user.phone || '' %>" 
+                    placeholder="e.g. +254 700 000000"
+                    autocomplete="tel"
+                  >
+                </div>
+                <small class="form-hint">Mobile contact for alerts and SMS dispatches</small>
+              </div>
+
+              <div class="form-group">
+                <label for="mpesaNumber" class="form-label">M-Pesa Number</label>
+                <div class="input-icon-wrapper">
+                  <i class="uil uil-money-bill input-icon"></i>
+                  <input 
+                    type="tel" 
+                    id="mpesaNumber" 
+                    name="mpesaNumber" 
+                    class="form-control form-input input-has-icon" 
+                    value="<%= user.mpesaNumber || '' %>" 
+                    placeholder="e.g. 254712345678"
+                  >
+                </div>
+                <small class="form-hint">Used for B2C wage payouts and mobile expense reimbursements</small>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label">Assigned Role</label>
+                <input 
+                  type="text" 
+                  class="form-control form-input input-readonly" 
+                  value="<%= user.role.replace(/_/g, ' ') %>" 
+                  readonly 
+                  disabled
+                >
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Organization Workspace</label>
+                <input 
+                  type="text" 
+                  class="form-control form-input input-readonly" 
+                  value="<%= user.tenant ? user.tenant.name : 'System Platform' %>" 
+                  readonly 
+                  disabled
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <button type="submit" class="btn btn-primary" id="btn-save-contact">
+              <i class="uil uil-check"></i>
+              <span>Save Contact Details</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right Column: Password Change & Security Overview -->
+    <div class="profile-col">
+      <!-- Change Password Card -->
+      <div class="card mb-6">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title-icon">
+              <i class="uil uil-lock"></i>
+            </div>
+            <div>
+              <h2 class="card-title">Update Password</h2>
+              <p class="card-subtitle">Ensure your account remains secure with a strong password</p>
+            </div>
+          </div>
+        </div>
+
+        <form action="/profile/password" method="POST" class="profile-form">
+          <div class="card-body">
+            <div class="form-group">
+              <label for="currentPassword" class="form-label required">Current Password</label>
+              <div class="input-icon-wrapper">
+                <i class="uil uil-key-skeleton input-icon"></i>
+                <input 
+                  type="password" 
+                  id="currentPassword" 
+                  name="currentPassword" 
+                  class="form-control form-input input-has-icon" 
+                  required 
+                  autocomplete="current-password"
+                  placeholder="Enter current password"
+                >
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="newPassword" class="form-label required">New Password</label>
+              <div class="input-icon-wrapper">
+                <i class="uil uil-lock-alt input-icon"></i>
+                <input 
+                  type="password" 
+                  id="newPassword" 
+                  name="newPassword" 
+                  class="form-control form-input input-has-icon" 
+                  required 
+                  minlength="8" 
+                  maxlength="128"
+                  autocomplete="new-password"
+                  placeholder="At least 8 characters"
+                >
+              </div>
+              <small class="form-hint">Must be at least 8 characters long with a mix of letters, numbers, and symbols.</small>
+            </div>
+
+            <div class="form-group">
+              <label for="confirmPassword" class="form-label required">Confirm New Password</label>
+              <div class="input-icon-wrapper">
+                <i class="uil uil-check-circle input-icon"></i>
+                <input 
+                  type="password" 
+                  id="confirmPassword" 
+                  name="confirmPassword" 
+                  class="form-control form-input input-has-icon" 
+                  required 
+                  minlength="8" 
+                  maxlength="128"
+                  autocomplete="new-password"
+                  placeholder="Repeat new password"
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <button type="submit" class="btn btn-primary" id="btn-update-password">
+              <i class="uil uil-shield-check"></i>
+              <span>Change Password</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Account Security Summary Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title-icon">
+              <i class="uil uil-shield-exclamation"></i>
+            </div>
+            <div>
+              <h2 class="card-title">Session & Security</h2>
+              <p class="card-subtitle">Active access tokens and session safety guarantees</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="security-item-row">
+            <div class="security-item-icon">
+              <i class="uil uil-shield-check"></i>
+            </div>
+            <div class="security-item-text">
+              <strong>Encrypted Authentication</strong>
+              <p class="text-xs text-muted">Sessions are protected with HTTP-only cryptographic cookies and 12-round bcrypt password hashing.</p>
+            </div>
+          </div>
+
+          <div class="security-item-row">
+            <div class="security-item-icon">
+              <i class="uil uil-history"></i>
+            </div>
+            <div class="security-item-text">
+              <strong>Account Audit Trail</strong>
+              <p class="text-xs text-muted">Every login, password change, and configuration modification is recorded to your organization's immutable audit log.</p>
+            </div>
+          </div>
+
+          <div class="security-item-row">
+            <div class="security-item-icon">
+              <i class="uil uil-sign-out-alt"></i>
+            </div>
+            <div class="security-item-text">
+              <strong>Sign Out of All Windows</strong>
+              <p class="text-xs text-muted">Finished your work? Ensure your account is signed out on shared or mobile devices.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-footer" style="justify-content: flex-start;">
+          <form action="/auth/logout" method="POST" style="margin: 0; width: 100%;">
+            <button type="submit" class="btn btn-secondary w-full" id="btn-profile-signout" style="width: 100%; justify-content: center;">
+              <i class="uil uil-signout"></i>
+              <span>Sign Out of Account</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

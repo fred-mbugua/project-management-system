@@ -144,11 +144,10 @@
     <!-- Invoice Header Row -->
     <div class="invoice-header-row">
       <div class="invoice-brand-block">
-        <% if (invoice.tenant_logo_url || (typeof tenant !== 'undefined' && tenant && tenant.logoUrl)) { %>
-          <div class="doc-logo-wrapper">
-            <img src="<%= invoice.tenant_logo_url || (typeof tenant !== 'undefined' && tenant ? tenant.logoUrl : '') %>" alt="<%= invoice.tenant_name || (typeof tenant !== 'undefined' && tenant ? tenant.name : appName) %> Logo" class="doc-brand-logo">
-          </div>
-        <% } %>
+        <% const effectiveLogo = invoice.tenant_logo_url || (typeof tenant !== 'undefined' && tenant && tenant.logoUrl) ? (invoice.tenant_logo_url || tenant.logoUrl) : '/icons/icon-96x96.png'; %>
+        <div class="doc-logo-wrapper">
+          <img src="<%= effectiveLogo %>" alt="<%= invoice.tenant_name || (typeof tenant !== 'undefined' && tenant ? tenant.name : appName) %> Logo" class="doc-brand-logo">
+        </div>
         <h2><%= invoice.tenant_name || ((typeof tenant !== 'undefined' && tenant) ? tenant.name : appName) %></h2>
         <div>
           <% if (df.showTenantAddress !== false) { %>
@@ -203,7 +202,11 @@
     </div>
 
     <!-- Items Table -->
-    <div class="table-responsive mb-6">
+    <div class="table-responsive invoice-table-wrapper mb-6">
+      <div class="table-scroll-hint">
+        <i class="uil uil-arrows-h"></i>
+        <span>Swipe horizontally to view all</span>
+      </div>
       <table class="invoice-table">
         <thead>
           <tr>

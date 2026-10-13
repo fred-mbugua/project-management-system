@@ -1039,6 +1039,63 @@
   line-height: 1.5;
 }
 
+.invoice-status-badge {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem !important;
+  padding: 5px 14px !important;
+  border-radius: 6px !important;
+  text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+}
+
+.invoice-status-unpaid {
+  background-color: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #f87171 !important;
+}
+.invoice-status-unpaid .badge-dot {
+  background-color: #dc2626 !important;
+}
+
+.invoice-status-paid {
+  background-color: #d1fae5 !important;
+  color: #059669 !important;
+  border: 1px solid #34d399 !important;
+}
+.invoice-status-paid .badge-dot {
+  background-color: #059669 !important;
+}
+
+/* Contrast enhancement for dark/corporate banners */
+.template-corporate .invoice-status-unpaid,
+.template-bold .invoice-status-unpaid {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+.template-corporate .invoice-status-unpaid .badge-dot,
+.template-bold .invoice-status-unpaid .badge-dot {
+  background-color: #ffffff !important;
+}
+
+.template-corporate .invoice-status-paid,
+.template-bold .invoice-status-paid {
+  background-color: #10b981 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+.template-corporate .invoice-status-paid .badge-dot,
+.template-bold .invoice-status-paid .badge-dot {
+  background-color: #ffffff !important;
+}
+
 .invoice-parties-grid {
   display: flex;
   justify-content: space-between;

@@ -128,15 +128,21 @@
                     <% } %>
                   </td>
                   <td>
-                    <div class="table-actions">
+                    <div class="table-actions" style="display: flex; gap: 4px; align-items: center;">
                       <a href="/quotations/<%= q.id %>" class="btn btn-sm btn-secondary" title="View & Print Quotation">
                         <i class="uil uil-eye"></i>
-                        <span>View</span>
+                      </a>
+                      <a href="/quotations/<%= q.id %>/edit" class="btn btn-sm btn-secondary" title="Edit Quotation">
+                        <i class="uil uil-edit"></i>
                       </a>
                       <a href="/quotations/<%= q.id %>/pdf" class="btn btn-sm btn-secondary" title="Download PDF" target="_blank">
                         <i class="uil uil-file-download-alt"></i>
-                        <span>PDF</span>
                       </a>
+                      <form action="/quotations/<%= q.id %>/delete" method="POST" style="display: inline-block; margin: 0;" onsubmit="return confirm('Are you sure you want to delete this quotation? Note: If it has progressed to an invoice, the invoice must be deleted first.');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Quotation">
+                          <i class="uil uil-trash-alt"></i>
+                        </button>
+                      </form>
                     </div>
                   </td>
                 </tr>

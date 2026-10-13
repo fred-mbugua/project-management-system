@@ -8,6 +8,7 @@ import { ExpenseModel } from '../models/expense.model';
 import { ExpenseCategory } from '../models/types';
 import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import { formatKES } from '../utils/taxCalculator';
+import { isAssignedProjectsOnly } from '../middleware/rbac';
 import logger from '../utils/logger';
 
 const expenseLogger = logger.child('ExpenseController');
@@ -30,6 +31,18 @@ export class ExpenseController {
       if (tenantId && !isSuper) {
         conditions.push(`e.tenant_id = $${paramIdx++}`);
         values.push(tenantId);
+      }
+
+      // Restrict to expenses linked to assigned projects if user is scoped
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        conditions.push(`(
+          e.project_id IS NOT NULL AND (
+            EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = e.project_id AND pm.user_id = $${paramIdx})
+            OR EXISTS (SELECT 1 FROM tasks t WHERE t.project_id = e.project_id AND t.assigned_to_id = $${paramIdx})
+          )
+        )`);
+        values.push(req.user.id);
+        paramIdx++;
       }
 
       if (params.search) {
@@ -82,11 +95,15 @@ export class ExpenseController {
       `;
       const dataValues = [...values, params.limit, params.offset];
 
+      const projectsQuery = tenantId
+        ? (req.user && isAssignedProjectsOnly(req.user)
+            ? query(`SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' AND (id IN (SELECT project_id FROM project_members WHERE user_id = $2) OR id IN (SELECT project_id FROM tasks WHERE assigned_to_id = $2)) ORDER BY name ASC`, [tenantId, req.user.id])
+            : query(`SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' ORDER BY name ASC`, [tenantId]))
+        : query(`SELECT id, name, code FROM projects WHERE status != 'CANCELLED' ORDER BY name ASC`);
+
       const [expensesRes, projectsRes, statsRes] = await Promise.all([
         query(dataSql, dataValues),
-        tenantId
-          ? query(`SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' ORDER BY name ASC`, [tenantId])
-          : query(`SELECT id, name, code FROM projects WHERE status != 'CANCELLED' ORDER BY name ASC`),
+        projectsQuery,
         tenantId
           ? query(`
               SELECT 

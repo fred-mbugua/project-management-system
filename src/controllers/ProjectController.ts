@@ -11,6 +11,7 @@ import { extractPaginationParams, calculatePagination } from '../utils/paginatio
 import storageService from '../services/storage.service';
 import ActionLogService from '../services/actionLog.service';
 import { formatKES } from '../utils/taxCalculator';
+import { isAssignedProjectsOnly } from '../middleware/rbac';
 import logger from '../utils/logger';
 
 const projectLogger = logger.child('ProjectController');
@@ -36,6 +37,16 @@ export class ProjectController {
       if (tenantId && !isSuper) {
         conditions.push(`p.tenant_id = $${paramIdx++}`);
         values.push(tenantId);
+      }
+
+      // Restrict to assigned projects if user has assigned-only scope
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        conditions.push(`(
+          EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = p.id AND pm.user_id = $${paramIdx})
+          OR EXISTS (SELECT 1 FROM tasks t WHERE t.project_id = p.id AND t.assigned_to_id = $${paramIdx})
+        )`);
+        values.push(req.user.id);
+        paramIdx++;
       }
 
       if (params.search) {
@@ -206,7 +217,7 @@ export class ProjectController {
       const tenantId = req.tenantId;
       const projectId = req.params.id as string;
 
-      const [projectRes, tasksRes, membersRes, usersRes, docsRes] = await Promise.all([
+      const [projectRes, tasksRes, membersRes, usersRes, docsRes, invoicesRes, quotationsRes, expensesRes] = await Promise.all([
         query(`
           SELECT p.*, c.name as client_name, c.email as client_email, c.phone as client_phone
           FROM projects p
@@ -222,19 +233,40 @@ export class ProjectController {
           ORDER BY t.created_at DESC
         `, [projectId, tenantId]),
         query(`
-          SELECT pm.*, u.first_name, u.last_name, u.email, u.role
+          SELECT pm.*, u.first_name, u.last_name, u.email, u.phone, u.role as user_global_role
           FROM project_members pm
           JOIN users u ON pm.user_id = u.id
           WHERE pm.project_id = $1
           ORDER BY pm.joined_at ASC
         `, [projectId]),
-        query(`SELECT id, first_name, last_name, email, role FROM users WHERE tenant_id = $1 AND is_active = TRUE`, [tenantId]),
+        query(`SELECT id, first_name, last_name, email, role FROM users WHERE tenant_id = $1 AND is_active = TRUE ORDER BY first_name ASC`, [tenantId]),
         query(`
           SELECT pd.*, u.first_name, u.last_name
           FROM project_documents pd
           LEFT JOIN users u ON pd.uploaded_by_id = u.id
           WHERE pd.project_id = $1 AND pd.tenant_id = $2
           ORDER BY pd.created_at DESC
+        `, [projectId, tenantId]),
+        query(`
+          SELECT i.*, c.name as client_name
+          FROM invoices i
+          LEFT JOIN clients c ON i.client_id = c.id
+          WHERE i.project_id = $1 AND i.tenant_id = $2
+          ORDER BY i.created_at DESC
+        `, [projectId, tenantId]),
+        query(`
+          SELECT q.*, c.name as client_name
+          FROM quotations q
+          LEFT JOIN clients c ON q.client_id = c.id
+          WHERE q.project_id = $1 AND q.tenant_id = $2
+          ORDER BY q.created_at DESC
+        `, [projectId, tenantId]),
+        query(`
+          SELECT e.*
+          FROM expenses e
+          WHERE e.project_id = $1 AND e.tenant_id = $2
+          ORDER BY e.expense_date DESC
+          LIMIT 20
         `, [projectId, tenantId]),
       ]);
 
@@ -245,13 +277,63 @@ export class ProjectController {
         return;
       }
 
+      // If user is restricted to assigned projects only, verify project membership
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        const isAssigned = membersRes.rows.some((m: any) => m.user_id === req.user?.id) ||
+                           tasksRes.rows.some((t: any) => t.assigned_to_id === req.user?.id);
+        if (!isAssigned) {
+          req.flash('error', 'You do not have permission to access this project.');
+          res.redirect('/projects');
+          return;
+        }
+      }
+
+      // Build full teamMembers list
+      const teamMembers = membersRes.rows.map((m: any) => ({
+        id: m.id,
+        user_id: m.user_id,
+        first_name: m.first_name,
+        last_name: m.last_name,
+        email: m.email,
+        phone: m.phone,
+        role: m.user_global_role || m.role,
+        project_role: m.role_in_project || 'Contributor',
+        joined_at: m.joined_at,
+        source: 'member',
+      }));
+
+      // Also include any task assignees
+      const existingUserIds = new Set(teamMembers.map((m: any) => m.user_id));
+      tasksRes.rows.forEach((t: any) => {
+        if (t.assigned_to_id && !existingUserIds.has(t.assigned_to_id) && t.first_name) {
+          teamMembers.push({
+            id: t.id,
+            user_id: t.assigned_to_id,
+            first_name: t.first_name,
+            last_name: t.last_name,
+            email: t.email || '',
+            phone: t.phone || '',
+            role: 'TEAM_MEMBER',
+            project_role: 'Task Assignee',
+            joined_at: t.created_at,
+            source: 'task',
+          });
+          existingUserIds.add(t.assigned_to_id);
+        }
+      });
+
       res.render('pages/projects/show', {
         title: project.name,
         project,
         tasks: tasksRes.rows,
         members: membersRes.rows,
+        teamMembers,
+        availableUsers: usersRes.rows,
         teamUsers: usersRes.rows,
         documents: docsRes.rows,
+        invoices: invoicesRes.rows,
+        quotations: quotationsRes.rows,
+        expenses: expensesRes.rows,
         formatKES,
       });
     } catch (error) {
@@ -273,6 +355,20 @@ export class ProjectController {
         req.flash('error', 'Task title is required.');
         res.redirect(`/projects/${projectId}`);
         return;
+      }
+
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        const isAssignedRes = await query(
+          `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+           UNION
+           SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2`,
+          [projectId, req.user.id]
+        );
+        if (isAssignedRes.rowCount === 0) {
+          req.flash('error', 'You do not have permission to add tasks to this project.');
+          res.redirect('/projects');
+          return;
+        }
       }
 
       await TaskModel.create({
@@ -305,6 +401,20 @@ export class ProjectController {
       if (!tenantId) {
         res.redirect('/auth/login');
         return;
+      }
+
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        const isAssignedRes = await query(
+          `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+           UNION
+           SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2`,
+          [projectId, req.user.id]
+        );
+        if (isAssignedRes.rowCount === 0) {
+          req.flash('error', 'You do not have permission to upload files to this project.');
+          res.redirect('/projects');
+          return;
+        }
       }
 
       if (!req.file) {
@@ -389,6 +499,238 @@ export class ProjectController {
       res.redirect(`/projects/${projectId}`);
     } catch (error) {
       projectLogger.error('Failed to delete project document', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Assign a team member to the project
+   */
+  addMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenantId;
+      const projectId = req.params.id as string;
+      const { userId, roleInProject, role, projectRole, rateType, rate } = req.body;
+      const assignedRole = (roleInProject || role || projectRole || 'Contributor').trim();
+
+      if (!tenantId || !userId) {
+        req.flash('error', 'Please select a team member to assign.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      // Check project belongs to tenant
+      const pCheck = await query('SELECT id, name FROM projects WHERE id = $1 AND tenant_id = $2', [projectId, tenantId]);
+      if (!pCheck.rows[0]) {
+        req.flash('error', 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      // Check user belongs to same tenant
+      const uCheck = await query('SELECT id, first_name, last_name FROM users WHERE id = $1 AND tenant_id = $2', [userId, tenantId]);
+      if (!uCheck.rows[0]) {
+        req.flash('error', 'Selected user was not found in your organization.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      await query(`
+        INSERT INTO project_members (
+          id, project_id, user_id, role_in_project, rate_type, rate, joined_at
+        ) VALUES (
+          gen_random_uuid()::text, $1, $2, $3, $4, $5, NOW()
+        )
+        ON CONFLICT (project_id, user_id) 
+        DO UPDATE SET 
+          role_in_project = EXCLUDED.role_in_project,
+          rate_type = EXCLUDED.rate_type,
+          rate = EXCLUDED.rate
+      `, [
+        projectId,
+        userId,
+        assignedRole,
+        rateType || 'hourly',
+        rate ? parseFloat(rate) : null,
+      ]);
+
+      await ActionLogService.record(req, {
+        action: AuditAction.CREATE,
+        entityType: 'PROJECT_MEMBER',
+        entityId: projectId,
+        description: `Assigned ${uCheck.rows[0].first_name} ${uCheck.rows[0].last_name} to project "${pCheck.rows[0].name}"`,
+        metadata: { projectId, userId, roleInProject },
+      });
+
+      req.flash('success', `${uCheck.rows[0].first_name} ${uCheck.rows[0].last_name} assigned to project successfully.`);
+      res.redirect(`/projects/${projectId}`);
+    } catch (error) {
+      projectLogger.error('Failed to add project member', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Remove a member from the project
+   */
+  removeMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenantId;
+      const projectId = req.params.id as string;
+      const memberId = req.params.memberId as string;
+
+      // Check project belongs to tenant
+      const pCheck = await query('SELECT id, name FROM projects WHERE id = $1 AND tenant_id = $2', [projectId, tenantId]);
+      if (!pCheck.rows[0]) {
+        req.flash('error', 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      await query('DELETE FROM project_members WHERE project_id = $1 AND user_id = $2', [projectId, memberId]);
+
+      await ActionLogService.record(req, {
+        action: AuditAction.DELETE,
+        entityType: 'PROJECT_MEMBER',
+        entityId: projectId,
+        description: `Removed member ${memberId} from project "${pCheck.rows[0].name}"`,
+        metadata: { projectId, memberId },
+      });
+
+      req.flash('success', 'Team member removed from project.');
+      res.redirect(`/projects/${projectId}`);
+    } catch (error) {
+      projectLogger.error('Failed to remove project member', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Delete a task from the project with persistent audit logging
+   */
+  deleteTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+      const projectId = req.params.id as string;
+      const taskId = req.params.taskId as string;
+
+      // Check project
+      const pCheck = await query('SELECT id, name FROM projects WHERE id = $1' + (tenantId && !isSuper ? ' AND tenant_id = $2' : ''), tenantId && !isSuper ? [projectId, tenantId] : [projectId]);
+      const project = pCheck.rows[0];
+      if (!project) {
+        req.flash('error', 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      // Fetch task details for audit log
+      const tCheck = await query('SELECT * FROM tasks WHERE id = $1 AND project_id = $2' + (tenantId && !isSuper ? ' AND tenant_id = $3' : ''), tenantId && !isSuper ? [taskId, projectId, tenantId] : [taskId, projectId]);
+      const task = tCheck.rows[0];
+      if (!task) {
+        req.flash('error', 'Task not found.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      // Record audit log BEFORE deletion so full audit history is preserved in audit_logs
+      await ActionLogService.record(req, {
+        action: AuditAction.DELETE,
+        entityType: 'TASK',
+        entityId: taskId,
+        description: `Deleted task "${task.title}" in project "${project.name}"`,
+        metadata: {
+          taskId,
+          title: task.title,
+          description: task.description,
+          projectId,
+          projectName: project.name,
+          priority: task.priority,
+          status: task.status,
+          assignedToId: task.assigned_to_id,
+          estimatedHours: task.estimated_hours,
+          dueDate: task.due_date,
+        },
+      });
+
+      // Delete task from database
+      await query('DELETE FROM tasks WHERE id = $1', [taskId]);
+
+      req.flash('success', `Task "${task.title}" deleted successfully. Audit trail preserved.`);
+      res.redirect(`/projects/${projectId}`);
+    } catch (error) {
+      projectLogger.error('Failed to delete task', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Delete a project with persistent audit logging
+   */
+  deleteProject = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+      const projectId = req.params.id as string;
+
+      const pCheck = await query('SELECT * FROM projects WHERE id = $1' + (tenantId && !isSuper ? ' AND tenant_id = $2' : ''), tenantId && !isSuper ? [projectId, tenantId] : [projectId]);
+      const project = pCheck.rows[0];
+      if (!project) {
+        req.flash('error', 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      // Count tasks, documents, and members for audit metadata
+      const taskCountRes = await query('SELECT COUNT(*)::int as count FROM tasks WHERE project_id = $1', [projectId]);
+      const docCountRes = await query('SELECT COUNT(*)::int as count FROM project_documents WHERE project_id = $1', [projectId]);
+      const memberCountRes = await query('SELECT COUNT(*)::int as count FROM project_members WHERE project_id = $1', [projectId]);
+
+      // Record audit log BEFORE deletion so full audit history is preserved in audit_logs
+      await ActionLogService.record(req, {
+        action: AuditAction.DELETE,
+        entityType: 'PROJECT',
+        entityId: projectId,
+        description: `Deleted project "${project.name}" (${project.code})`,
+        metadata: {
+          projectId,
+          name: project.name,
+          code: project.code,
+          clientId: project.client_id,
+          budget: project.budget,
+          status: project.status,
+          startDate: project.start_date,
+          endDate: project.end_date,
+          taskCount: taskCountRes.rows[0]?.count || 0,
+          documentCount: docCountRes.rows[0]?.count || 0,
+          memberCount: memberCountRes.rows[0]?.count || 0,
+        },
+      });
+
+      // Cleanup project documents from storage if any
+      const docsRes = await query('SELECT file_url FROM project_documents WHERE project_id = $1', [projectId]);
+      for (const d of docsRes.rows) {
+        try {
+          if (d.file_url) await storageService.deleteFile(d.file_url);
+        } catch {}
+      }
+      await query('DELETE FROM project_documents WHERE project_id = $1', [projectId]);
+
+      // Unlink or clean dependencies
+      await query('DELETE FROM project_members WHERE project_id = $1', [projectId]);
+      await query('DELETE FROM tasks WHERE project_id = $1', [projectId]);
+      await query('UPDATE quotations SET project_id = NULL WHERE project_id = $1', [projectId]);
+      await query('UPDATE invoices SET project_id = NULL WHERE project_id = $1', [projectId]);
+      await query('UPDATE expenses SET project_id = NULL WHERE project_id = $1', [projectId]);
+      await query('UPDATE maintenance_schedules SET project_id = NULL WHERE project_id = $1', [projectId]);
+
+      // Delete project row
+      await query('DELETE FROM projects WHERE id = $1', [projectId]);
+
+      req.flash('success', `Project "${project.name}" deleted successfully. Audit trail preserved.`);
+      res.redirect('/projects');
+    } catch (error) {
+      projectLogger.error('Failed to delete project', { error: String(error) });
       next(error);
     }
   };

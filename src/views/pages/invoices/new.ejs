@@ -92,9 +92,29 @@
           </div>
         </div>
 
-        <p class="text-xs text-muted mb-4">
-          * Standard Kenya VAT (16%) is automatically calculated and added to the taxable base.
-        </p>
+        <!-- VAT Option Box -->
+        <div class="card p-4 mb-4 bg-surface-subtle vat-option-card" style="border: 1px solid var(--border-color); border-radius: 8px; background: rgba(79, 70, 229, 0.04); margin-top: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+            <div style="display: flex; align-items: flex-start; gap: 12px;">
+              <div style="margin-top: 2px;">
+                <input type="checkbox" id="includeVat" name="includeVat" value="true" class="form-check-input" checked style="width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer;">
+              </div>
+              <div>
+                <label for="includeVat" style="font-weight: 700; font-size: 0.95rem; cursor: pointer; color: var(--text-primary); display: block; margin-bottom: 2px;">
+                  Apply Kenya Value Added Tax (VAT 16%)
+                </label>
+                <p class="text-xs text-muted" style="margin: 0;">
+                  Uncheck this option to generate a tax-exempt or non-VAT invoice without 16% tax added.
+                </p>
+              </div>
+            </div>
+            <div id="vat-mode-badge">
+              <span class="badge badge-success" style="font-weight: 700; font-size: 0.8rem; padding: 4px 10px;">
+                <i class="uil uil-check-circle mr-1"></i> VAT Included (16%)
+              </span>
+            </div>
+          </div>
+        </div>
 
         <!-- Real-Time Calculation Preview -->
         <div class="invoice-live-summary">
@@ -102,8 +122,8 @@
             <span>Subtotal (Net):</span>
             <strong id="live-subtotal">KES 50,000.00</strong>
           </div>
-          <div class="live-summary-row">
-            <span>VAT (16% Standard):</span>
+          <div class="live-summary-row" id="live-vat-row">
+            <span id="live-vat-label">VAT (16% Standard):</span>
             <strong id="live-vat">KES 8,000.00</strong>
           </div>
           <div class="live-summary-row live-summary-grand">

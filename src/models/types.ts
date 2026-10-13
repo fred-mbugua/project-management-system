@@ -51,6 +51,7 @@ export enum QuotationStatus {
 export enum InvoiceStatus {
   DRAFT = 'DRAFT',
   SENT = 'SENT',
+  UNPAID = 'UNPAID',
   PARTIALLY_PAID = 'PARTIALLY_PAID',
   PAID = 'PAID',
   OVERDUE = 'OVERDUE',
@@ -263,6 +264,23 @@ export interface TenantSubscription {
   updatedAt: Date;
 }
 
+export type PermissionLevel = 'none' | 'view' | 'manage';
+export type ProjectScope = 'ALL' | 'ASSIGNED';
+
+export interface UserModulePermissions {
+  projects: PermissionLevel;
+  calendar: PermissionLevel;
+  maintenance: PermissionLevel;
+  quotations: PermissionLevel;
+  invoices: PermissionLevel;
+  expenses: PermissionLevel;
+  accounting: PermissionLevel;
+  team: PermissionLevel;
+  clients: PermissionLevel;
+  settings: PermissionLevel;
+  audit_logs: PermissionLevel;
+}
+
 export interface User {
   id: string;
   tenantId?: string | null;
@@ -273,6 +291,8 @@ export interface User {
   phone?: string | null;
   nationalId?: string | null;
   role: UserRole;
+  projectScope?: ProjectScope;
+  permissions?: UserModulePermissions | null;
   mpesaNumber?: string | null;
   bankName?: string | null;
   bankAccount?: string | null;
@@ -415,6 +435,7 @@ export interface Invoice {
   etimsQrPayload?: string | null;
   tenantKraPin?: string | null;
   clientKraPin?: string | null;
+  includeVat?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

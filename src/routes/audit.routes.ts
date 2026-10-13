@@ -7,13 +7,12 @@ import { Router } from 'express';
 import auditController from '../controllers/AuditController';
 import { requireAuth } from '../middleware/auth';
 import { resolveTenant } from '../middleware/tenant';
-import { requireRole } from '../middleware/rbac';
-import { UserRole } from '../models/types';
+import { requireModuleAccess } from '../middleware/rbac';
 
 const router = Router();
 
-router.use(requireAuth, resolveTenant, requireRole(UserRole.SUPER_ADMIN, UserRole.TENANT_OWNER));
+router.use(requireAuth, resolveTenant);
 
-router.get('/', auditController.index);
+router.get('/', requireModuleAccess('audit_logs', 'view'), auditController.index);
 
 export default router;

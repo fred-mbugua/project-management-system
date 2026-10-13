@@ -33,79 +33,113 @@
       </a>
     </div>
 
+    <%
+      const canAccess = (mod) => {
+        if (typeof hasModuleAccess === 'function') return hasModuleAccess(mod);
+        if (typeof currentUser !== 'undefined' && currentUser) {
+          if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'TENANT_OWNER') return true;
+        }
+        return false;
+      };
+    %>
+
     <!-- Project Management -->
-    <% if (typeof currentUser !== 'undefined' && currentUser && currentUser.role !== 'CLIENT_PORTAL') { %>
+    <% if (canAccess('projects') || canAccess('calendar') || canAccess('maintenance')) { %>
     <div class="sidebar-section">
       <span class="sidebar-section-title">Project Management</span>
+      <% if (canAccess('projects')) { %>
       <a href="/projects" class="sidebar-link<%= currentPath.startsWith('/projects') ? ' active' : '' %>" id="nav-projects">
         <i class="uil uil-folder sidebar-icon"></i>
         <span>Projects</span>
       </a>
+      <% } %>
+      <% if (canAccess('calendar')) { %>
       <a href="/calendar" class="sidebar-link<%= currentPath.startsWith('/calendar') ? ' active' : '' %>" id="nav-calendar">
         <i class="uil uil-calendar-alt sidebar-icon"></i>
         <span>Calendar</span>
       </a>
+      <% } %>
+      <% if (canAccess('maintenance')) { %>
       <a href="/maintenance" class="sidebar-link<%= currentPath.startsWith('/maintenance') ? ' active' : '' %>" id="nav-maintenance">
         <i class="uil uil-wrench sidebar-icon"></i>
         <span>Maintenance & SLAs</span>
       </a>
+      <% } %>
     </div>
     <% } %>
 
     <!-- Finance & Billing -->
-    <% if (typeof currentUser !== 'undefined' && currentUser && ['SUPER_ADMIN', 'TENANT_OWNER', 'PROJECT_MANAGER', 'ACCOUNTANT'].includes(currentUser.role)) { %>
+    <% if (canAccess('quotations') || canAccess('invoices') || canAccess('expenses') || canAccess('accounting')) { %>
     <div class="sidebar-section">
       <span class="sidebar-section-title">Finance & Billing</span>
+      <% if (canAccess('quotations')) { %>
       <a href="/quotations" class="sidebar-link<%= currentPath.startsWith('/quotations') ? ' active' : '' %>" id="nav-quotations">
         <i class="uil uil-file-alt sidebar-icon"></i>
         <span>Quotations</span>
       </a>
+      <% } %>
+      <% if (canAccess('invoices')) { %>
       <a href="/invoices" class="sidebar-link<%= currentPath.startsWith('/invoices') ? ' active' : '' %>" id="nav-invoices">
         <i class="uil uil-receipt sidebar-icon"></i>
         <span>Invoices</span>
       </a>
+      <% } %>
+      <% if (canAccess('expenses')) { %>
       <a href="/expenses" class="sidebar-link<%= currentPath.startsWith('/expenses') ? ' active' : '' %>" id="nav-expenses">
         <i class="uil uil-money-withdraw sidebar-icon"></i>
         <span>Expenses</span>
       </a>
+      <% } %>
+      <% if (canAccess('accounting')) { %>
       <a href="/accounting" class="sidebar-link<%= currentPath.startsWith('/accounting') ? ' active' : '' %>" id="nav-accounting">
         <i class="uil uil-chart-line sidebar-icon"></i>
         <span>Accounting & Tax</span>
       </a>
+      <% } %>
     </div>
     <% } %>
 
     <!-- People -->
-    <% if (typeof currentUser !== 'undefined' && currentUser && ['SUPER_ADMIN', 'TENANT_OWNER', 'PROJECT_MANAGER'].includes(currentUser.role)) { %>
+    <% if (canAccess('team') || canAccess('clients')) { %>
     <div class="sidebar-section">
       <span class="sidebar-section-title">People</span>
+      <% if (canAccess('team')) { %>
       <a href="/team" class="sidebar-link<%= currentPath.startsWith('/team') ? ' active' : '' %>" id="nav-team">
         <i class="uil uil-users-alt sidebar-icon"></i>
         <span>Team</span>
       </a>
+      <% } %>
+      <% if (canAccess('clients')) { %>
       <a href="/clients" class="sidebar-link<%= currentPath.startsWith('/clients') ? ' active' : '' %>" id="nav-clients">
         <i class="uil uil-user-square sidebar-icon"></i>
         <span>Clients</span>
       </a>
+      <% } %>
     </div>
     <% } %>
 
     <!-- Settings & Audit -->
-    <% if (typeof currentUser !== 'undefined' && currentUser && ['SUPER_ADMIN', 'TENANT_OWNER'].includes(currentUser.role)) { %>
+    <% if (canAccess('settings') || canAccess('audit_logs') || (typeof currentUser !== 'undefined' && currentUser && ['SUPER_ADMIN', 'TENANT_OWNER'].includes(currentUser.role))) { %>
     <div class="sidebar-section">
       <span class="sidebar-section-title">Configuration & Logs</span>
+      <% if (canAccess('settings')) { %>
       <a href="/settings" class="sidebar-link<%= currentPath.startsWith('/settings') ? ' active' : '' %>" id="nav-settings">
         <i class="uil uil-setting sidebar-icon"></i>
         <span>Settings</span>
       </a>
+      <% } %>
+      <% if (typeof currentUser !== 'undefined' && currentUser && ['SUPER_ADMIN', 'TENANT_OWNER'].includes(currentUser.role)) { %>
       <a href="/subscription" class="sidebar-link<%= currentPath.startsWith('/subscription') ? ' active' : '' %>" id="nav-subscription">
         <i class="uil uil-bill sidebar-icon"></i>
         <span>Subscription & Billing</span>
       </a>
+      <% } %>
+      <% if (canAccess('audit_logs')) { %>
       <a href="/audit-logs" class="sidebar-link<%= currentPath.startsWith('/audit-logs') ? ' active' : '' %>" id="nav-audit-logs">
         <i class="uil uil-history sidebar-icon"></i>
         <span>Action & Audit Logs</span>
       </a>
+      <% } %>
     </div>
     <% } %>
 

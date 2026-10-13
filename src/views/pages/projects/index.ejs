@@ -9,10 +9,12 @@
       <p class="page-subtitle">Track deliverables, progress, budgets, and milestone completion.</p>
     </div>
     <div class="page-actions">
+      <% if (hasModuleAccess('projects', 'manage')) { %>
       <a href="/projects/new" class="btn btn-primary" id="btn-create-project">
         <i class="uil uil-plus"></i>
         <span>New Project</span>
       </a>
+      <% } %>
     </div>
   </div>
 
@@ -75,12 +77,14 @@
           <p class="card-subtitle">Manage project scopes, deliverables, budgets, and status tracking</p>
         </div>
       </div>
+      <% if (hasModuleAccess('projects', 'manage')) { %>
       <div class="flex-align-center gap-2">
         <a href="/projects/new" class="btn btn-sm btn-primary">
           <i class="uil uil-plus"></i>
           <span>New Project</span>
         </a>
       </div>
+      <% } %>
     </div>
     <div class="card-body-table">
       <% if (projects && projects.length > 0) { %>
@@ -129,10 +133,17 @@
                     <% } %>
                   </td>
                   <td>
-                    <a href="/projects/<%= p.id %>" class="btn btn-sm btn-secondary">
-                      <i class="uil uil-folder-open"></i>
-                      <span>Open</span>
-                    </a>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                      <a href="/projects/<%= p.id %>" class="btn btn-sm btn-secondary" title="Open Project">
+                        <i class="uil uil-folder-open"></i>
+                        <span>Open</span>
+                      </a>
+                      <form action="/projects/<%= p.id %>/delete" method="POST" style="display: inline-block; margin: 0;" onsubmit="return confirm('Are you sure you want to delete this project? All tasks and documents will be removed, and an audit log will be retained.');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Project">
+                          <i class="uil uil-trash-alt"></i>
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               <% }); %>

@@ -3,15 +3,14 @@ import multer from 'multer';
 import settingsController from '../controllers/SettingsController';
 import { requireAuth } from '../middleware/auth';
 import { resolveTenant } from '../middleware/tenant';
-import { requireRole } from '../middleware/rbac';
-import { UserRole } from '../models/types';
+import { requireModuleAccess } from '../middleware/rbac';
 import { uploadLogo } from '../middleware/upload';
 
 const router = Router();
 
-router.use(requireAuth, resolveTenant, requireRole(UserRole.SUPER_ADMIN, UserRole.TENANT_OWNER));
+router.use(requireAuth, resolveTenant);
 
-router.get('/', settingsController.index);
+router.get('/', requireModuleAccess('settings', 'view'), settingsController.index);
 
 // Safe Multer upload middleware with flash error reporting
 const handleLogoUpload = (req: Request, res: Response, next: NextFunction) => {
@@ -35,7 +34,7 @@ const handleLogoUpload = (req: Request, res: Response, next: NextFunction) => {
   });
 };
 
-router.post('/', handleLogoUpload, settingsController.update);
-router.post('/test-payment', settingsController.testPaymentConfig);
+router.post('/', requireModuleAccess('settings', 'manage'), handleLogoUpload, settingsController.update);
+router.post('/test-payment', requireModuleAccess('settings', 'manage'), settingsController.testPaymentConfig);
 
 export default router;

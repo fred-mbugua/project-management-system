@@ -42,12 +42,17 @@
   --emerald-400: #34D399;
   --emerald-500: #10B981;
   --emerald-600: #059669;
+  --emerald-700: #047857;
+  --emerald-800: #065F46;
   --amber-400: #FBBF24;
   --amber-500: #F59E0B;
   --amber-600: #D97706;
+  --amber-700: #B45309;
   --rose-400: #FB7185;
   --rose-500: #F43F5E;
   --rose-600: #E11D48;
+  --rose-700: #BE123C;
+  --rose-800: #9F1239;
   --violet-500: #8B5CF6;
   --orange-500: #F97316;
 
@@ -872,24 +877,46 @@ select.form-select,
 
 .btn-success {
   background: var(--emerald-600);
-  color: #ffffff;
+  color: #ffffff !important;
   border: 1px solid var(--emerald-700);
 }
 
-.btn-success:hover {
-  background: var(--emerald-700);
-  color: #ffffff;
+.btn-success:hover,
+.btn-success:focus {
+  background: var(--emerald-700) !important;
+  border-color: var(--emerald-800) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.3);
+}
+
+.btn-success:hover span,
+.btn-success:hover i,
+.btn-success:focus span,
+.btn-success:focus i {
+  color: #ffffff !important;
 }
 
 .btn-danger {
   background: var(--rose-600);
-  color: #ffffff;
+  color: #ffffff !important;
   border: 1px solid var(--rose-700);
 }
 
-.btn-danger:hover {
-  background: var(--rose-700);
-  color: #ffffff;
+.btn-danger:hover,
+.btn-danger:focus {
+  background: var(--rose-700) !important;
+  border-color: var(--rose-800) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.3);
+}
+
+.btn-danger:hover span,
+.btn-danger:hover i,
+.btn-danger:focus span,
+.btn-danger:focus i {
+  color: #ffffff !important;
 }
 
 .btn-ghost {

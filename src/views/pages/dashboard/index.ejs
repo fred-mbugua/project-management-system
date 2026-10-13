@@ -11,14 +11,18 @@
       <p class="page-subtitle">Here is the latest operational snapshot for <strong><%= tenant ? tenant.name : 'your organization' %></strong>.</p>
     </div>
     <div class="page-actions">
+      <% if (hasModuleAccess('projects', 'manage')) { %>
       <a href="/projects/new" class="btn btn-primary" id="btn-create-project">
         <i class="uil uil-plus"></i>
         <span>New Project</span>
       </a>
+      <% } %>
+      <% if (hasModuleAccess('invoices', 'manage')) { %>
       <a href="/invoices/new" class="btn btn-secondary" id="btn-create-invoice">
         <i class="uil uil-receipt"></i>
         <span>New Invoice</span>
       </a>
+      <% } %>
     </div>
   </div>
 

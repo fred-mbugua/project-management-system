@@ -8,6 +8,7 @@ import { query } from '../config/database';
 import { InvoiceModel, InvoiceStatus, TaxType, AuditAction } from '../models';
 import { calculateInvoiceTotals, generateEtimsHash, generateEtimsQrPayload, formatKES } from '../utils/taxCalculator';
 import { extractPaginationParams, calculatePagination } from '../utils/pagination';
+import { isAssignedProjectsOnly } from '../middleware/rbac';
 import pdfService from '../services/pdf.service';
 import storageService from '../services/storage.service';
 import ActionLogService from '../services/actionLog.service';
@@ -33,6 +34,18 @@ export class InvoiceController {
       if (tenantId && !isSuper) {
         conditions.push(`i.tenant_id = $${paramIdx++}`);
         values.push(tenantId);
+      }
+
+      // Restrict to invoices linked to assigned projects if user is scoped
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        conditions.push(`(
+          i.project_id IS NOT NULL AND (
+            EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = i.project_id AND pm.user_id = $${paramIdx})
+            OR EXISTS (SELECT 1 FROM tasks t WHERE t.project_id = i.project_id AND t.assigned_to_id = $${paramIdx})
+          )
+        )`);
+        values.push(req.user.id);
+        paramIdx++;
       }
 
       if (params.search) {
@@ -116,9 +129,20 @@ export class InvoiceController {
       }
 
       const tenantId = req.tenantId;
+      const isScoped = req.user ? isAssignedProjectsOnly(req.user) : false;
+      const projectsQuery = isScoped && req.user
+        ? query(
+            `SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' AND (
+              EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = projects.id AND pm.user_id = $2)
+              OR EXISTS (SELECT 1 FROM tasks t WHERE t.project_id = projects.id AND t.assigned_to_id = $2)
+            ) ORDER BY name ASC`,
+            [tenantId, req.user.id]
+          )
+        : query(`SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' ORDER BY name ASC`, [tenantId]);
+
       const [clientsRes, projectsRes] = await Promise.all([
         query(`SELECT id, name, kra_pin FROM clients WHERE tenant_id = $1 AND is_active = TRUE ORDER BY name ASC`, [tenantId]),
-        query(`SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' ORDER BY name ASC`, [tenantId]),
+        projectsQuery,
       ]);
 
       // Generate invoice number preview
@@ -131,6 +155,7 @@ export class InvoiceController {
         clients: clientsRes.rows,
         projects: projectsRes.rows,
         invoiceNumber,
+        tenantVatRegistered: req.tenant?.vatRegistered !== false,
       });
     } catch (error) {
       next(error);
@@ -162,6 +187,7 @@ export class InvoiceController {
         itemDescriptions,
         itemQuantities,
         itemUnitPrices,
+        includeVat,
       } = req.body;
 
       if (!clientId || !invoiceNumber || !dueDate) {
@@ -169,6 +195,24 @@ export class InvoiceController {
         res.redirect('/invoices/new');
         return;
       }
+
+      if (projectId && req.user && isAssignedProjectsOnly(req.user)) {
+        const pCheck = await query(
+          `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+           UNION
+           SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2`,
+          [projectId, req.user.id]
+        );
+        if (pCheck.rowCount === 0) {
+          req.flash('error', 'You can only create invoices for projects assigned to you.');
+          res.redirect('/invoices/new');
+          return;
+        }
+      }
+
+      const applyVat = includeVat === 'true' || includeVat === 'on' || includeVat === '1' || includeVat === true;
+      const taxType = applyVat ? TaxType.VAT_16 : TaxType.EXEMPT;
+      const taxRate = applyVat ? 16 : 0;
 
       // Format line items
       const descriptions = Array.isArray(itemDescriptions) ? itemDescriptions : [itemDescriptions];
@@ -183,7 +227,8 @@ export class InvoiceController {
             quantity: parseFloat(quantities[i]) || 1,
             unitPrice: parseFloat(unitPrices[i]) || 0,
             discountPercent: 0,
-            taxType: TaxType.VAT_16,
+            taxType,
+            taxRate,
           });
         }
       }
@@ -196,6 +241,8 @@ export class InvoiceController {
 
       // Calculate totals using KRA tax engine
       const totals = calculateInvoiceTotals(rawItems);
+      const taxAmount = applyVat ? totals.totalTax : 0;
+      const grandTotal = applyVat ? totals.grandTotal : totals.subtotal;
 
       // Get client and tenant PIN for eTIMS
       const clientRes = await query(`SELECT kra_pin FROM clients WHERE id = $1`, [clientId]);
@@ -208,8 +255,8 @@ export class InvoiceController {
         issueDate: issueDate.toISOString(),
         tenantKraPin,
         clientKraPin,
-        totalAmount: totals.grandTotal,
-        taxAmount: totals.totalTax,
+        totalAmount: grandTotal,
+        taxAmount,
       };
 
       const etimsHash = generateEtimsHash(etimsPayloadInput);
@@ -221,19 +268,20 @@ export class InvoiceController {
         projectId: projectId || null,
         invoiceNumber,
         title: title || 'Professional Services',
-        status: InvoiceStatus.SENT,
+        status: InvoiceStatus.UNPAID,
         issueDate,
         dueDate: new Date(dueDate),
         subtotal: totals.subtotal,
-        taxAmount: totals.totalTax,
+        taxAmount,
         discountAmount: totals.totalDiscount,
-        totalAmount: totals.grandTotal,
+        totalAmount: grandTotal,
         amountPaid: 0,
-        balanceDue: totals.grandTotal,
+        balanceDue: grandTotal,
         notes: notes || null,
         terms: terms || 'Payment due within 30 days.',
         tenantKraPin,
         clientKraPin,
+        includeVat: applyVat,
         etimsVerificationHash: etimsHash,
         etimsQrPayload: etimsQr,
         items: rawItems.map((item, idx) => ({
@@ -241,9 +289,9 @@ export class InvoiceController {
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           taxType: item.taxType,
-          taxRate: 16,
-          lineTotal: item.quantity * item.unitPrice * 1.16,
-          lineTax: item.quantity * item.unitPrice * 0.16,
+          taxRate,
+          lineTotal: item.quantity * item.unitPrice * (1 + taxRate / 100),
+          lineTax: item.quantity * item.unitPrice * (taxRate / 100),
           sortOrder: idx + 1,
         })),
       });
@@ -307,6 +355,26 @@ export class InvoiceController {
         return;
       }
 
+      // If user is restricted to assigned projects only, verify access
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        if (!invoice.project_id) {
+          req.flash('error', 'You do not have permission to view this invoice.');
+          res.redirect('/invoices');
+          return;
+        }
+        const memberCheck = await query(`
+          SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+          UNION
+          SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2
+          LIMIT 1
+        `, [invoice.project_id, req.user.id]);
+        if (memberCheck.rows.length === 0) {
+          req.flash('error', 'You do not have permission to view this invoice.');
+          res.redirect('/invoices');
+          return;
+        }
+      }
+
       res.render('pages/invoices/show', {
         title: `Invoice ${invoice.invoice_number}`,
         invoice,
@@ -362,6 +430,26 @@ export class InvoiceController {
         return;
       }
 
+      // If user is restricted to assigned projects only, verify access
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        if (!invoice.project_id) {
+          req.flash('error', 'You do not have permission to download this invoice.');
+          res.redirect('/invoices');
+          return;
+        }
+        const memberCheck = await query(`
+          SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+          UNION
+          SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2
+          LIMIT 1
+        `, [invoice.project_id, req.user.id]);
+        if (memberCheck.rows.length === 0) {
+          req.flash('error', 'You do not have permission to download this invoice.');
+          res.redirect('/invoices');
+          return;
+        }
+      }
+
       const selectedTemplate = (req.query.template as string) || invoice.template || invoice.tenant_invoice_template || 'modern';
       const customColor = (req.query.color as string) || invoice.custom_color || invoice.tenant_primary_color || '#4F46E5';
 
@@ -387,6 +475,7 @@ export class InvoiceController {
         template: selectedTemplate,
         customColor,
         displayFields,
+        includeVat: invoice.include_vat !== false && parseFloat(invoice.tax_amount) > 0,
         subtotal: invoice.subtotal,
         taxAmount: invoice.tax_amount,
         discountAmount: invoice.discount_amount,
@@ -499,7 +588,100 @@ export class InvoiceController {
   };
 
   /**
-   * Manually update invoice status (e.g. PAID, PARTIALLY_PAID, SENT, OVERDUE, CANCELLED)
+   * Toggle VAT inclusion (16% vs 0% Exempt) on an existing invoice
+   */
+  toggleVat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const invoiceId = req.params.id as string;
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+
+      let findSql = `SELECT * FROM invoices WHERE id = $1`;
+      const findParams: any[] = [invoiceId];
+      if (tenantId && !isSuper) {
+        findSql += ` AND tenant_id = $2`;
+        findParams.push(tenantId);
+      }
+      const invRes = await query(findSql, findParams);
+      const invoice = invRes.rows[0];
+      if (!invoice) {
+        req.flash('error', 'Invoice not found.');
+        res.redirect('/invoices');
+        return;
+      }
+
+      // Fetch current items
+      const itemsRes = await query(
+        `SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order ASC, id ASC`,
+        [invoiceId]
+      );
+      const items = itemsRes.rows;
+
+      const currentIncludeVat = (invoice.include_vat !== false) && parseFloat(invoice.tax_amount) > 0;
+      const newIncludeVat = !currentIncludeVat;
+      const newTaxRate = newIncludeVat ? 16 : 0;
+      const newTaxType = newIncludeVat ? TaxType.VAT_16 : TaxType.EXEMPT;
+
+      let newSubtotal = 0;
+      let newTotalTax = 0;
+
+      for (const item of items) {
+        const qty = parseFloat(item.quantity) || 1;
+        const price = parseFloat(item.unit_price) || 0;
+        const lineTax = newIncludeVat ? (qty * price * 0.16) : 0;
+        const lineTotal = newIncludeVat ? (qty * price * 1.16) : (qty * price);
+
+        newSubtotal += (qty * price);
+        newTotalTax += lineTax;
+
+        await query(
+          `UPDATE invoice_items SET tax_type = $1, tax_rate = $2, line_tax = $3, line_total = $4 WHERE id = $5`,
+          [newTaxType, newTaxRate, lineTax, lineTotal, item.id]
+        );
+      }
+
+      const discountAmount = parseFloat(invoice.discount_amount || 0);
+      const newTotalAmount = Math.max(0, newSubtotal + newTotalTax - discountAmount);
+      const currentAmountPaid = parseFloat(invoice.amount_paid || 0);
+      const newBalanceDue = Math.max(0, newTotalAmount - currentAmountPaid);
+
+      let updateSql = `
+        UPDATE invoices 
+        SET subtotal = $1, tax_amount = $2, total_amount = $3, balance_due = $4, include_vat = $5, updated_at = NOW() 
+        WHERE id = $6
+      `;
+      const updateParams: any[] = [
+        newSubtotal,
+        newTotalTax,
+        newTotalAmount,
+        newBalanceDue,
+        newIncludeVat,
+        invoiceId,
+      ];
+      if (tenantId && !isSuper) {
+        updateSql += ` AND tenant_id = $7`;
+        updateParams.push(tenantId);
+      }
+      await query(updateSql, updateParams);
+
+      await ActionLogService.record(req, {
+        action: AuditAction.UPDATE,
+        entityType: 'INVOICE',
+        entityId: invoiceId,
+        description: `Toggled VAT to ${newIncludeVat ? '16% Standard' : '0% Exempt'} on invoice ${invoice.invoice_number}`,
+        metadata: { newIncludeVat, newTotalAmount, newTotalTax },
+      });
+
+      req.flash('success', `Invoice VAT updated: ${newIncludeVat ? '16% VAT applied.' : 'VAT removed (0% Exempt).'}`);
+      res.redirect(`/invoices/${invoiceId}`);
+    } catch (error) {
+      invoiceLogger.error('Failed to toggle invoice VAT', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Manually update invoice status (e.g. PAID, UNPAID, PARTIALLY_PAID, SENT, OVERDUE, CANCELLED)
    */
   updateStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -536,6 +718,22 @@ export class InvoiceController {
         const updateParams: any[] = [status, totalAmount, invoiceId];
         if (tenantId && !isSuper) {
           updateSql += ` AND tenant_id = $4`;
+          updateParams.push(tenantId);
+        }
+        await query(updateSql, updateParams);
+      } else if (status === 'UNPAID') {
+        // Calculate amount paid from completed payments, or 0
+        const payRes = await query(
+          `SELECT COALESCE(SUM(amount), 0) as paid_sum FROM payments WHERE invoice_id = $1 AND status = 'COMPLETED'`,
+          [invoiceId]
+        );
+        const amountPaid = parseFloat(payRes.rows[0]?.paid_sum || 0);
+        const totalAmount = parseFloat(invoice.total_amount);
+        const balanceDue = Math.max(0, totalAmount - amountPaid);
+        let updateSql = `UPDATE invoices SET status = $1, amount_paid = $2, balance_due = $3, updated_at = NOW() WHERE id = $4`;
+        const updateParams: any[] = ['UNPAID', amountPaid, balanceDue, invoiceId];
+        if (tenantId && !isSuper) {
+          updateSql += ` AND tenant_id = $5`;
           updateParams.push(tenantId);
         }
         await query(updateSql, updateParams);
@@ -678,6 +876,268 @@ export class InvoiceController {
       res.redirect(`/invoices/${invoiceId}`);
     } catch (error) {
       invoiceLogger.error('Failed to record manual payment', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Render edit form for invoice
+   * If invoice was generated from a quotation, informs user that editing requires editing the quotation first
+   */
+  showEdit = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const invoiceId = req.params.id as string;
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+
+      let sql = `SELECT * FROM invoices WHERE id = $1`;
+      const params: any[] = [invoiceId];
+      if (tenantId && !isSuper) {
+        sql += ` AND tenant_id = $2`;
+        params.push(tenantId);
+      }
+      const invRes = await query(sql, params);
+      const invoice = invRes.rows[0];
+      if (!invoice) {
+        req.flash('error', 'Invoice not found.');
+        res.redirect('/invoices');
+        return;
+      }
+
+      // Check if this invoice originated from a quotation
+      let sourceQuotation: any = null;
+      if (invoice.quotation_id) {
+        const qRes = await query(`SELECT * FROM quotations WHERE id = $1`, [invoice.quotation_id]);
+        sourceQuotation = qRes.rows[0] || null;
+      }
+
+      const itemsRes = await query(
+        `SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order ASC`,
+        [invoiceId]
+      );
+
+      const clientsRes = await query(
+        `SELECT id, name, kra_pin FROM clients WHERE tenant_id = $1 ORDER BY name ASC`,
+        [invoice.tenant_id]
+      );
+
+      const projectsRes = await query(
+        `SELECT id, name, code FROM projects WHERE tenant_id = $1 ORDER BY name ASC`,
+        [invoice.tenant_id]
+      );
+
+      res.render('pages/invoices/edit', {
+        title: `Edit Invoice ${invoice.invoice_number}`,
+        invoice,
+        items: itemsRes.rows,
+        clients: clientsRes.rows,
+        projects: projectsRes.rows,
+        sourceQuotation,
+        formatKES,
+      });
+    } catch (error) {
+      invoiceLogger.error('Failed to show edit invoice form', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Update standalone invoice
+   * If invoice was generated from a quotation, directs user to edit quotation first
+   */
+  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const invoiceId = req.params.id as string;
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+
+      let sql = `SELECT * FROM invoices WHERE id = $1`;
+      const params: any[] = [invoiceId];
+      if (tenantId && !isSuper) {
+        sql += ` AND tenant_id = $2`;
+        params.push(tenantId);
+      }
+      const invRes = await query(sql, params);
+      const invoice = invRes.rows[0];
+      if (!invoice) {
+        req.flash('error', 'Invoice not found.');
+        res.redirect('/invoices');
+        return;
+      }
+
+      // If originated from a quotation, editing must be done on the quotation first
+      if (invoice.quotation_id) {
+        const qRes = await query(`SELECT * FROM quotations WHERE id = $1`, [invoice.quotation_id]);
+        const sourceQuotation = qRes.rows[0];
+        req.flash('info', `This invoice was generated from Quotation ${sourceQuotation?.quotation_number || invoice.quotation_id}. Please edit the source quotation, which will automatically update this invoice.`);
+        res.redirect(`/quotations/${invoice.quotation_id}/edit`);
+        return;
+      }
+
+      const { clientId, projectId, title, dueDate, terms, notes, includeVat } = req.body;
+      const applyVat = includeVat === 'true' || includeVat === true || includeVat === 'on';
+
+      // Parse items
+      const descriptions = Array.isArray(req.body.itemDescriptions)
+        ? req.body.itemDescriptions
+        : (req.body.itemDescriptions ? [req.body.itemDescriptions] : (req.body.itemDescription ? [req.body.itemDescription] : []));
+      const quantities = Array.isArray(req.body.itemQuantities)
+        ? req.body.itemQuantities
+        : (req.body.itemQuantities ? [req.body.itemQuantities] : (req.body.itemQty ? [req.body.itemQty] : []));
+      const unitPrices = Array.isArray(req.body.itemUnitPrices)
+        ? req.body.itemUnitPrices
+        : (req.body.itemUnitPrices ? [req.body.itemUnitPrices] : (req.body.itemPrice ? [req.body.itemPrice] : []));
+
+      const rawItems = descriptions.map((desc: string, i: number) => {
+        const qty = parseFloat(quantities[i]) || 1;
+        const price = parseFloat(unitPrices[i]) || 0;
+        return {
+          description: desc,
+          quantity: qty,
+          unitPrice: price,
+          taxType: applyVat ? 'VAT_16' : 'EXEMPT',
+          taxRate: applyVat ? 16 : 0,
+        };
+      });
+
+      if (rawItems.length === 0) {
+        req.flash('error', 'At least one line item is required.');
+        res.redirect(`/invoices/${invoiceId}/edit`);
+        return;
+      }
+
+      const totals = calculateInvoiceTotals(rawItems);
+      const taxAmount = applyVat ? totals.totalTax : 0;
+      const grandTotal = applyVat ? totals.grandTotal : totals.subtotal;
+      const amountPaid = parseFloat(invoice.amount_paid || 0);
+      const balanceDue = Math.max(0, grandTotal - amountPaid);
+      const status = balanceDue <= 0 && amountPaid > 0 ? 'PAID' : (amountPaid > 0 ? 'PARTIALLY_PAID' : (invoice.status === 'PAID' ? 'PAID' : 'UNPAID'));
+
+      // Update invoice record
+      await query(`
+        UPDATE invoices
+        SET client_id = $1, project_id = $2, title = $3, due_date = $4,
+            subtotal = $5, tax_amount = $6, total_amount = $7, balance_due = $8,
+            status = $9, include_vat = $10, terms = $11, notes = $12, updated_at = NOW()
+        WHERE id = $13
+      `, [
+        clientId || invoice.client_id,
+        projectId || null,
+        title || invoice.title,
+        dueDate ? new Date(dueDate) : invoice.due_date,
+        totals.subtotal,
+        taxAmount,
+        grandTotal,
+        balanceDue,
+        status,
+        applyVat,
+        terms !== undefined ? terms : invoice.terms,
+        notes !== undefined ? notes : invoice.notes,
+        invoiceId,
+      ]);
+
+      // Replace invoice items
+      await query(`DELETE FROM invoice_items WHERE invoice_id = $1`, [invoiceId]);
+      for (let idx = 0; idx < rawItems.length; idx++) {
+        const it = rawItems[idx];
+        const lineTax = it.quantity * it.unitPrice * (it.taxRate / 100);
+        const lineTotal = it.quantity * it.unitPrice + lineTax;
+        await query(`
+          INSERT INTO invoice_items (
+            id, invoice_id, description, quantity, unit_price,
+            discount_percent, tax_type, tax_rate, line_total, line_tax, sort_order
+          ) VALUES (
+            gen_random_uuid()::text, $1, $2, $3, $4, 0, $5, $6, $7, $8, $9
+          )
+        `, [
+          invoiceId, it.description, it.quantity, it.unitPrice,
+          it.taxType, it.taxRate, lineTotal, lineTax, idx + 1
+        ]);
+      }
+
+      await ActionLogService.record(req, {
+        action: AuditAction.UPDATE,
+        entityType: 'INVOICE',
+        entityId: invoiceId,
+        description: `Updated invoice ${invoice.invoice_number} (New Total: KES ${grandTotal})`,
+        metadata: { invoiceId, totalAmount: grandTotal, subtotal: totals.subtotal, taxAmount, balanceDue },
+      });
+
+      req.flash('success', `Invoice ${invoice.invoice_number} updated successfully.`);
+      res.redirect(`/invoices/${invoiceId}`);
+    } catch (error) {
+      invoiceLogger.error('Failed to update invoice', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Delete invoice
+   * Reverts source quotation status so quotation can now be edited or deleted
+   */
+  deleteInvoice = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const invoiceId = req.params.id as string;
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+
+      let sql = `SELECT * FROM invoices WHERE id = $1`;
+      const params: any[] = [invoiceId];
+      if (tenantId && !isSuper) {
+        sql += ` AND tenant_id = $2`;
+        params.push(tenantId);
+      }
+      const invRes = await query(sql, params);
+      const invoice = invRes.rows[0];
+      if (!invoice) {
+        req.flash('error', 'Invoice not found.');
+        res.redirect('/invoices');
+        return;
+      }
+
+      // Record audit log BEFORE deletion
+      await ActionLogService.record(req, {
+        action: AuditAction.DELETE,
+        entityType: 'INVOICE',
+        entityId: invoiceId,
+        description: `Deleted invoice ${invoice.invoice_number} (Total: KES ${invoice.total_amount})`,
+        metadata: {
+          invoiceId,
+          invoiceNumber: invoice.invoice_number,
+          totalAmount: invoice.total_amount,
+          amountPaid: invoice.amount_paid,
+          balanceDue: invoice.balance_due,
+          quotationId: invoice.quotation_id,
+          clientId: invoice.client_id,
+        },
+      });
+
+      // If linked to a quotation, revert the quotation's status to 'APPROVED' and unlink invoice
+      if (invoice.quotation_id) {
+        await query(`
+          UPDATE quotations
+          SET converted_invoice_id = NULL, status = 'APPROVED', updated_at = NOW()
+          WHERE id = $1
+        `, [invoice.quotation_id]);
+
+        await ActionLogService.record(req, {
+          action: AuditAction.UPDATE,
+          entityType: 'QUOTATION',
+          entityId: invoice.quotation_id,
+          description: `Reverted quotation status to APPROVED after deletion of Invoice ${invoice.invoice_number}`,
+          metadata: { quotationId: invoice.quotation_id, deletedInvoiceId: invoiceId },
+        });
+      }
+
+      // Delete payments, items, and invoice
+      await query(`DELETE FROM payments WHERE invoice_id = $1`, [invoiceId]);
+      await query(`DELETE FROM invoice_items WHERE invoice_id = $1`, [invoiceId]);
+      await query(`DELETE FROM invoices WHERE id = $1`, [invoiceId]);
+
+      req.flash('success', `Invoice ${invoice.invoice_number} deleted successfully. ${invoice.quotation_id ? 'Source quotation status reverted.' : ''}`);
+      res.redirect('/invoices');
+    } catch (error) {
+      invoiceLogger.error('Failed to delete invoice', { error: String(error) });
       next(error);
     }
   };

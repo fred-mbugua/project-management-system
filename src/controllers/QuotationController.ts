@@ -4,9 +4,11 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../config/database';
-import { QuotationModel, QuotationStatus } from '../models';
+import { QuotationModel, QuotationStatus, AuditAction } from '../models';
 import { calculateInvoiceTotals, formatKES } from '../utils/taxCalculator';
 import { extractPaginationParams, calculatePagination } from '../utils/pagination';
+import { isAssignedProjectsOnly } from '../middleware/rbac';
+import ActionLogService from '../services/actionLog.service';
 import pdfService from '../services/pdf.service';
 import logger from '../utils/logger';
 
@@ -30,6 +32,18 @@ export class QuotationController {
       if (tenantId && !isSuper) {
         conditions.push(`q.tenant_id = $${paramIdx++}`);
         values.push(tenantId);
+      }
+
+      // Restrict to quotations linked to assigned projects if user is scoped
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        conditions.push(`(
+          q.project_id IS NOT NULL AND (
+            EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = q.project_id AND pm.user_id = $${paramIdx})
+            OR EXISTS (SELECT 1 FROM tasks t WHERE t.project_id = q.project_id AND t.assigned_to_id = $${paramIdx})
+          )
+        )`);
+        values.push(req.user.id);
+        paramIdx++;
       }
 
       if (params.search) {
@@ -119,13 +133,24 @@ export class QuotationController {
         return;
       }
 
+      const isScoped = req.user ? isAssignedProjectsOnly(req.user) : false;
+      const projectsQuery = isScoped && req.user
+        ? query(
+            `SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' AND (
+              EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = projects.id AND pm.user_id = $2)
+              OR EXISTS (SELECT 1 FROM tasks t WHERE t.project_id = projects.id AND t.assigned_to_id = $2)
+            ) ORDER BY name ASC`,
+            [tenantId, req.user.id]
+          )
+        : tenantId
+        ? query(`SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' ORDER BY name ASC`, [tenantId])
+        : query(`SELECT id, name, code FROM projects WHERE status != 'CANCELLED' ORDER BY name ASC`);
+
       const [clientsRes, projectsRes] = await Promise.all([
         tenantId
           ? query(`SELECT id, name FROM clients WHERE tenant_id = $1 AND is_active = TRUE ORDER BY name ASC`, [tenantId])
           : query(`SELECT id, name FROM clients WHERE is_active = TRUE ORDER BY name ASC`),
-        tenantId
-          ? query(`SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' ORDER BY name ASC`, [tenantId])
-          : query(`SELECT id, name, code FROM projects WHERE status != 'CANCELLED' ORDER BY name ASC`),
+        projectsQuery,
       ]);
 
       const countRes = tenantId
@@ -170,6 +195,20 @@ export class QuotationController {
         req.flash('error', 'Client, Quotation Number, and Validity Date are required.');
         res.redirect('/quotations/new');
         return;
+      }
+
+      if (projectId && req.user && isAssignedProjectsOnly(req.user)) {
+        const pCheck = await query(
+          `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+           UNION
+           SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2`,
+          [projectId, req.user.id]
+        );
+        if (pCheck.rowCount === 0) {
+          req.flash('error', 'You can only create quotations for projects assigned to you.');
+          res.redirect('/quotations/new');
+          return;
+        }
       }
 
       const qty = parseFloat(itemQty) || 1;
@@ -260,6 +299,26 @@ export class QuotationController {
         req.flash('error', 'Quotation not found.');
         res.redirect('/quotations');
         return;
+      }
+
+      // If user is restricted to assigned projects only, verify access
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        if (!quotation.project_id) {
+          req.flash('error', 'You do not have permission to view this quotation.');
+          res.redirect('/quotations');
+          return;
+        }
+        const memberCheck = await query(`
+          SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+          UNION
+          SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2
+          LIMIT 1
+        `, [quotation.project_id, req.user.id]);
+        if (memberCheck.rows.length === 0) {
+          req.flash('error', 'You do not have permission to view this quotation.');
+          res.redirect('/quotations');
+          return;
+        }
       }
 
       res.render('pages/quotations/show', {
@@ -446,6 +505,24 @@ export class QuotationController {
         return;
       }
 
+      // If user is restricted to assigned projects only, verify access
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        if (!quote.project_id) {
+          res.status(403).send('You do not have permission to download this quotation.');
+          return;
+        }
+        const memberCheck = await query(`
+          SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+          UNION
+          SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2
+          LIMIT 1
+        `, [quote.project_id, req.user.id]);
+        if (memberCheck.rows.length === 0) {
+          res.status(403).send('You do not have permission to download this quotation.');
+          return;
+        }
+      }
+
       const selectedTemplate = (req.query.template as string) || quote.template || quote.tenant_invoice_template || 'modern';
       const customColor = (req.query.color as string) || quote.custom_color || quote.tenant_primary_color || '#4F46E5';
 
@@ -509,6 +586,311 @@ export class QuotationController {
       }, res);
     } catch (error) {
       quoteLogger.error('Failed to generate quotation PDF', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Render edit form for quotation
+   */
+  showEdit = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const quoteId = req.params.id as string;
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+
+      let sql = `SELECT * FROM quotations WHERE id = $1`;
+      const params: any[] = [quoteId];
+      if (tenantId && !isSuper) {
+        sql += ` AND tenant_id = $2`;
+        params.push(tenantId);
+      }
+      const quoteRes = await query(sql, params);
+      const quotation = quoteRes.rows[0];
+      if (!quotation) {
+        req.flash('error', 'Quotation not found.');
+        res.redirect('/quotations');
+        return;
+      }
+
+      // Check if quotation has progressed to an active invoice
+      const invRes = await query(
+        `SELECT id, invoice_number, total_amount, status FROM invoices WHERE quotation_id = $1 OR id = $2 LIMIT 1`,
+        [quoteId, quotation.converted_invoice_id || '']
+      );
+      const linkedInvoice = invRes.rows[0] || null;
+
+      const itemsRes = await query(
+        `SELECT * FROM quotation_items WHERE quotation_id = $1 ORDER BY sort_order ASC`,
+        [quoteId]
+      );
+
+      const clientsRes = await query(
+        `SELECT id, name, kra_pin FROM clients WHERE tenant_id = $1 ORDER BY name ASC`,
+        [quotation.tenant_id]
+      );
+
+      const projectsRes = await query(
+        `SELECT id, name, code FROM projects WHERE tenant_id = $1 ORDER BY name ASC`,
+        [quotation.tenant_id]
+      );
+
+      res.render('pages/quotations/edit', {
+        title: `Edit Quotation ${quotation.quotation_number}`,
+        quotation,
+        items: itemsRes.rows,
+        clients: clientsRes.rows,
+        projects: projectsRes.rows,
+        linkedInvoice,
+        formatKES,
+      });
+    } catch (error) {
+      quoteLogger.error('Failed to show edit quotation form', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Update quotation and synchronize with linked invoice if quotation has progressed
+   */
+  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const quoteId = req.params.id as string;
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+
+      let sql = `SELECT * FROM quotations WHERE id = $1`;
+      const params: any[] = [quoteId];
+      if (tenantId && !isSuper) {
+        sql += ` AND tenant_id = $2`;
+        params.push(tenantId);
+      }
+      const quoteRes = await query(sql, params);
+      const quotation = quoteRes.rows[0];
+      if (!quotation) {
+        req.flash('error', 'Quotation not found.');
+        res.redirect('/quotations');
+        return;
+      }
+
+      const { clientId, projectId, title, validUntil, terms, notes, includeVat } = req.body;
+      const applyVat = includeVat === 'true' || includeVat === true || includeVat === 'on';
+
+      // Parse items
+      const descriptions = Array.isArray(req.body.itemDescriptions)
+        ? req.body.itemDescriptions
+        : (req.body.itemDescriptions ? [req.body.itemDescriptions] : (req.body.itemDescription ? [req.body.itemDescription] : []));
+      const quantities = Array.isArray(req.body.itemQuantities)
+        ? req.body.itemQuantities
+        : (req.body.itemQuantities ? [req.body.itemQuantities] : (req.body.itemQty ? [req.body.itemQty] : []));
+      const unitPrices = Array.isArray(req.body.itemUnitPrices)
+        ? req.body.itemUnitPrices
+        : (req.body.itemUnitPrices ? [req.body.itemUnitPrices] : (req.body.itemPrice ? [req.body.itemPrice] : []));
+
+      const rawItems = descriptions.map((desc: string, i: number) => {
+        const qty = parseFloat(quantities[i]) || 1;
+        const price = parseFloat(unitPrices[i]) || 0;
+        return {
+          description: desc,
+          quantity: qty,
+          unitPrice: price,
+          taxType: applyVat ? 'VAT_16' : 'EXEMPT',
+          taxRate: applyVat ? 16 : 0,
+        };
+      });
+
+      if (rawItems.length === 0) {
+        req.flash('error', 'At least one line item is required.');
+        res.redirect(`/quotations/${quoteId}/edit`);
+        return;
+      }
+
+      const totals = calculateInvoiceTotals(rawItems);
+      const taxAmount = applyVat ? totals.totalTax : 0;
+      const grandTotal = applyVat ? totals.grandTotal : totals.subtotal;
+
+      // Update quotation record
+      await query(`
+        UPDATE quotations
+        SET client_id = $1, project_id = $2, title = $3, valid_until = $4,
+            subtotal = $5, tax_amount = $6, total_amount = $7,
+            terms = $8, notes = $9, updated_at = NOW()
+        WHERE id = $10
+      `, [
+        clientId || quotation.client_id,
+        projectId || null,
+        title || quotation.title,
+        validUntil ? new Date(validUntil) : quotation.valid_until,
+        totals.subtotal,
+        taxAmount,
+        grandTotal,
+        terms !== undefined ? terms : quotation.terms,
+        notes !== undefined ? notes : quotation.notes,
+        quoteId,
+      ]);
+
+      // Replace quotation items
+      await query(`DELETE FROM quotation_items WHERE quotation_id = $1`, [quoteId]);
+      for (let idx = 0; idx < rawItems.length; idx++) {
+        const it = rawItems[idx];
+        const lineTax = it.quantity * it.unitPrice * (it.taxRate / 100);
+        const lineTotal = it.quantity * it.unitPrice + lineTax;
+        await query(`
+          INSERT INTO quotation_items (
+            id, quotation_id, description, quantity, unit_price,
+            discount_percent, tax_type, tax_rate, line_total, line_tax, sort_order
+          ) VALUES (
+            gen_random_uuid()::text, $1, $2, $3, $4, 0, $5, $6, $7, $8, $9
+          )
+        `, [
+          quoteId, it.description, it.quantity, it.unitPrice,
+          it.taxType, it.taxRate, lineTotal, lineTax, idx + 1
+        ]);
+      }
+
+      await ActionLogService.record(req, {
+        action: AuditAction.UPDATE,
+        entityType: 'QUOTATION',
+        entityId: quoteId,
+        description: `Updated quotation ${quotation.quotation_number} (New Total: KES ${grandTotal})`,
+        metadata: { quotationId: quoteId, totalAmount: grandTotal, subtotal: totals.subtotal, taxAmount },
+      });
+
+      // CHECK IF QUOTATION HAS PROGRESSED TO AN INVOICE
+      const invCheck = await query(
+        `SELECT * FROM invoices WHERE quotation_id = $1 OR id = $2 LIMIT 1`,
+        [quoteId, quotation.converted_invoice_id || '']
+      );
+      const linkedInvoice = invCheck.rows[0];
+
+      if (linkedInvoice) {
+        // Automatically synchronize the progressed invoice!
+        const invPaid = parseFloat(linkedInvoice.amount_paid || 0);
+        const newBalance = Math.max(0, grandTotal - invPaid);
+        const newStatus = newBalance <= 0 && invPaid > 0 ? 'PAID' : (invPaid > 0 ? 'PARTIALLY_PAID' : (linkedInvoice.status === 'PAID' ? 'PAID' : 'UNPAID'));
+
+        await query(`
+          UPDATE invoices
+          SET client_id = $1, project_id = $2, title = $3,
+              subtotal = $4, tax_amount = $5, total_amount = $6,
+              balance_due = $7, status = $8, include_vat = $9,
+              terms = $10, notes = $11, updated_at = NOW()
+          WHERE id = $12
+        `, [
+          clientId || quotation.client_id,
+          projectId || null,
+          title || quotation.title,
+          totals.subtotal,
+          taxAmount,
+          grandTotal,
+          newBalance,
+          newStatus,
+          applyVat,
+          terms !== undefined ? terms : quotation.terms,
+          notes !== undefined ? notes : quotation.notes,
+          linkedInvoice.id,
+        ]);
+
+        // Replace invoice items with updated quotation items
+        await query(`DELETE FROM invoice_items WHERE invoice_id = $1`, [linkedInvoice.id]);
+        for (let idx = 0; idx < rawItems.length; idx++) {
+          const it = rawItems[idx];
+          const lineTax = it.quantity * it.unitPrice * (it.taxRate / 100);
+          const lineTotal = it.quantity * it.unitPrice + lineTax;
+          await query(`
+            INSERT INTO invoice_items (
+              id, invoice_id, description, quantity, unit_price,
+              discount_percent, tax_type, tax_rate, line_total, line_tax, sort_order
+            ) VALUES (
+              gen_random_uuid()::text, $1, $2, $3, $4, 0, $5, $6, $7, $8, $9
+            )
+          `, [
+            linkedInvoice.id, it.description, it.quantity, it.unitPrice,
+            it.taxType, it.taxRate, lineTotal, lineTax, idx + 1
+          ]);
+        }
+
+        await ActionLogService.record(req, {
+          action: AuditAction.UPDATE,
+          entityType: 'INVOICE',
+          entityId: linkedInvoice.id,
+          description: `Synchronized invoice ${linkedInvoice.invoice_number} from updated Quotation ${quotation.quotation_number}`,
+          metadata: { invoiceId: linkedInvoice.id, sourceQuotationId: quoteId, newTotal: grandTotal, newBalance },
+        });
+
+        req.flash('success', `Quotation ${quotation.quotation_number} updated and synchronized to Invoice ${linkedInvoice.invoice_number} successfully!`);
+      } else {
+        req.flash('success', `Quotation ${quotation.quotation_number} updated successfully.`);
+      }
+
+      res.redirect(`/quotations/${quoteId}`);
+    } catch (error) {
+      quoteLogger.error('Failed to update quotation', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Delete quotation - only permitted if it has NOT progressed to an invoice
+   */
+  deleteQuotation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const quoteId = req.params.id as string;
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+
+      let sql = `SELECT * FROM quotations WHERE id = $1`;
+      const params: any[] = [quoteId];
+      if (tenantId && !isSuper) {
+        sql += ` AND tenant_id = $2`;
+        params.push(tenantId);
+      }
+      const quoteRes = await query(sql, params);
+      const quotation = quoteRes.rows[0];
+      if (!quotation) {
+        req.flash('error', 'Quotation not found.');
+        res.redirect('/quotations');
+        return;
+      }
+
+      // Check if quotation has progressed to an active invoice
+      const invCheck = await query(
+        `SELECT id, invoice_number FROM invoices WHERE quotation_id = $1 OR id = $2 LIMIT 1`,
+        [quoteId, quotation.converted_invoice_id || '']
+      );
+      const linkedInvoice = invCheck.rows[0];
+
+      if (linkedInvoice) {
+        req.flash('error', `Cannot delete Quotation ${quotation.quotation_number} because it has progressed to Invoice ${linkedInvoice.invoice_number}. You must delete Invoice ${linkedInvoice.invoice_number} first.`);
+        res.redirect(`/quotations/${quoteId}`);
+        return;
+      }
+
+      // Record audit log BEFORE deletion
+      await ActionLogService.record(req, {
+        action: AuditAction.DELETE,
+        entityType: 'QUOTATION',
+        entityId: quoteId,
+        description: `Deleted quotation ${quotation.quotation_number} (Total: KES ${quotation.total_amount})`,
+        metadata: {
+          quotationId: quoteId,
+          quotationNumber: quotation.quotation_number,
+          title: quotation.title,
+          clientId: quotation.client_id,
+          totalAmount: quotation.total_amount,
+          subtotal: quotation.subtotal,
+          taxAmount: quotation.tax_amount,
+        },
+      });
+
+      // Delete quotation items and quotation
+      await query(`DELETE FROM quotation_items WHERE quotation_id = $1`, [quoteId]);
+      await query(`DELETE FROM quotations WHERE id = $1`, [quoteId]);
+
+      req.flash('success', `Quotation ${quotation.quotation_number} deleted successfully.`);
+      res.redirect('/quotations');
+    } catch (error) {
+      quoteLogger.error('Failed to delete quotation', { error: String(error) });
       next(error);
     }
   };

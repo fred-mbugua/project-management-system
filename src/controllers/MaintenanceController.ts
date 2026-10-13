@@ -8,6 +8,7 @@ import { MaintenanceFrequency, MaintenanceStatus } from '../models/types';
 import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import { formatKES } from '../utils/taxCalculator';
 import { recurringBillingService } from '../services/recurringBilling.service';
+import { isAssignedProjectsOnly } from '../middleware/rbac';
 import logger from '../utils/logger';
 
 const maintLogger = logger.child('MaintenanceController');
@@ -30,6 +31,18 @@ export class MaintenanceController {
       if (tenantId && !isSuper) {
         conditions.push(`m.tenant_id = $${paramIdx++}`);
         values.push(tenantId);
+      }
+
+      // Restrict to maintenance linked to assigned projects if user is scoped
+      if (req.user && isAssignedProjectsOnly(req.user)) {
+        conditions.push(`(
+          m.project_id IS NOT NULL AND (
+            EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = m.project_id AND pm.user_id = $${paramIdx})
+            OR EXISTS (SELECT 1 FROM tasks t WHERE t.project_id = m.project_id AND t.assigned_to_id = $${paramIdx})
+          )
+        )`);
+        values.push(req.user.id);
+        paramIdx++;
       }
 
       if (params.search) {
@@ -116,14 +129,25 @@ export class MaintenanceController {
       `;
       const dataValues = [...values, params.limit, params.offset];
 
+      const isScoped = req.user ? isAssignedProjectsOnly(req.user) : false;
+      const projectsQuery = isScoped && req.user
+        ? query(
+            `SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' AND (
+              EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = projects.id AND pm.user_id = $2)
+              OR EXISTS (SELECT 1 FROM tasks t WHERE t.project_id = projects.id AND t.assigned_to_id = $2)
+            ) ORDER BY name ASC`,
+            [tenantId, req.user.id]
+          )
+        : tenantId
+        ? query(`SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' ORDER BY name ASC`, [tenantId])
+        : query(`SELECT id, name, code FROM projects WHERE status != 'CANCELLED' ORDER BY name ASC`);
+
       const [schedulesRes, clientsRes, projectsRes, statsRes] = await Promise.all([
         query(dataSql, dataValues),
         tenantId
           ? query(`SELECT id, name FROM clients WHERE tenant_id = $1 AND is_active = TRUE ORDER BY name ASC`, [tenantId])
           : query(`SELECT id, name FROM clients WHERE is_active = TRUE ORDER BY name ASC`),
-        tenantId
-          ? query(`SELECT id, name, code FROM projects WHERE tenant_id = $1 AND status != 'CANCELLED' ORDER BY name ASC`, [tenantId])
-          : query(`SELECT id, name, code FROM projects WHERE status != 'CANCELLED' ORDER BY name ASC`),
+        projectsQuery,
         tenantId
           ? query(`
               SELECT 
@@ -199,6 +223,20 @@ export class MaintenanceController {
         req.flash('error', 'Title, Client, Retainer Amount, and Billing Start Date are required.');
         res.redirect('/maintenance');
         return;
+      }
+
+      if (projectId && req.user && isAssignedProjectsOnly(req.user)) {
+        const pCheck = await query(
+          `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+           UNION
+           SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2`,
+          [projectId, req.user.id]
+        );
+        if (pCheck.rowCount === 0) {
+          req.flash('error', 'You can only create maintenance contracts for projects assigned to you.');
+          res.redirect('/maintenance');
+          return;
+        }
       }
 
       const parsedInterval = parseInt(String(intervalMonths || '1'), 10) || 1;

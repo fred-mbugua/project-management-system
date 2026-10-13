@@ -65,6 +65,7 @@ DO $$ BEGIN
   CREATE TYPE invoice_status AS ENUM (
     'DRAFT',
     'SENT',
+    'UNPAID',
     'PARTIALLY_PAID',
     'PAID',
     'OVERDUE',
@@ -454,6 +455,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   etims_qr_payload TEXT,
   tenant_kra_pin VARCHAR(50),
   client_kra_pin VARCHAR(50),
+  include_vat BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT uq_invoices_tenant_num UNIQUE (tenant_id, invoice_number)
@@ -745,4 +747,11 @@ CREATE TABLE IF NOT EXISTS subscription_invoices (
 
 CREATE INDEX IF NOT EXISTS idx_sub_invoices_tenant ON subscription_invoices(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_sub_invoices_status ON subscription_invoices(status);
+
+-- Additional Columns for User Permissions & Project-Level Scoping
+ALTER TABLE users ADD COLUMN IF NOT EXISTS project_scope VARCHAR(20) NOT NULL DEFAULT 'ALL';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_project_scope ON users(project_scope);
+CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id);
 

@@ -251,16 +251,35 @@
           subtotal += (qty * price);
         });
 
-        var vat = subtotal * 0.16;
+        var vatCheckbox = document.getElementById('includeVat');
+        var applyVat = vatCheckbox ? vatCheckbox.checked : true;
+        var vat = applyVat ? (subtotal * 0.16) : 0;
         var grandTotal = subtotal + vat;
 
         var subtotalEl = document.getElementById('live-subtotal');
         var vatEl = document.getElementById('live-vat');
         var grandTotalEl = document.getElementById('live-grand-total');
+        var vatBadgeEl = document.getElementById('vat-mode-badge');
+        var vatLabelEl = document.getElementById('live-vat-label');
 
         if (subtotalEl) subtotalEl.textContent = CalculationManager.formatKES(subtotal);
-        if (vatEl) vatEl.textContent = CalculationManager.formatKES(vat);
+        if (vatEl) {
+          vatEl.textContent = applyVat ? CalculationManager.formatKES(vat) : 'KES 0.00 (Exempt / 0%)';
+        }
+        if (vatLabelEl) {
+          vatLabelEl.textContent = applyVat ? 'VAT (16% Standard):' : 'VAT (0% Exempt / Zero-Rated):';
+        }
         if (grandTotalEl) grandTotalEl.textContent = CalculationManager.formatKES(grandTotal);
+        if (vatBadgeEl) {
+          vatBadgeEl.innerHTML = applyVat
+            ? '<span class="badge badge-success" style="font-weight: 700; font-size: 0.8rem; padding: 4px 10px;"><i class="uil uil-check-circle mr-1"></i> VAT Included (16%)</span>'
+            : '<span class="badge badge-subtle" style="font-weight: 700; font-size: 0.8rem; padding: 4px 10px; background: #e2e8f0; color: #475569;"><i class="uil uil-ban mr-1"></i> No VAT (0% Exempt)</span>';
+        }
+      }
+
+      var vatCheckbox = document.getElementById('includeVat');
+      if (vatCheckbox) {
+        vatCheckbox.addEventListener('change', updateInvoiceTotals);
       }
 
       container.addEventListener('input', function (e) {

@@ -42,6 +42,7 @@ export interface CreateInvoiceInput {
   etimsQrPayload?: string | null;
   tenantKraPin?: string | null;
   clientKraPin?: string | null;
+  includeVat?: boolean;
   items?: CreateInvoiceItemInput[];
 }
 
@@ -71,6 +72,7 @@ export class InvoiceModel {
       etimsQrPayload: row.etims_qr_payload,
       tenantKraPin: row.tenant_kra_pin,
       clientKraPin: row.client_kra_pin,
+      includeVat: row.include_vat !== false,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };
@@ -113,10 +115,10 @@ export class InvoiceModel {
         invoice_number, title, status, issue_date, due_date,
         subtotal, tax_amount, discount_amount, total_amount,
         amount_paid, balance_due, notes, terms, template,
-        etims_verification_hash, etims_qr_payload, tenant_kra_pin, client_kra_pin, updated_at
+        etims_verification_hash, etims_qr_payload, tenant_kra_pin, client_kra_pin, include_vat, updated_at
       ) VALUES (
         COALESCE($1, gen_random_uuid()::text),
-        $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW()
+        $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, NOW()
       )
       RETURNING *
     `;
@@ -144,6 +146,7 @@ export class InvoiceModel {
       data.etimsQrPayload || null,
       data.tenantKraPin || null,
       data.clientKraPin || null,
+      data.includeVat !== false,
     ];
     const runner = client ? client.query.bind(client) : query;
     const res = await runner(sql, values);

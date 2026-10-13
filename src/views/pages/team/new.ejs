@@ -10,17 +10,25 @@
         <span>Back to Team</span>
       </a>
       <h1 class="page-title">Add Team Member</h1>
-      <p class="page-subtitle">Create login credentials and configure compensation & roles for an employee or contractor.</p>
+      <p class="page-subtitle">Create login credentials, assign operational role, configure project scoping, and grant granular module access.</p>
     </div>
   </div>
 
-  <div class="card max-w-form">
-    <div class="card-header">
-      <h3 class="card-title">Member Details & Access Control</h3>
-      <p class="text-xs text-muted">Provide basic contact information and assign an operational role</p>
-    </div>
-    <div class="card-body">
-      <form action="/team/new" method="POST" class="form-stack">
+  <form action="/team/new" method="POST" class="form-stack max-w-4xl" id="team-member-form">
+    <!-- Basic Information Card -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <div class="card-title-group">
+          <div class="card-title-icon">
+            <i class="uil uil-user"></i>
+          </div>
+          <div>
+            <h3 class="card-title">Member Details</h3>
+            <p class="card-subtitle">Basic contact information and login credentials</p>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
         <div class="form-row">
           <div class="form-group">
             <label for="firstName" class="form-label">First Name *</label>
@@ -45,12 +53,13 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label for="role" class="form-label">Access Role *</label>
+            <label for="role" class="form-label">Role Template / Preset *</label>
             <select id="role" name="role" class="form-select" required>
               <% roles.forEach(function(r) { %>
-                <option value="<%= r %>"><%= r.replace(/_/g, ' ') %></option>
+                <option value="<%= r %>" <%= r === 'TEAM_MEMBER' ? 'selected' : '' %>><%= r.replace(/_/g, ' ') %></option>
               <% }); %>
             </select>
+            <span class="text-xs text-muted mt-1">Selecting a role sets baseline module permissions below. You can customize any module.</span>
           </div>
           <div class="form-group">
             <label for="hourlyRate" class="form-label">Hourly Rate (KES)</label>
@@ -68,15 +77,275 @@
             <input type="password" id="password" name="password" class="form-input" required placeholder="Minimum 8 characters">
           </div>
         </div>
+      </div>
+    </div>
 
-        <div class="form-actions">
-          <a href="/team" class="btn btn-secondary">Cancel</a>
-          <button type="submit" class="btn btn-primary" id="btn-submit-team-member">
-            <i class="uil uil-check"></i>
-            <span>Add Member</span>
+    <!-- Project Scope Card -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <div class="card-title-group">
+          <div class="card-title-icon">
+            <i class="uil uil-folder-lock"></i>
+          </div>
+          <div>
+            <h3 class="card-title">Project Visibility & Access Scope</h3>
+            <p class="card-subtitle">Choose whether this user sees all projects in the organization or strictly assigned projects</p>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="scope-selector-grid">
+          <label class="scope-card" for="scope-all">
+            <input type="radio" name="projectScope" id="scope-all" value="ALL" checked class="scope-radio">
+            <div class="scope-card-content">
+              <div class="scope-icon-wrap">
+                <i class="uil uil-globe"></i>
+              </div>
+              <div class="scope-text">
+                <div class="scope-title">All Projects (Default)</div>
+                <div class="scope-desc">User can view or manage all projects across the organization, subject to their module permissions.</div>
+              </div>
+            </div>
+          </label>
+
+          <label class="scope-card" for="scope-assigned">
+            <input type="radio" name="projectScope" id="scope-assigned" value="ASSIGNED" class="scope-radio">
+            <div class="scope-card-content">
+              <div class="scope-icon-wrap">
+                <i class="uil uil-shield-check"></i>
+              </div>
+              <div class="scope-text">
+                <div class="scope-title">Assigned Projects Only</div>
+                <div class="scope-desc">Restricted strictly to projects where they are added as a team member or assigned tasks, including all linked invoices, quotations, documents, and fellow assigned members.</div>
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module Permissions Matrix Card -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <div class="card-title-group">
+          <div class="card-title-icon">
+            <i class="uil uil-sliders-v-alt"></i>
+          </div>
+          <div>
+            <h3 class="card-title">Granular Module Permissions</h3>
+            <p class="card-subtitle">Authorize exactly which functional areas this team member can access</p>
+          </div>
+        </div>
+        <div class="flex-align-center gap-2">
+          <button type="button" class="btn btn-xs btn-outline-secondary" id="btn-reset-preset">
+            <i class="uil uil-sync"></i> Reset to Preset
           </button>
         </div>
-      </form>
+      </div>
+      <div class="card-body-table">
+        <div class="table-responsive">
+          <table class="table permissions-matrix-table">
+            <thead>
+              <tr>
+                <th style="min-width: 240px;">Module / Area</th>
+                <th class="text-center" style="width: 140px;">
+                  <span class="badge badge-subtle">No Access</span>
+                </th>
+                <th class="text-center" style="width: 140px;">
+                  <span class="badge badge-info">View Only</span>
+                </th>
+                <th class="text-center" style="width: 140px;">
+                  <span class="badge badge-primary">Full Manage</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <% modules.forEach(function(m) { %>
+                <tr class="permission-row" data-module="<%= m.key %>">
+                  <td>
+                    <div class="permission-meta">
+                      <strong class="module-title"><%= m.label %></strong>
+                      <span class="module-desc text-xs text-muted"><%= m.description %></span>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <label class="perm-option-label" for="perm-<%= m.key %>-none">
+                      <input type="radio" name="permissions[<%= m.key %>]" id="perm-<%= m.key %>-none" value="none" class="perm-radio perm-none">
+                      <span class="perm-radio-custom"></span>
+                    </label>
+                  </td>
+                  <td class="text-center">
+                    <label class="perm-option-label" for="perm-<%= m.key %>-view">
+                      <input type="radio" name="permissions[<%= m.key %>]" id="perm-<%= m.key %>-view" value="view" class="perm-radio perm-view">
+                      <span class="perm-radio-custom"></span>
+                    </label>
+                  </td>
+                  <td class="text-center">
+                    <label class="perm-option-label" for="perm-<%= m.key %>-manage">
+                      <input type="radio" name="permissions[<%= m.key %>]" id="perm-<%= m.key %>-manage" value="manage" class="perm-radio perm-manage">
+                      <span class="perm-radio-custom"></span>
+                    </label>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
-  </div>
+
+    <!-- Form Actions -->
+    <div class="form-actions mb-6">
+      <a href="/team" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary" id="btn-submit-team-member">
+        <i class="uil uil-check"></i>
+        <span>Add Member</span>
+      </button>
+    </div>
+  </form>
 </div>
+
+<style>
+.max-w-4xl {
+  max-width: 920px;
+}
+.scope-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+.scope-card {
+  position: relative;
+  display: flex;
+  cursor: pointer;
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  padding: var(--space-4);
+  background: var(--bg-primary);
+  transition: all var(--transition-base);
+}
+.scope-card:hover {
+  border-color: var(--primary-400);
+  background: var(--bg-secondary);
+}
+.scope-radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.scope-card:has(.scope-radio:checked) {
+  border-color: var(--primary-500);
+  background: rgba(232, 101, 10, 0.05);
+  box-shadow: 0 0 0 1px var(--primary-500);
+}
+[data-theme="dark"] .scope-card:has(.scope-radio:checked) {
+  background: rgba(232, 101, 10, 0.12);
+}
+.scope-card-content {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.scope-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--border-radius-md);
+  background: var(--bg-tertiary);
+  color: var(--primary-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+.scope-card:has(.scope-radio:checked) .scope-icon-wrap {
+  background: var(--primary-500);
+  color: #fff;
+}
+.scope-title {
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+.scope-desc {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+.permissions-matrix-table td {
+  vertical-align: middle;
+}
+.permission-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.module-title {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+.perm-option-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 6px;
+  margin: 0;
+}
+.perm-radio {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-500);
+}
+.permission-row:hover {
+  background: var(--bg-secondary);
+}
+</style>
+
+<script type="application/json" id="role-presets-data"><%- JSON.stringify(defaultRolePermissions || {}) %></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const rolePresetsData = document.getElementById('role-presets-data');
+  const rolePresets = rolePresetsData ? JSON.parse(rolePresetsData.textContent || '{}') : {};
+  const roleSelect = document.getElementById('role');
+  const btnReset = document.getElementById('btn-reset-preset');
+
+  function applyRolePreset(role) {
+    const preset = rolePresets[role];
+    if (!preset) return;
+
+    Object.keys(preset).forEach(function(mod) {
+      const level = preset[mod];
+      const radio = document.getElementById('perm-' + mod + '-' + level);
+      if (radio) {
+        radio.checked = true;
+      }
+    });
+
+    // Also suggest scope: TEAM_MEMBER and CLIENT_PORTAL default to ASSIGNED
+    if (role === 'TEAM_MEMBER' || role === 'CLIENT_PORTAL') {
+      const assignedRadio = document.getElementById('scope-assigned');
+      if (assignedRadio) assignedRadio.checked = true;
+    } else {
+      const allRadio = document.getElementById('scope-all');
+      if (allRadio) allRadio.checked = true;
+    }
+  }
+
+  if (roleSelect) {
+    roleSelect.addEventListener('change', function() {
+      applyRolePreset(this.value);
+    });
+    // Initialize with current value
+    applyRolePreset(roleSelect.value);
+  }
+
+  if (btnReset && roleSelect) {
+    btnReset.addEventListener('click', function() {
+      applyRolePreset(roleSelect.value);
+    });
+  }
+});
+</script>

@@ -9,6 +9,7 @@ import { query, pool } from '../config/database';
 import logger from '../utils/logger';
 import { runMigration as runRecurringMigration } from './migrate_recurring_and_payments';
 import { runMigration as runSubscriptionsMigration } from './migrate_subscriptions_and_manual_payments';
+import { runMigration as runUserPermissionsMigration } from './migrate_user_permissions';
 
 const migrateLogger = logger.child('Migrate');
 
@@ -24,6 +25,7 @@ export async function runMigration(closePool: boolean = true): Promise<void> {
     // Run incremental migrations to guarantee all columns and enums are up to date
     await runRecurringMigration();
     await runSubscriptionsMigration();
+    await runUserPermissionsMigration();
 
     migrateLogger.info('✅ All database migrations completed successfully!');
   } catch (error: any) {

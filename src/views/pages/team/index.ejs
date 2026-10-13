@@ -92,10 +92,12 @@
                 <th>Member</th>
                 <th>Email</th>
                 <th>Role</th>
+                <th>Project Scope</th>
                 <th>Phone</th>
                 <th>Hourly Rate</th>
-                <th>M-Pesa Disburse</th>
+                <th>M-Pesa</th>
                 <th>Status</th>
+                <th class="text-right" style="min-width: 130px;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -126,6 +128,17 @@
                       <span class="badge badge-subtle"><%= m.role.replace(/_/g, ' ') %></span>
                     <% } %>
                   </td>
+                  <td>
+                    <% if (m.project_scope === 'ASSIGNED') { %>
+                      <span class="badge badge-warning" title="Strictly restricted to assigned projects and associated items">
+                        <i class="uil uil-lock-alt"></i> Assigned
+                      </span>
+                    <% } else { %>
+                      <span class="badge badge-subtle" title="Can view all organization projects">
+                        <i class="uil uil-globe"></i> All Projects
+                      </span>
+                    <% } %>
+                  </td>
                   <td><%= m.phone || '—' %></td>
                   <td><%= m.hourly_rate ? formatKES(parseFloat(m.hourly_rate)) + '/hr' : '—' %></td>
                   <td><%= m.mpesa_number || '—' %></td>
@@ -133,8 +146,27 @@
                     <% if (m.is_active) { %>
                       <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
                     <% } else { %>
-                      <span class="badge badge-subtle">Inactive</span>
+                      <span class="badge badge-danger">Inactive</span>
                     <% } %>
+                  </td>
+                  <td class="text-right">
+                    <div class="table-actions-group flex-align-center justify-end gap-1">
+                      <a href="/team/<%= m.id %>/edit" class="btn btn-xs btn-outline-primary" title="Configure permissions & details">
+                        <i class="uil uil-edit"></i>
+                        <span>Edit</span>
+                      </a>
+                      <form action="/team/<%= m.id %>/toggle-status" method="POST" style="display: inline-block; margin: 0;">
+                        <% if (m.is_active) { %>
+                          <button type="submit" class="btn btn-xs btn-outline-danger" title="Deactivate account" onclick="return confirm('Deactivate <%= m.first_name %> <%= m.last_name %>? They will no longer be able to log in.')">
+                            <i class="uil uil-user-times"></i>
+                          </button>
+                        <% } else { %>
+                          <button type="submit" class="btn btn-xs btn-outline-success" title="Activate account" onclick="return confirm('Re-activate <%= m.first_name %> <%= m.last_name %>?')">
+                            <i class="uil uil-user-check"></i>
+                          </button>
+                        <% } %>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               <% }); %>

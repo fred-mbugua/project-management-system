@@ -5,6 +5,8 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { UserModel } from '../models/user.model';
+import { UserRole, UserModulePermissions } from '../models/types';
+import { resolveUserPermissions, hasModulePermission, isAssignedProjectsOnly } from './rbac';
 import logger from '../utils/logger';
 
 const authLogger = logger.child('Auth');
@@ -35,6 +37,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    const resolvedPermissions = resolveUserPermissions(user.role, user.permissions);
+    const resolvedScope = user.projectScope || (user.role === UserRole.TEAM_MEMBER || user.role === UserRole.CLIENT_PORTAL ? 'ASSIGNED' : 'ALL');
+
     // Attach user to request
     req.user = {
       id: user.id,
@@ -45,11 +50,17 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       role: user.role,
       phone: user.phone ?? null,
       avatarUrl: user.avatarUrl ?? null,
+      projectScope: resolvedScope,
+      permissions: resolvedPermissions,
     };
 
     // Make user available in all EJS templates
     res.locals.currentUser = req.user;
     res.locals.isAuthenticated = true;
+    res.locals.hasModuleAccess = (module: keyof UserModulePermissions, level: 'view' | 'manage' = 'view') => {
+      return hasModulePermission(req.user, module, level);
+    };
+    res.locals.isAssignedProjectsOnly = isAssignedProjectsOnly(req.user);
 
     next();
   } catch (error) {
@@ -70,6 +81,9 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
       const user = await UserModel.findById(userId);
 
       if (user && user.isActive) {
+        const resolvedPermissions = resolveUserPermissions(user.role, user.permissions);
+        const resolvedScope = user.projectScope || (user.role === UserRole.TEAM_MEMBER || user.role === UserRole.CLIENT_PORTAL ? 'ASSIGNED' : 'ALL');
+
         req.user = {
           id: user.id,
           tenantId: user.tenantId ?? null,
@@ -79,9 +93,15 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
           role: user.role,
           phone: user.phone ?? null,
           avatarUrl: user.avatarUrl ?? null,
+          projectScope: resolvedScope,
+          permissions: resolvedPermissions,
         };
         res.locals.currentUser = req.user;
         res.locals.isAuthenticated = true;
+        res.locals.hasModuleAccess = (module: keyof UserModulePermissions, level: 'view' | 'manage' = 'view') => {
+          return hasModulePermission(req.user, module, level);
+        };
+        res.locals.isAssignedProjectsOnly = isAssignedProjectsOnly(req.user);
       }
     }
 

@@ -6,13 +6,12 @@ import { Router } from 'express';
 import accountingController from '../controllers/AccountingController';
 import { requireAuth } from '../middleware/auth';
 import { resolveTenant } from '../middleware/tenant';
-import { requireRole } from '../middleware/rbac';
-import { UserRole } from '../models/types';
+import { requireModuleAccess } from '../middleware/rbac';
 
 const router = Router();
 
-router.use(requireAuth, resolveTenant, requireRole(UserRole.SUPER_ADMIN, UserRole.TENANT_OWNER, UserRole.ACCOUNTANT));
+router.use(requireAuth, resolveTenant);
 
-router.get('/', accountingController.index);
+router.get('/', requireModuleAccess('accounting', 'view'), accountingController.index);
 
 export default router;

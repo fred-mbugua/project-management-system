@@ -2,7 +2,7 @@
 // Express Request Augmentation - Custom Session & User Types
 // ══════════════════════════════════════════════════════════════════════
 
-import { UserRole, Tenant } from '../models/types';
+import { UserRole, Tenant, ProjectScope, UserModulePermissions } from '../models/types';
 
 declare global {
   namespace Express {
@@ -15,6 +15,8 @@ declare global {
       role: UserRole;
       phone: string | null;
       avatarUrl: string | null;
+      projectScope?: ProjectScope;
+      permissions?: UserModulePermissions;
     }
 
     interface Request {

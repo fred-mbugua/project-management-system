@@ -26,7 +26,7 @@ const productionEnv = {
   DARAJA_CONSUMER_SECRET: '7pZUelreG8xS1H09WDAnsVxeQrywZs5bxw6fUMV4fnipq4Pt2LeLCYe9JQ9QOivs',
   DARAJA_PASSKEY: 'ee995f018e57d429fe5a82e737aa410528c1347972391ecb0ede2d1a498debd2',
   DARAJA_SHORTCODE: '4814641',
-  DARAJA_SHORTCODE_TYPE: 'CustomerPayBillOnline', // Must be 'PAYBILL' or 'TILL'
+  DARAJA_SHORTCODE_TYPE: 'PayBillOnline', // Must be 'PAYBILL' or 'TILL'
   DARAJA_CALLBACK_URL: 'https://projects.freestylecodetechnologies.com/api/mpesa/callback',
 
   // PayPal Business & REST Gateway Integration

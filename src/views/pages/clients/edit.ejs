@@ -1,0 +1,106 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Edit Client Form View
+     Enables tenants to update client profiles, billing info & tax credentials
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="edit-client-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <a href="/clients" class="btn btn-sm btn-secondary mb-2" id="btn-back-to-clients">
+        <i class="uil uil-arrow-left"></i>
+        <span>Back to Clients</span>
+      </a>
+      <h1 class="page-title">Edit Client: <%= client.name %></h1>
+      <p class="page-subtitle">Update company contact, tax details, and billing account information.</p>
+    </div>
+  </div>
+
+  <div class="card max-w-wide">
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-edit-alt"></i>
+        </div>
+        <div>
+          <h3 class="card-title">Client Information</h3>
+          <p class="text-xs text-muted">Primary contact, billing details, and tax credentials</p>
+        </div>
+      </div>
+      <div>
+        <% if (client.isActive) { %>
+          <span class="badge badge-success"><span class="badge-dot"></span>Active Client</span>
+        <% } else { %>
+          <span class="badge badge-subtle">Inactive Client</span>
+        <% } %>
+      </div>
+    </div>
+    <div class="card-body">
+      <form action="/clients/<%= client.id %>/edit" method="POST" class="form-stack" id="edit-client-form">
+        <!-- TODO(security): Add CSRF synchronizer token when CSRF middleware is enabled globally -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="name">Company / Client Name *</label>
+            <input type="text" class="form-input" id="name" name="name" required value="<%= client.name %>" placeholder="e.g. Kenya Airways">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="contactPerson">Primary Contact Person</label>
+            <input type="text" class="form-input" id="contactPerson" name="contactPerson" value="<%= client.contactPerson || '' %>" placeholder="e.g. Mary Njeri">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="email">Email Address</label>
+            <input type="email" class="form-input" id="email" name="email" value="<%= client.email || '' %>" placeholder="billing@client.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="phone">Phone Number</label>
+            <input type="tel" class="form-input" id="phone" name="phone" value="<%= client.phone || '' %>" placeholder="+254 700 123 456">
+          </div>
+        </div>
+
+        <div class="form-row-2-1-1">
+          <div class="form-group">
+            <label class="form-label" for="address">Address</label>
+            <input type="text" class="form-input" id="address" name="address" value="<%= client.address || '' %>" placeholder="Physical or postal address">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="city">City</label>
+            <input type="text" class="form-input" id="city" name="city" value="<%= client.city || 'Nairobi' %>">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="kraPin">KRA PIN</label>
+            <input type="text" class="form-input" id="kraPin" name="kraPin" value="<%= client.kraPin || '' %>" placeholder="P051234567X">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="country">Country</label>
+            <input type="text" class="form-input" id="country" name="country" value="<%= client.country || 'Kenya' %>">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="isActive">Account Status</label>
+            <select class="form-select" id="isActive" name="isActive">
+              <option value="true" <%= client.isActive ? 'selected' : '' %>>Active</option>
+              <option value="false" <%= !client.isActive ? 'selected' : '' %>>Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="notes">Internal Notes</label>
+          <textarea class="form-input" id="notes" name="notes" rows="3" placeholder="Contract details, billing terms, special handling..."><%= client.notes || '' %></textarea>
+        </div>
+
+        <div class="form-actions">
+          <a href="/clients" class="btn btn-secondary" id="btn-cancel-edit">Cancel</a>
+          <button type="submit" class="btn btn-primary" id="btn-update-client">
+            <i class="uil uil-check"></i>
+            <span>Save Changes</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

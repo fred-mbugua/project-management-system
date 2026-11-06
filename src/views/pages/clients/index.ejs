@@ -85,13 +85,17 @@
                 <th>KRA PIN</th>
                 <th>Projects</th>
                 <th>Invoices</th>
+                <th>Status</th>
+                <th class="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               <% clients.forEach(function(c) { %>
                 <tr>
                   <td>
-                    <strong><%= c.name %></strong>
+                    <a href="/clients/<%= c.id %>/edit" class="font-medium text-primary hover-underline" title="Edit <%= c.name %>">
+                      <strong><%= c.name %></strong>
+                    </a>
                   </td>
                   <td><%= c.contact_person || '—' %></td>
                   <td>
@@ -102,6 +106,32 @@
                   <td><code><%= c.kra_pin || '—' %></code></td>
                   <td><span class="badge badge-subtle"><%= c.project_count %></span></td>
                   <td><span class="badge badge-subtle"><%= c.invoice_count %></span></td>
+                  <td>
+                    <% if (c.is_active) { %>
+                      <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
+                    <% } else { %>
+                      <span class="badge badge-subtle">Inactive</span>
+                    <% } %>
+                  </td>
+                  <td class="text-right">
+                    <div class="table-actions-group flex-align-center justify-end gap-1">
+                      <a href="/clients/<%= c.id %>/edit" class="btn btn-xs btn-outline-primary" title="Edit client details">
+                        <i class="uil uil-edit"></i>
+                        <span>Edit</span>
+                      </a>
+                      <form action="/clients/<%= c.id %>/toggle-status" method="POST" style="display: inline-block; margin: 0;">
+                        <% if (c.is_active) { %>
+                          <button type="submit" class="btn btn-xs btn-outline-danger" title="Deactivate client" onclick="return confirm('Deactivate <%= c.name %>?')">
+                            <i class="uil uil-ban"></i>
+                          </button>
+                        <% } else { %>
+                          <button type="submit" class="btn btn-xs btn-outline-success" title="Activate client" onclick="return confirm('Re-activate <%= c.name %>?')">
+                            <i class="uil uil-check"></i>
+                          </button>
+                        <% } %>
+                      </form>
+                    </div>
+                  </td>
                 </tr>
               <% }); %>
             </tbody>

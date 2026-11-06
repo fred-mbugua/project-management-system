@@ -15,5 +15,8 @@ router.use(requireAuth, resolveTenant);
 router.get('/', requireModuleAccess('clients', 'view'), clientController.index);
 router.get('/new', requireModuleAccess('clients', 'manage'), clientController.showNew);
 router.post('/new', requireModuleAccess('clients', 'manage'), clientController.create);
+router.get('/:id/edit', requireModuleAccess('clients', 'manage'), clientController.showEdit);
+router.post('/:id/edit', requireModuleAccess('clients', 'manage'), clientController.update);
+router.post('/:id/toggle-status', requireModuleAccess('clients', 'manage'), clientController.toggleStatus);
 
 export default router;

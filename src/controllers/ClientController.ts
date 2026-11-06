@@ -4,7 +4,8 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../config/database';
-import { ClientModel } from '../models';
+import { ClientModel, AuditAction } from '../models';
+import ActionLogService from '../services/actionLog.service';
 import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import logger from '../utils/logger';
 
@@ -100,30 +101,168 @@ export class ClientController {
         return;
       }
 
-      const { name, contactPerson, email, phone, address, city, kraPin, notes } = req.body;
+      const { name, contactPerson, email, phone, address, city, country, kraPin, notes } = req.body;
 
-      if (!name) {
+      if (!name || !name.trim()) {
         req.flash('error', 'Client/Company name is required.');
         res.redirect('/clients/new');
         return;
       }
 
-      await ClientModel.create({
+      const newClient = await ClientModel.create({
         tenantId,
-        name,
-        contactPerson: contactPerson || null,
-        email: email || null,
-        phone: phone || null,
-        address: address || null,
-        city: city || null,
-        kraPin: kraPin || null,
-        notes: notes || null,
+        name: name.trim(),
+        contactPerson: contactPerson?.trim() || null,
+        email: email?.toLowerCase().trim() || null,
+        phone: phone?.trim() || null,
+        address: address?.trim() || null,
+        city: city?.trim() || null,
+        country: country?.trim() || 'Kenya',
+        kraPin: kraPin?.toUpperCase().trim() || null,
+        notes: notes?.trim() || null,
       });
 
-      req.flash('success', `Client "${name}" added successfully.`);
+      await ActionLogService.record(req, {
+        action: AuditAction.CREATE,
+        entityType: 'client',
+        entityId: newClient.id,
+        description: `Created new client profile "${newClient.name}"`,
+      });
+
+      req.flash('success', `Client "${name.trim()}" added successfully.`);
       res.redirect('/clients');
     } catch (error) {
       clientLogger.error('Failed to create client', { error: String(error) });
+      next(error);
+    }
+  };
+
+  showEdit = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+
+      if (!tenantId && !isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      const client = await ClientModel.findById(id, isSuper ? null : (tenantId || null));
+      if (!client) {
+        req.flash('error', 'Client not found.');
+        res.redirect('/clients');
+        return;
+      }
+
+      res.render('pages/clients/edit', {
+        title: `Edit ${client.name}`,
+        client,
+      });
+    } catch (error) {
+      clientLogger.error('Failed to load edit client page', { error: String(error) });
+      next(error);
+    }
+  };
+
+  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+
+      if (!tenantId && !isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      const existingClient = await ClientModel.findById(id, isSuper ? null : (tenantId || null));
+      if (!existingClient) {
+        req.flash('error', 'Client not found.');
+        res.redirect('/clients');
+        return;
+      }
+
+      const { name, contactPerson, email, phone, address, city, country, kraPin, notes, isActive } = req.body;
+
+      if (!name || !name.trim()) {
+        req.flash('error', 'Client/Company name is required.');
+        res.redirect(`/clients/${id}/edit`);
+        return;
+      }
+
+      // Optional email validation
+      if (email && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        req.flash('error', 'Please provide a valid email address.');
+        res.redirect(`/clients/${id}/edit`);
+        return;
+      }
+
+      const updated = await ClientModel.update(id, isSuper ? null : (tenantId || null), {
+        name: name.trim(),
+        contactPerson: contactPerson ? contactPerson.trim() : null,
+        email: email ? email.toLowerCase().trim() : null,
+        phone: phone ? phone.trim() : null,
+        address: address ? address.trim() : null,
+        city: city ? city.trim() : null,
+        country: country ? country.trim() : 'Kenya',
+        kraPin: kraPin ? kraPin.toUpperCase().trim() : null,
+        notes: notes ? notes.trim() : null,
+        isActive: isActive !== undefined ? (isActive === 'true' || isActive === true || isActive === '1') : existingClient.isActive,
+      });
+
+      if (!updated) {
+        req.flash('error', 'Failed to update client.');
+        res.redirect('/clients');
+        return;
+      }
+
+      await ActionLogService.record(req, {
+        action: AuditAction.UPDATE,
+        entityType: 'client',
+        entityId: id,
+        description: `Updated client details for "${name.trim()}"`,
+      });
+
+      req.flash('success', `Client "${name.trim()}" updated successfully.`);
+      res.redirect('/clients');
+    } catch (error) {
+      clientLogger.error('Failed to update client', { error: String(error) });
+      next(error);
+    }
+  };
+
+  toggleStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const tenantId = req.tenantId;
+      const isSuper = req.user?.role === 'SUPER_ADMIN';
+
+      if (!tenantId && !isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      const existingClient = await ClientModel.findById(id, isSuper ? null : (tenantId || null));
+      if (!existingClient) {
+        req.flash('error', 'Client not found.');
+        res.redirect('/clients');
+        return;
+      }
+
+      const newStatus = await ClientModel.toggleActive(id, isSuper ? null : (tenantId || null));
+
+      await ActionLogService.record(req, {
+        action: AuditAction.UPDATE,
+        entityType: 'client',
+        entityId: id,
+        description: `Toggled status of client "${existingClient.name}" to ${newStatus ? 'Active' : 'Inactive'}`,
+      });
+
+      req.flash('success', `Client "${existingClient.name}" is now ${newStatus ? 'active' : 'inactive'}.`);
+      res.redirect('/clients');
+    } catch (error) {
+      clientLogger.error('Failed to toggle client status', { error: String(error) });
       next(error);
     }
   };

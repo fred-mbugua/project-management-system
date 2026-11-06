@@ -21,6 +21,19 @@ export interface CreateClientInput {
   isActive?: boolean;
 }
 
+export interface UpdateClientInput {
+  name: string;
+  contactPerson?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  country?: string;
+  kraPin?: string | null;
+  notes?: string | null;
+  isActive?: boolean;
+}
+
 export class ClientModel {
   private static mapRow(row: any): Client {
     return {
@@ -41,10 +54,16 @@ export class ClientModel {
     };
   }
 
-  static async findById(id: string, client?: PoolClient): Promise<Client | null> {
-    const sql = `SELECT * FROM clients WHERE id = $1 LIMIT 1`;
+  static async findById(id: string, tenantId?: string | null, client?: PoolClient): Promise<Client | null> {
+    let sql = `SELECT * FROM clients WHERE id = $1`;
+    const params: any[] = [id];
+    if (tenantId) {
+      sql += ` AND tenant_id = $2`;
+      params.push(tenantId);
+    }
+    sql += ` LIMIT 1`;
     const runner = client ? client.query.bind(client) : query;
-    const res = await runner(sql, [id]);
+    const res = await runner(sql, params);
     return res.rows[0] ? this.mapRow(res.rows[0]) : null;
   }
 
@@ -85,9 +104,106 @@ export class ClientModel {
     return this.mapRow(res.rows[0]);
   }
 
+  static async update(
+    id: string,
+    tenantId: string | null,
+    data: UpdateClientInput,
+    client?: PoolClient
+  ): Promise<Client | null> {
+    const isSuper = tenantId === null;
+    let sql: string;
+    let values: any[];
+
+    if (isSuper) {
+      sql = `
+        UPDATE clients SET
+          name = $1,
+          contact_person = $2,
+          email = $3,
+          phone = $4,
+          address = $5,
+          city = $6,
+          country = COALESCE($7, 'Kenya'),
+          kra_pin = $8,
+          notes = $9,
+          is_active = COALESCE($10, is_active),
+          updated_at = NOW()
+        WHERE id = $11
+        RETURNING *
+      `;
+      values = [
+        data.name.trim(),
+        data.contactPerson?.trim() || null,
+        data.email?.toLowerCase().trim() || null,
+        data.phone?.trim() || null,
+        data.address?.trim() || null,
+        data.city?.trim() || null,
+        data.country?.trim() || 'Kenya',
+        data.kraPin?.toUpperCase().trim() || null,
+        data.notes?.trim() || null,
+        data.isActive !== undefined ? data.isActive : null,
+        id,
+      ];
+    } else {
+      sql = `
+        UPDATE clients SET
+          name = $1,
+          contact_person = $2,
+          email = $3,
+          phone = $4,
+          address = $5,
+          city = $6,
+          country = COALESCE($7, 'Kenya'),
+          kra_pin = $8,
+          notes = $9,
+          is_active = COALESCE($10, is_active),
+          updated_at = NOW()
+        WHERE id = $11 AND tenant_id = $12
+        RETURNING *
+      `;
+      values = [
+        data.name.trim(),
+        data.contactPerson?.trim() || null,
+        data.email?.toLowerCase().trim() || null,
+        data.phone?.trim() || null,
+        data.address?.trim() || null,
+        data.city?.trim() || null,
+        data.country?.trim() || 'Kenya',
+        data.kraPin?.toUpperCase().trim() || null,
+        data.notes?.trim() || null,
+        data.isActive !== undefined ? data.isActive : null,
+        id,
+        tenantId,
+      ];
+    }
+
+    const runner = client ? client.query.bind(client) : query;
+    const res = await runner(sql, values);
+    return res.rows[0] ? this.mapRow(res.rows[0]) : null;
+  }
+
+  static async toggleActive(id: string, tenantId?: string | null, client?: PoolClient): Promise<boolean> {
+    const isSuper = !tenantId;
+    let sql = `
+      UPDATE clients
+      SET is_active = NOT is_active, updated_at = NOW()
+      WHERE id = $1
+    `;
+    const values: any[] = [id];
+    if (!isSuper) {
+      sql += ` AND tenant_id = $2`;
+      values.push(tenantId);
+    }
+    sql += ` RETURNING is_active`;
+
+    const runner = client ? client.query.bind(client) : query;
+    const res = await runner(sql, values);
+    return res.rows[0]?.is_active ?? false;
+  }
+
   static async upsert(data: CreateClientInput, client?: PoolClient): Promise<Client> {
     if (data.id) {
-      const existing = await this.findById(data.id, client);
+      const existing = await this.findById(data.id, data.tenantId, client);
       if (existing) return existing;
     }
     return await this.create(data, client);

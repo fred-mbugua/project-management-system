@@ -4,19 +4,131 @@
 // ══════════════════════════════════════════════════════════════════════
 
 import { Request, Response, NextFunction } from 'express';
+import path from 'path';
 import { query } from '../config/database';
-import { ProjectModel, TaskModel, ProjectStatus, TaskPriority, TaskStatus, AuditAction } from '../models';
+import {
+  ProjectModel,
+  TaskModel,
+  ProjectStatus,
+  TaskPriority,
+  TaskStatus,
+  UserRole,
+  AuditAction,
+} from '../models';
 import { SubscriptionModel } from '../models/subscription.model';
 import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import storageService from '../services/storage.service';
 import ActionLogService from '../services/actionLog.service';
 import { formatKES } from '../utils/taxCalculator';
-import { isAssignedProjectsOnly } from '../middleware/rbac';
+import { isAssignedProjectsOnly, hasModulePermission } from '../middleware/rbac';
+import {
+  classifyFile,
+  matchesExpectedSignature,
+  buildContentDisposition,
+  extractTextPreview,
+  extractSpreadsheetPreview,
+  extractZipEntries,
+  extractDocxParagraphs,
+} from '../utils/filePreview';
 import logger from '../utils/logger';
 
 const projectLogger = logger.child('ProjectController');
 
+const VALID_PROJECT_STATUSES = new Set<string>(Object.values(ProjectStatus));
+const VALID_TASK_STATUSES = new Set<string>(Object.values(TaskStatus));
+const VALID_TASK_PRIORITIES = new Set<string>(Object.values(TaskPriority));
+
+function parseOptionalNonNegativeNumber(raw: unknown): { value: number | null; valid: boolean } {
+  if (raw === undefined || raw === null || String(raw).trim() === '') {
+    return { value: null, valid: true };
+  }
+  const num = Number(raw);
+  if (!Number.isFinite(num) || num < 0) {
+    return { value: null, valid: false };
+  }
+  return { value: num, valid: true };
+}
+
+function parseOptionalDateInput(raw: unknown): { value: Date | null; valid: boolean } {
+  if (raw === undefined || raw === null || String(raw).trim() === '') {
+    return { value: null, valid: true };
+  }
+  const d = new Date(String(raw).trim());
+  if (Number.isNaN(d.getTime())) {
+    return { value: null, valid: false };
+  }
+  return { value: d, valid: true };
+}
+
 export class ProjectController {
+  /**
+   * Verify user authentication, tenant ownership, and assigned-project scope.
+   */
+  private async verifyProjectAccess(
+    req: Request,
+    projectId: string
+  ): Promise<{ project: any | null; isSuper: boolean; tenantId: string | undefined; denied: boolean }> {
+    const isSuper = req.user?.role === UserRole.SUPER_ADMIN;
+    const tenantId = req.tenantId;
+
+    if (!tenantId && !isSuper) {
+      return { project: null, isSuper, tenantId, denied: true };
+    }
+
+    const params: any[] = [projectId];
+    const tenantFilter = !isSuper && tenantId ? (params.push(tenantId), ` AND p.tenant_id = $2`) : '';
+    const projectRes = await query(
+      `
+        SELECT p.*, c.name as client_name, c.email as client_email, c.phone as client_phone
+        FROM projects p
+        LEFT JOIN clients c ON p.client_id = c.id
+        WHERE p.id = $1${tenantFilter}
+        LIMIT 1
+      `,
+      params
+    );
+
+    const project = projectRes.rows[0] || null;
+    if (!project) {
+      return { project: null, isSuper, tenantId, denied: false };
+    }
+
+    if (req.user && isAssignedProjectsOnly(req.user)) {
+      const assignedRes = await query(
+        `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+         UNION
+         SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2
+         LIMIT 1`,
+        [projectId, req.user.id]
+      );
+      if ((assignedRes.rowCount || 0) === 0) {
+        return { project: null, isSuper, tenantId, denied: true };
+      }
+    }
+
+    return { project, isSuper, tenantId: project.tenant_id, denied: false };
+  }
+
+  /**
+   * Prevent read-only client portal accounts from mutating tasks unless explicitly granted manage access.
+   */
+  private canMutateTasks(req: Request): boolean {
+    if (!req.user) return false;
+    if (req.user.role === UserRole.CLIENT_PORTAL && !hasModulePermission(req.user, 'projects', 'manage')) {
+      return false;
+    }
+    return true;
+  }
+
+  private async verifyTenantClient(clientId: string, tenantId: string): Promise<boolean> {
+    const res = await query(`SELECT id FROM clients WHERE id = $1 AND tenant_id = $2 LIMIT 1`, [clientId, tenantId]);
+    return (res.rowCount || 0) > 0;
+  }
+
+  private async verifyTenantUser(userId: string, tenantId: string): Promise<boolean> {
+    const res = await query(`SELECT id FROM users WHERE id = $1 AND tenant_id = $2 LIMIT 1`, [userId, tenantId]);
+    return (res.rowCount || 0) > 0;
+  }
   /**
    * List all projects for current tenant with pagination, search, and date filters
    */
@@ -210,28 +322,198 @@ export class ProjectController {
   };
 
   /**
+   * Render edit project form
+   */
+  showEdit = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const projectId = String(req.params.id);
+      const access = await this.verifyProjectAccess(req, projectId);
+
+      if (access.denied && !req.tenantId && !access.isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      if (!access.project) {
+        req.flash('error', access.denied ? 'You do not have permission to edit this project.' : 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      const clientsRes = await query(
+        `SELECT * FROM clients WHERE tenant_id = $1 AND (is_active = TRUE OR id = $2) ORDER BY name ASC`,
+        [access.project.tenant_id, access.project.client_id || null]
+      );
+
+      res.render('pages/projects/edit', {
+        title: `Edit ${access.project.name}`,
+        project: access.project,
+        clients: clientsRes.rows,
+      });
+    } catch (error) {
+      projectLogger.error('Failed to load edit project form', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Update an existing project
+   */
+  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const projectId = String(req.params.id);
+      const access = await this.verifyProjectAccess(req, projectId);
+
+      if (access.denied && !req.tenantId && !access.isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      if (!access.project) {
+        req.flash('error', access.denied ? 'You do not have permission to edit this project.' : 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      const existing = access.project;
+      const effectiveTenantId: string = existing.tenant_id;
+      const { name, code, clientId, description, budget, startDate, endDate, status } = req.body;
+
+      const trimmedName = typeof name === 'string' ? name.trim() : '';
+      const trimmedCode = typeof code === 'string' ? code.trim() : '';
+      if (!trimmedName || !trimmedCode) {
+        req.flash('error', 'Project Name and Project Code are required.');
+        res.redirect(`/projects/${projectId}/edit`);
+        return;
+      }
+
+      const normalizedStatus = VALID_PROJECT_STATUSES.has(status)
+        ? (status as ProjectStatus)
+        : (existing.status as ProjectStatus);
+
+      const cleanClientId = clientId && String(clientId).trim() !== '' ? String(clientId).trim() : null;
+      if (cleanClientId && !(await this.verifyTenantClient(cleanClientId, effectiveTenantId))) {
+        req.flash('error', 'Selected client does not belong to this organization.');
+        res.redirect(`/projects/${projectId}/edit`);
+        return;
+      }
+
+      const parsedBudget = parseOptionalNonNegativeNumber(budget);
+      if (!parsedBudget.valid) {
+        req.flash('error', 'Budget must be a valid non-negative number.');
+        res.redirect(`/projects/${projectId}/edit`);
+        return;
+      }
+
+      const parsedStart = parseOptionalDateInput(startDate);
+      const parsedEnd = parseOptionalDateInput(endDate);
+      if (!parsedStart.valid || !parsedEnd.valid) {
+        req.flash('error', 'Please enter valid start and end dates.');
+        res.redirect(`/projects/${projectId}/edit`);
+        return;
+      }
+
+      if (parsedStart.value && parsedEnd.value && parsedEnd.value < parsedStart.value) {
+        req.flash('error', 'Target End Date cannot be earlier than Start Date.');
+        res.redirect(`/projects/${projectId}/edit`);
+        return;
+      }
+
+      const duplicate = await ProjectModel.findByTenantAndCodeExcludingId(
+        effectiveTenantId,
+        trimmedCode,
+        projectId
+      );
+      if (duplicate) {
+        req.flash('error', `Another project with code "${trimmedCode}" already exists.`);
+        res.redirect(`/projects/${projectId}/edit`);
+        return;
+      }
+
+      const completedAt =
+        normalizedStatus === ProjectStatus.COMPLETED
+          ? (existing.completed_at ? new Date(existing.completed_at) : new Date())
+          : null;
+
+      const updated = await ProjectModel.update(projectId, access.isSuper ? null : effectiveTenantId, {
+        clientId: cleanClientId,
+        name: trimmedName,
+        code: trimmedCode,
+        description: typeof description === 'string' && description.trim() !== '' ? description.trim() : null,
+        status: normalizedStatus,
+        budget: parsedBudget.value,
+        startDate: parsedStart.value,
+        endDate: parsedEnd.value,
+        completedAt,
+      });
+
+      if (!updated) {
+        req.flash('error', 'Project could not be updated.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      await ActionLogService.record(req, {
+        action: AuditAction.UPDATE,
+        entityType: 'PROJECT',
+        entityId: projectId,
+        description: `Updated project "${updated.name}" (${updated.code})`,
+        metadata: {
+          before: {
+            name: existing.name,
+            code: existing.code,
+            status: existing.status,
+            budget: existing.budget,
+            clientId: existing.client_id,
+          },
+          after: {
+            name: updated.name,
+            code: updated.code,
+            status: updated.status,
+            budget: updated.budget,
+            clientId: updated.clientId,
+          },
+        },
+      });
+
+      req.flash('success', `Project "${updated.name}" updated successfully.`);
+      res.redirect(`/projects/${projectId}`);
+    } catch (error) {
+      projectLogger.error('Failed to update project', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
    * Show project detail with tasks and members
    */
   show = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.tenantId;
-      const projectId = req.params.id as string;
+      const projectId = String(req.params.id);
+      const access = await this.verifyProjectAccess(req, projectId);
 
-      const [projectRes, tasksRes, membersRes, usersRes, docsRes, invoicesRes, quotationsRes, expensesRes] = await Promise.all([
-        query(`
-          SELECT p.*, c.name as client_name, c.email as client_email, c.phone as client_phone
-          FROM projects p
-          LEFT JOIN clients c ON p.client_id = c.id
-          WHERE p.id = $1 AND p.tenant_id = $2
-          LIMIT 1
-        `, [projectId, tenantId]),
+      if (access.denied && !req.tenantId && !access.isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      if (!access.project) {
+        req.flash('error', access.denied ? 'You do not have permission to access this project.' : 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      const project = access.project;
+      const effectiveTenantId = project.tenant_id;
+
+      const [tasksRes, membersRes, usersRes, docsRes, invoicesRes, quotationsRes, expensesRes] = await Promise.all([
         query(`
           SELECT t.*, u.first_name, u.last_name, u.avatar_url
           FROM tasks t
           LEFT JOIN users u ON t.assigned_to_id = u.id
           WHERE t.project_id = $1 AND t.tenant_id = $2
-          ORDER BY t.created_at DESC
-        `, [projectId, tenantId]),
+          ORDER BY CASE WHEN t.status = 'COMPLETED' THEN 1 ELSE 0 END ASC, t.created_at DESC
+        `, [projectId, effectiveTenantId]),
         query(`
           SELECT pm.*, u.first_name, u.last_name, u.email, u.phone, u.role as user_global_role
           FROM project_members pm
@@ -239,54 +521,36 @@ export class ProjectController {
           WHERE pm.project_id = $1
           ORDER BY pm.joined_at ASC
         `, [projectId]),
-        query(`SELECT id, first_name, last_name, email, role FROM users WHERE tenant_id = $1 AND is_active = TRUE ORDER BY first_name ASC`, [tenantId]),
+        query(`SELECT id, first_name, last_name, email, role FROM users WHERE tenant_id = $1 AND is_active = TRUE ORDER BY first_name ASC`, [effectiveTenantId]),
         query(`
           SELECT pd.*, u.first_name, u.last_name
           FROM project_documents pd
           LEFT JOIN users u ON pd.uploaded_by_id = u.id
           WHERE pd.project_id = $1 AND pd.tenant_id = $2
           ORDER BY pd.created_at DESC
-        `, [projectId, tenantId]),
+        `, [projectId, effectiveTenantId]),
         query(`
           SELECT i.*, c.name as client_name
           FROM invoices i
           LEFT JOIN clients c ON i.client_id = c.id
           WHERE i.project_id = $1 AND i.tenant_id = $2
           ORDER BY i.created_at DESC
-        `, [projectId, tenantId]),
+        `, [projectId, effectiveTenantId]),
         query(`
           SELECT q.*, c.name as client_name
           FROM quotations q
           LEFT JOIN clients c ON q.client_id = c.id
           WHERE q.project_id = $1 AND q.tenant_id = $2
           ORDER BY q.created_at DESC
-        `, [projectId, tenantId]),
+        `, [projectId, effectiveTenantId]),
         query(`
           SELECT e.*
           FROM expenses e
           WHERE e.project_id = $1 AND e.tenant_id = $2
           ORDER BY e.expense_date DESC
           LIMIT 20
-        `, [projectId, tenantId]),
+        `, [projectId, effectiveTenantId]),
       ]);
-
-      const project = projectRes.rows[0];
-      if (!project) {
-        req.flash('error', 'Project not found.');
-        res.redirect('/projects');
-        return;
-      }
-
-      // If user is restricted to assigned projects only, verify project membership
-      if (req.user && isAssignedProjectsOnly(req.user)) {
-        const isAssigned = membersRes.rows.some((m: any) => m.user_id === req.user?.id) ||
-                           tasksRes.rows.some((t: any) => t.assigned_to_id === req.user?.id);
-        if (!isAssigned) {
-          req.flash('error', 'You do not have permission to access this project.');
-          res.redirect('/projects');
-          return;
-        }
-      }
 
       // Build full teamMembers list
       const teamMembers = membersRes.rows.map((m: any) => ({
@@ -334,6 +598,7 @@ export class ProjectController {
         invoices: invoicesRes.rows,
         quotations: quotationsRes.rows,
         expenses: expensesRes.rows,
+        canModifyTasks: this.canMutateTasks(req),
         formatKES,
       });
     } catch (error) {
@@ -347,40 +612,84 @@ export class ProjectController {
    */
   addTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.tenantId;
-      const projectId = req.params.id as string;
-      const { title, description, assignedToId, priority, estimatedHours, dueDate } = req.body;
+      const projectId = String(req.params.id);
+      const access = await this.verifyProjectAccess(req, projectId);
 
-      if (!tenantId || !title) {
+      if (access.denied && !req.tenantId && !access.isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      if (!access.project) {
+        req.flash('error', access.denied ? 'You do not have permission to add tasks to this project.' : 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      if (!this.canMutateTasks(req)) {
+        req.flash('error', 'You do not have permission to modify tasks in this project.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const { title, description, assignedToId, priority, estimatedHours, dueDate } = req.body;
+      const trimmedTitle = typeof title === 'string' ? title.trim() : '';
+
+      if (!trimmedTitle) {
         req.flash('error', 'Task title is required.');
         res.redirect(`/projects/${projectId}`);
         return;
       }
 
-      if (req.user && isAssignedProjectsOnly(req.user)) {
-        const isAssignedRes = await query(
-          `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
-           UNION
-           SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2`,
-          [projectId, req.user.id]
-        );
-        if (isAssignedRes.rowCount === 0) {
-          req.flash('error', 'You do not have permission to add tasks to this project.');
-          res.redirect('/projects');
-          return;
-        }
+      const effectiveTenantId: string = access.project.tenant_id;
+      const cleanAssignee = assignedToId && String(assignedToId).trim() !== '' ? String(assignedToId).trim() : null;
+      if (cleanAssignee && !(await this.verifyTenantUser(cleanAssignee, effectiveTenantId))) {
+        req.flash('error', 'Selected assignee does not belong to this organization.');
+        res.redirect(`/projects/${projectId}`);
+        return;
       }
 
-      await TaskModel.create({
-        tenantId,
+      const parsedHours = parseOptionalNonNegativeNumber(estimatedHours);
+      if (!parsedHours.valid) {
+        req.flash('error', 'Estimated hours must be a valid non-negative number.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const parsedDue = parseOptionalDateInput(dueDate);
+      if (!parsedDue.valid) {
+        req.flash('error', 'Please provide a valid task due date.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const normalizedPriority = VALID_TASK_PRIORITIES.has(priority)
+        ? (priority as TaskPriority)
+        : TaskPriority.MEDIUM;
+
+      const createdTask = await TaskModel.create({
+        tenantId: effectiveTenantId,
         projectId,
-        title,
-        description: description || null,
-        assignedToId: assignedToId || null,
-        priority: priority || TaskPriority.MEDIUM,
+        title: trimmedTitle,
+        description: typeof description === 'string' && description.trim() !== '' ? description.trim() : null,
+        assignedToId: cleanAssignee,
+        priority: normalizedPriority,
         status: TaskStatus.TODO,
-        estimatedHours: estimatedHours ? parseFloat(estimatedHours) : null,
-        dueDate: dueDate ? new Date(dueDate) : null,
+        estimatedHours: parsedHours.value,
+        dueDate: parsedDue.value,
+      });
+
+      await ActionLogService.record(req, {
+        action: AuditAction.CREATE,
+        entityType: 'TASK',
+        entityId: createdTask.id,
+        description: `Created task "${createdTask.title}" in project "${access.project.name}"`,
+        metadata: {
+          projectId,
+          taskId: createdTask.id,
+          priority: createdTask.priority,
+          assignedToId: createdTask.assignedToId,
+        },
       });
 
       req.flash('success', 'Task added successfully.');
@@ -392,29 +701,280 @@ export class ProjectController {
   };
 
   /**
-   * Upload project document to Cloudflare R2
+   * Edit an existing task in a project
    */
-  uploadDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  updateTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.tenantId;
-      const projectId = req.params.id as string;
-      if (!tenantId) {
+      const projectId = String(req.params.id);
+      const taskId = String(req.params.taskId);
+      const access = await this.verifyProjectAccess(req, projectId);
+
+      if (access.denied && !req.tenantId && !access.isSuper) {
         res.redirect('/auth/login');
         return;
       }
 
-      if (req.user && isAssignedProjectsOnly(req.user)) {
-        const isAssignedRes = await query(
-          `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
-           UNION
-           SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2`,
-          [projectId, req.user.id]
-        );
-        if (isAssignedRes.rowCount === 0) {
-          req.flash('error', 'You do not have permission to upload files to this project.');
-          res.redirect('/projects');
+      if (!access.project) {
+        req.flash('error', access.denied ? 'You do not have permission to edit tasks in this project.' : 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      if (!this.canMutateTasks(req)) {
+        req.flash('error', 'You do not have permission to edit tasks in this project.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const effectiveTenantId: string = access.project.tenant_id;
+      const existingTask = await TaskModel.findByIdAndProject(
+        taskId,
+        projectId,
+        access.isSuper ? null : effectiveTenantId
+      );
+
+      if (!existingTask) {
+        req.flash('error', 'Task not found.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const { title, description, assignedToId, priority, status, dueDate, estimatedHours, actualHours } = req.body;
+      const trimmedTitle = typeof title === 'string' ? title.trim() : '';
+
+      if (!trimmedTitle) {
+        req.flash('error', 'Task title is required.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const normalizedStatus = VALID_TASK_STATUSES.has(status)
+        ? (status as TaskStatus)
+        : existingTask.status;
+      const normalizedPriority = VALID_TASK_PRIORITIES.has(priority)
+        ? (priority as TaskPriority)
+        : existingTask.priority;
+
+      const cleanAssignee = assignedToId && String(assignedToId).trim() !== '' ? String(assignedToId).trim() : null;
+      if (cleanAssignee && !(await this.verifyTenantUser(cleanAssignee, effectiveTenantId))) {
+        req.flash('error', 'Selected assignee does not belong to this organization.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const parsedEstHours = parseOptionalNonNegativeNumber(estimatedHours);
+      const parsedActHours = parseOptionalNonNegativeNumber(actualHours);
+      if (!parsedEstHours.valid || !parsedActHours.valid) {
+        req.flash('error', 'Estimated and actual hours must be valid non-negative numbers.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const parsedDue = parseOptionalDateInput(dueDate);
+      if (!parsedDue.valid) {
+        req.flash('error', 'Please enter a valid due date.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const completedAt =
+        normalizedStatus === TaskStatus.COMPLETED
+          ? (existingTask.completedAt || new Date())
+          : null;
+
+      const updatedTask = await TaskModel.update(
+        taskId,
+        projectId,
+        access.isSuper ? null : effectiveTenantId,
+        {
+          assignedToId: cleanAssignee,
+          title: trimmedTitle,
+          description: typeof description === 'string' && description.trim() !== '' ? description.trim() : null,
+          status: normalizedStatus,
+          priority: normalizedPriority,
+          estimatedHours: parsedEstHours.value,
+          actualHours: parsedActHours.value,
+          dueDate: parsedDue.value,
+          completedAt,
+        }
+      );
+
+      if (!updatedTask) {
+        req.flash('error', 'Failed to update task.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      await ActionLogService.record(req, {
+        action: AuditAction.UPDATE,
+        entityType: 'TASK',
+        entityId: taskId,
+        description: `Updated task "${updatedTask.title}" in project "${access.project.name}"`,
+        metadata: {
+          projectId,
+          taskId,
+          before: {
+            title: existingTask.title,
+            status: existingTask.status,
+            priority: existingTask.priority,
+            assignedToId: existingTask.assignedToId,
+          },
+          after: {
+            title: updatedTask.title,
+            status: updatedTask.status,
+            priority: updatedTask.priority,
+            assignedToId: updatedTask.assignedToId,
+          },
+        },
+      });
+
+      req.flash('success', `Task "${updatedTask.title}" updated successfully.`);
+      res.redirect(`/projects/${projectId}`);
+    } catch (error) {
+      projectLogger.error('Failed to update task', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Quickly update a task's status (e.g. Mark as Complete, In Progress, Reopen, Blocked)
+   */
+  updateTaskStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const projectId = String(req.params.id);
+      const taskId = String(req.params.taskId);
+      const wantsJson = Boolean(req.xhr || req.headers.accept?.includes('application/json'));
+      const access = await this.verifyProjectAccess(req, projectId);
+
+      if (access.denied && !req.tenantId && !access.isSuper) {
+        if (wantsJson) {
+          res.status(401).json({ error: 'Authentication required' });
           return;
         }
+        res.redirect('/auth/login');
+        return;
+      }
+
+      if (!access.project) {
+        if (wantsJson) {
+          res.status(access.denied ? 403 : 404).json({ error: access.denied ? 'Access denied' : 'Project not found' });
+          return;
+        }
+        req.flash('error', access.denied ? 'You do not have permission to update tasks in this project.' : 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      if (!this.canMutateTasks(req)) {
+        if (wantsJson) {
+          res.status(403).json({ error: 'Permission denied' });
+          return;
+        }
+        req.flash('error', 'You do not have permission to update task status.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const nextStatus = String(req.body.status || '').trim();
+      if (!VALID_TASK_STATUSES.has(nextStatus)) {
+        if (wantsJson) {
+          res.status(400).json({ error: 'Invalid task status' });
+          return;
+        }
+        req.flash('error', 'Invalid task status.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const effectiveTenantId: string = access.project.tenant_id;
+      const existingTask = await TaskModel.findByIdAndProject(
+        taskId,
+        projectId,
+        access.isSuper ? null : effectiveTenantId
+      );
+      if (!existingTask) {
+        if (wantsJson) {
+          res.status(404).json({ error: 'Task not found' });
+          return;
+        }
+        req.flash('error', 'Task not found.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const updatedTask = await TaskModel.updateStatus(
+        taskId,
+        projectId,
+        access.isSuper ? null : effectiveTenantId,
+        nextStatus as TaskStatus
+      );
+
+      if (!updatedTask) {
+        if (wantsJson) {
+          res.status(500).json({ error: 'Failed to update task status' });
+          return;
+        }
+        req.flash('error', 'Failed to update task status.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      await ActionLogService.record(req, {
+        action: AuditAction.UPDATE,
+        entityType: 'TASK',
+        entityId: taskId,
+        description: `Changed task "${updatedTask.title}" status from ${existingTask.status} to ${updatedTask.status} in project "${access.project.name}"`,
+        metadata: {
+          projectId,
+          taskId,
+          previousStatus: existingTask.status,
+          newStatus: updatedTask.status,
+        },
+      });
+
+      if (wantsJson) {
+        res.json({ success: true, task: updatedTask });
+        return;
+      }
+
+      const statusLabels: Record<string, string> = {
+        TODO: 'To Do',
+        IN_PROGRESS: 'In Progress',
+        IN_REVIEW: 'In Review',
+        COMPLETED: 'Completed',
+        BLOCKED: 'Blocked',
+      };
+      req.flash('success', `Task "${updatedTask.title}" marked as ${statusLabels[updatedTask.status] || updatedTask.status}.`);
+      res.redirect(`/projects/${projectId}`);
+    } catch (error) {
+      projectLogger.error('Failed to update task status', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Upload project document to Cloudflare R2
+   */
+  uploadDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const projectId = String(req.params.id);
+      const access = await this.verifyProjectAccess(req, projectId);
+
+      if (access.denied && !req.tenantId && !access.isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      if (!access.project) {
+        req.flash('error', access.denied ? 'You do not have permission to upload files to this project.' : 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
+
+      if (!this.canMutateTasks(req)) {
+        req.flash('error', 'You do not have permission to upload files to this project.');
+        res.redirect(`/projects/${projectId}`);
+        return;
       }
 
       if (!req.file) {
@@ -423,7 +983,8 @@ export class ProjectController {
         return;
       }
 
-      const uploadResult = await storageService.uploadTenantFile(tenantId, req.file, `projects/${projectId}`);
+      const effectiveTenantId: string = access.project.tenant_id;
+      const uploadResult = await storageService.uploadTenantFile(effectiveTenantId, req.file, `projects/${projectId}`);
       const documentName = req.body.documentName?.trim() || req.file.originalname;
 
       await query(`
@@ -433,7 +994,7 @@ export class ProjectController {
           gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW()
         )
       `, [
-        tenantId,
+        effectiveTenantId,
         projectId,
         documentName,
         uploadResult.url,
@@ -466,17 +1027,293 @@ export class ProjectController {
   };
 
   /**
+   * Helper to authorize and load a project document + its storage bytes
+   */
+  private async fetchAuthorizedDocument(
+    req: Request,
+    projectId: string,
+    docId: string
+  ): Promise<{
+    statusCode: number;
+    error?: string;
+    project?: any;
+    doc?: any;
+    buffer?: Buffer;
+  }> {
+    const access = await this.verifyProjectAccess(req, projectId);
+    if (access.denied && !req.tenantId && !access.isSuper) {
+      return { statusCode: 401, error: 'Authentication required.' };
+    }
+    if (!access.project) {
+      return {
+        statusCode: access.denied ? 403 : 404,
+        error: access.denied ? 'You do not have permission to access this project.' : 'Project not found.',
+      };
+    }
+
+    const docRes = await query(
+      `SELECT pd.*, u.first_name, u.last_name
+       FROM project_documents pd
+       LEFT JOIN users u ON pd.uploaded_by_id = u.id
+       WHERE pd.id = $1 AND pd.project_id = $2 AND pd.tenant_id = $3
+       LIMIT 1`,
+      [docId, projectId, access.project.tenant_id]
+    );
+
+    const doc = docRes.rows[0];
+    if (!doc) {
+      return { statusCode: 404, error: 'Document not found.' };
+    }
+
+    const fileData = await storageService.getFileBuffer(doc.file_url);
+    if (!fileData) {
+      return { statusCode: 404, error: 'File contents could not be retrieved from storage.' };
+    }
+
+    return {
+      statusCode: 200,
+      project: access.project,
+      doc,
+      buffer: fileData.buffer,
+    };
+  }
+
+  private resolveEffectiveFilename(doc: any, extension: string): string {
+    const rawName = String(doc?.name || 'document');
+    const hasExt = Boolean(path.posix.extname(rawName.replace(/\\/g, '/')));
+    return !hasExt && extension ? `${rawName}${extension}` : rawName;
+  }
+
+  /**
+   * Stream project document inline for in-app PDF/Image/Text preview (same-origin, CSP-safe)
+   */
+  previewDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const projectId = String(req.params.id);
+      const docId = String(req.params.docId);
+      const result = await this.fetchAuthorizedDocument(req, projectId, docId);
+
+      if (!result.doc || !result.buffer) {
+        res.status(result.statusCode).send(result.error || 'Unable to load file.');
+        return;
+      }
+
+      const { doc, buffer } = result;
+      const classification = classifyFile(doc.name, doc.file_type, doc.file_url);
+      const effectiveName = this.resolveEffectiveFilename(doc, classification.extension);
+      const signatureValid = matchesExpectedSignature(buffer, classification);
+
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store');
+
+      if (signatureValid && classification.kind === 'pdf') {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', buildContentDisposition('inline', effectiveName));
+        res.setHeader('Content-Security-Policy', "default-src 'self'; object-src 'self'; frame-ancestors 'self'");
+        res.send(buffer);
+        return;
+      }
+
+      if (signatureValid && classification.kind === 'image') {
+        res.setHeader('Content-Type', classification.safeContentType);
+        res.setHeader('Content-Disposition', buildContentDisposition('inline', effectiveName));
+        res.setHeader(
+          'Content-Security-Policy',
+          classification.isSvg
+            ? "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+            : "default-src 'none'"
+        );
+        res.send(buffer);
+        return;
+      }
+
+      if (classification.kind === 'text' || (classification.kind === 'spreadsheet' && classification.extension === '.csv')) {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Content-Disposition', buildContentDisposition('inline', effectiveName));
+        res.setHeader('Content-Security-Policy', "default-src 'none'");
+        res.send(buffer);
+        return;
+      }
+
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', buildContentDisposition('attachment', effectiveName));
+      res.send(buffer);
+    } catch (error) {
+      projectLogger.error('Failed to preview project document', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Return structured JSON preview metadata/contents for spreadsheets, DOCX, text, ZIP, PDF, and images
+   */
+  previewDocumentData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const projectId = String(req.params.id);
+      const docId = String(req.params.docId);
+      const result = await this.fetchAuthorizedDocument(req, projectId, docId);
+
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store');
+
+      if (!result.doc || !result.buffer) {
+        res.status(result.statusCode).json({ error: result.error || 'Document unavailable.' });
+        return;
+      }
+
+      const { doc, buffer } = result;
+      const classification = classifyFile(doc.name, doc.file_type, doc.file_url);
+      const effectiveName = this.resolveEffectiveFilename(doc, classification.extension);
+      const signatureValid = matchesExpectedSignature(buffer, classification);
+
+      const basePayload = {
+        fileName: effectiveName,
+        displayName: doc.name,
+        mimeType: doc.file_type || classification.safeContentType,
+        fileSize: doc.file_size || buffer.length,
+        previewUrl: `/projects/${projectId}/documents/${docId}/preview`,
+        downloadUrl: `/projects/${projectId}/documents/${docId}/download`,
+      };
+
+      if ((classification.kind === 'pdf' || classification.kind === 'image') && !signatureValid) {
+        res.json({
+          ...basePayload,
+          kind: 'unsupported',
+          message: 'This file header does not match its declared format and cannot be previewed inline. Please download it safely to inspect.',
+        });
+        return;
+      }
+
+      if (classification.kind === 'pdf') {
+        res.json({ ...basePayload, kind: 'pdf' });
+        return;
+      }
+
+      if (classification.kind === 'image') {
+        res.json({ ...basePayload, kind: 'image', isSvg: classification.isSvg });
+        return;
+      }
+
+      if (classification.kind === 'text') {
+        const textPreview = extractTextPreview(buffer);
+        res.json({
+          ...basePayload,
+          kind: 'text',
+          text: textPreview.text,
+          truncated: textPreview.truncated,
+        });
+        return;
+      }
+
+      if (classification.kind === 'spreadsheet') {
+        try {
+          const sheets = extractSpreadsheetPreview(buffer, classification.extension === '.csv');
+          res.json({
+            ...basePayload,
+            kind: 'spreadsheet',
+            sheets,
+          });
+        } catch {
+          res.json({
+            ...basePayload,
+            kind: 'unsupported',
+            message: 'Unable to parse spreadsheet for inline preview. You can download the file to view it.',
+          });
+        }
+        return;
+      }
+
+      if (classification.kind === 'docx') {
+        try {
+          const paragraphs = extractDocxParagraphs(buffer);
+          res.json({
+            ...basePayload,
+            kind: 'docx',
+            paragraphs,
+          });
+        } catch {
+          res.json({
+            ...basePayload,
+            kind: 'unsupported',
+            message: 'Unable to extract text preview from this Word document. Please download it to open locally.',
+          });
+        }
+        return;
+      }
+
+      if (classification.kind === 'zip') {
+        const entries = extractZipEntries(buffer);
+        res.json({
+          ...basePayload,
+          kind: 'zip',
+          entries,
+        });
+        return;
+      }
+
+      res.json({
+        ...basePayload,
+        kind: 'unsupported',
+        message: 'In-app preview is not available for this file format. Use the Download button to open it on your device.',
+      });
+    } catch (error) {
+      projectLogger.error('Failed to generate document preview data', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Download project document safely as an attachment via authenticated same-origin route
+   */
+  downloadDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const projectId = String(req.params.id);
+      const docId = String(req.params.docId);
+      const result = await this.fetchAuthorizedDocument(req, projectId, docId);
+
+      if (!result.doc || !result.buffer) {
+        req.flash('error', result.error || 'Document could not be downloaded.');
+        res.redirect(`/projects/${projectId}`);
+        return;
+      }
+
+      const classification = classifyFile(result.doc.name, result.doc.file_type, result.doc.file_url);
+      const effectiveName = this.resolveEffectiveFilename(result.doc, classification.extension);
+
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', buildContentDisposition('attachment', effectiveName));
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.send(result.buffer);
+    } catch (error) {
+      projectLogger.error('Failed to download project document', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
    * Delete project document
    */
   deleteDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.tenantId;
-      const projectId = req.params.id as string;
-      const docId = req.params.docId as string;
+      const projectId = String(req.params.id);
+      const docId = String(req.params.docId);
+      const access = await this.verifyProjectAccess(req, projectId);
+
+      if (access.denied && !req.tenantId && !access.isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      if (!access.project) {
+        req.flash('error', access.denied ? 'You do not have permission to delete files from this project.' : 'Project not found.');
+        res.redirect('/projects');
+        return;
+      }
 
       const docRes = await query(`
         SELECT * FROM project_documents WHERE id = $1 AND project_id = $2 AND tenant_id = $3
-      `, [docId, projectId, tenantId]);
+      `, [docId, projectId, access.project.tenant_id]);
 
       const doc = docRes.rows[0];
       if (doc) {

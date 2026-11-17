@@ -1,0 +1,108 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Edit Project Form View
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="edit-project-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <a href="/projects/<%= project.id %>" class="btn btn-sm btn-secondary mb-2" id="btn-back-to-project">
+        <i class="uil uil-arrow-left"></i>
+        <span>Back to Project</span>
+      </a>
+      <h1 class="page-title">Edit Project: <%= project.name %></h1>
+      <p class="page-subtitle">Update project metadata, client association, budget, timeline, and delivery status.</p>
+    </div>
+    <div class="page-actions">
+      <a href="/projects/<%= project.id %>" class="btn btn-secondary">
+        <i class="uil uil-times"></i>
+        <span>Cancel</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card max-w-form">
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-edit-alt"></i>
+        </div>
+        <div>
+          <h3 class="card-title">Project Details</h3>
+          <p class="card-subtitle">Modify project scope, schedule, budget, and operational status</p>
+        </div>
+      </div>
+      <div>
+        <span class="badge badge-subtle"><%= project.code %></span>
+      </div>
+    </div>
+    <div class="card-body">
+      <form action="/projects/<%= project.id %>/edit" method="POST" class="form-stack" id="edit-project-form">
+        <!-- TODO(security): Add CSRF synchronizer token when CSRF middleware is enabled globally -->
+        <div class="form-row-2-1">
+          <div class="form-group">
+            <label class="form-label" for="name">Project Name *</label>
+            <input type="text" class="form-input" id="name" name="name" required value="<%= project.name %>" placeholder="e.g. Data Center Modernization">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="code">Project Code *</label>
+            <input type="text" class="form-input" id="code" name="code" required value="<%= project.code %>" placeholder="e.g. PRJ-004">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="clientId">Associated Client</label>
+            <select class="form-select" id="clientId" name="clientId">
+              <option value="">-- Internal / No Client --</option>
+              <% if (clients && clients.length > 0) { %>
+                <% clients.forEach(function(c) { %>
+                  <option value="<%= c.id %>" <%= project.client_id === c.id ? 'selected' : '' %>><%= c.name %><%= c.is_active === false ? ' (Inactive)' : '' %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="budget">Total Budget (KES)</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="budget" name="budget" value="<%= project.budget != null ? project.budget : '' %>" placeholder="1500000">
+          </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label class="form-label" for="status">Project Status</label>
+            <select class="form-select" id="status" name="status">
+              <option value="PLANNING" <%= project.status === 'PLANNING' ? 'selected' : '' %>>Planning</option>
+              <option value="IN_PROGRESS" <%= project.status === 'IN_PROGRESS' ? 'selected' : '' %>>In Progress</option>
+              <option value="ON_HOLD" <%= project.status === 'ON_HOLD' ? 'selected' : '' %>>On Hold</option>
+              <option value="COMPLETED" <%= project.status === 'COMPLETED' ? 'selected' : '' %>>Completed</option>
+              <option value="CANCELLED" <%= project.status === 'CANCELLED' ? 'selected' : '' %>>Cancelled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="startDate">Start Date</label>
+            <% const startFormatted = project.start_date ? new Date(project.start_date).toISOString().split('T')[0] : ''; %>
+            <input type="date" class="form-input" id="startDate" name="startDate" value="<%= startFormatted %>">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="endDate">Target End Date</label>
+            <% const endFormatted = project.end_date ? new Date(project.end_date).toISOString().split('T')[0] : ''; %>
+            <input type="date" class="form-input" id="endDate" name="endDate" value="<%= endFormatted %>">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="description">Scope & Description</label>
+          <textarea class="form-input" id="description" name="description" rows="4" placeholder="Detail the deliverable scope, milestones, or technical requirements..."><%= project.description || '' %></textarea>
+        </div>
+
+        <div class="form-actions">
+          <a href="/projects/<%= project.id %>" class="btn btn-secondary" id="btn-cancel-edit">Cancel</a>
+          <button type="submit" class="btn btn-primary" id="btn-save-project">
+            <i class="uil uil-check"></i>
+            <span>Save Changes</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

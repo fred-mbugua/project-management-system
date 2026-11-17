@@ -74,12 +74,13 @@ self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests (CDN fonts, external APIs, etc.)
   if (url.origin !== self.location.origin) return;
 
-  // Skip API and auth routes (always network-only)
+  // Skip API, auth, and authenticated document preview/download routes (always network-only)
   if (url.pathname.startsWith('/api/') ||
       url.pathname.startsWith('/auth/') ||
       url.pathname.startsWith('/login') ||
       url.pathname.startsWith('/logout') ||
-      url.pathname.startsWith('/register')) {
+      url.pathname.startsWith('/register') ||
+      url.pathname.includes('/documents/')) {
     return;
   }
 

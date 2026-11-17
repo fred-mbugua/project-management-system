@@ -3,7 +3,7 @@
 // S3-Compatible Storage for Logos, Attachments & Project Management
 // ══════════════════════════════════════════════════════════════════════
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -168,11 +168,16 @@ class StorageService {
       // Fallback to path string parsing
     }
 
-    // Decode URI encoding (spaces, %20, etc.)
-    let clean = decodeURIComponent(pathname);
+    // Decode URI encoding (spaces, %20, etc.) safely
+    let clean = pathname;
+    try {
+      clean = decodeURIComponent(pathname);
+    } catch {
+      clean = pathname;
+    }
 
-    // Strip leading slashes
-    clean = clean.replace(/^\/+/, '');
+    // Normalize backslashes and strip leading slashes
+    clean = clean.replace(/\\/g, '/').replace(/^\/+/, '');
 
     // Strip bucket name if in pathname (e.g. S3 path-style https://.../pm-erp-storage/logos/...)
     if (appConfig.r2.bucketName && clean.startsWith(`${appConfig.r2.bucketName}/`)) {
@@ -186,6 +191,78 @@ class StorageService {
     clean = clean.replace(/^\/+/, '');
 
     return clean;
+  }
+
+  /**
+   * Resolve a storage key safely inside public/uploads without allowing path traversal.
+   */
+  private resolveSafeUploadPath(key: string): string | null {
+    if (!key || key.includes('\0')) return null;
+    const segments = key.split(/[\\/]/).filter(Boolean);
+    if (segments.length === 0 || segments.some((seg) => seg === '..' || seg === '.')) {
+      return null;
+    }
+
+    const publicUploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
+    const resolved = path.resolve(publicUploadsDir, ...segments);
+    if (!resolved.startsWith(publicUploadsDir + path.sep)) {
+      return null;
+    }
+    return resolved;
+  }
+
+  /**
+   * Read file bytes from local uploads directory or Cloudflare R2 storage.
+   */
+  async getFileBuffer(urlOrKey: string): Promise<{ buffer: Buffer; contentType?: string } | null> {
+    if (!urlOrKey || typeof urlOrKey !== 'string') return null;
+    const key = this.extractKeyFromUrl(urlOrKey);
+    if (!key || key.includes('\0') || key.split(/[\\/]/).includes('..')) {
+      return null;
+    }
+
+    const tryLocal = (): { buffer: Buffer } | null => {
+      const safePath = this.resolveSafeUploadPath(key);
+      if (safePath && fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
+        return { buffer: fs.readFileSync(safePath) };
+      }
+      return null;
+    };
+
+    const tryR2 = async (): Promise<{ buffer: Buffer; contentType?: string } | null> => {
+      if (!this.isR2Configured || !this.s3Client) return null;
+      try {
+        const res = await this.s3Client.send(
+          new GetObjectCommand({
+            Bucket: appConfig.r2.bucketName,
+            Key: key,
+          })
+        );
+        if (!res.Body) return null;
+
+        if (typeof (res.Body as any).transformToByteArray === 'function') {
+          const bytes = await (res.Body as any).transformToByteArray();
+          return { buffer: Buffer.from(bytes), contentType: res.ContentType };
+        }
+
+        const chunks: Buffer[] = [];
+        for await (const chunk of res.Body as AsyncIterable<Uint8Array | Buffer | string>) {
+          chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : Buffer.from(chunk));
+        }
+        return { buffer: Buffer.concat(chunks), contentType: res.ContentType };
+      } catch (err) {
+        storageLogger.warn('Failed to fetch file from Cloudflare R2', { key, error: String(err) });
+        return null;
+      }
+    };
+
+    const trimmed = urlOrKey.trim();
+    const prefersLocal = trimmed.startsWith('/uploads/') || trimmed.startsWith('uploads/');
+
+    if (prefersLocal) {
+      return tryLocal() || (await tryR2());
+    }
+    return (await tryR2()) || tryLocal();
   }
 
   /**
@@ -216,15 +293,16 @@ class StorageService {
 
     // 2. Also check and delete from local disk (for fallback or local uploads)
     try {
-      const publicUploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
+      const publicDir = path.resolve(process.cwd(), 'public');
+      const publicUploadsDir = path.resolve(publicDir, 'uploads');
       const candidatePaths = [
         path.resolve(publicUploadsDir, key),
-        path.resolve(process.cwd(), 'public', key),
+        path.resolve(publicDir, key),
       ];
 
       for (const filePath of candidatePaths) {
-        // Enforce path traversal protection (must reside under /public/)
-        if (filePath.startsWith(path.resolve(process.cwd(), 'public')) && fs.existsSync(filePath)) {
+        // Enforce path traversal protection (must reside strictly under /public/)
+        if (filePath.startsWith(publicDir + path.sep) && fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
           storageLogger.info('Local file successfully deleted from server disk', { filePath, key });
           deleted = true;

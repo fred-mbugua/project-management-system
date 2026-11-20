@@ -1,0 +1,220 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Edit Maintenance Contract View
+     Enables editing retainer terms, client/project links, cadence & dates
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="edit-maintenance-page">
+  <div class="page-header">
+    <div class="page-title-group">
+      <a href="/maintenance" class="btn btn-sm btn-secondary mb-2" id="btn-back-to-maintenance">
+        <i class="uil uil-arrow-left"></i>
+        <span>Back to Maintenance Contracts</span>
+      </a>
+      <h1 class="page-title">Edit Maintenance Contract</h1>
+      <p class="page-subtitle">Update retainer terms, billing cadence, client/project associations, and automated invoicing rules.</p>
+    </div>
+    <div class="page-actions">
+      <a href="/maintenance" class="btn btn-secondary">
+        <i class="uil uil-times"></i>
+        <span>Cancel</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Summary Banner Card -->
+  <div class="card max-w-wide mb-6">
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-title-icon">
+          <i class="uil uil-edit-alt"></i>
+        </div>
+        <div>
+          <h3 class="card-title"><%= schedule.title %></h3>
+          <p class="card-subtitle">
+            Client: <strong><%= schedule.clientName || 'N/A' %></strong>
+            &bull; Invoices Generated: <strong><%= schedule.invoiceCount || 0 %></strong>
+            <% if (schedule.lastInvoiceNumber) { %>
+              &bull; Last Invoice: <strong><%= schedule.lastInvoiceNumber %></strong>
+            <% } %>
+          </p>
+        </div>
+      </div>
+      <div>
+        <% if (schedule.status === 'ACTIVE') { %>
+          <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
+        <% } else if (schedule.status === 'PAUSED') { %>
+          <span class="badge badge-warning"><span class="badge-dot"></span>Paused</span>
+        <% } else if (schedule.status === 'COMPLETED') { %>
+          <span class="badge badge-info"><span class="badge-dot"></span>Completed</span>
+        <% } else { %>
+          <span class="badge badge-danger"><span class="badge-dot"></span><%= schedule.status %></span>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <form action="/maintenance/<%= schedule.id %>/edit" method="POST" id="editMaintenanceForm" class="form-stack">
+        <!-- TODO(security): Add CSRF synchronizer token when CSRF middleware is enabled globally -->
+
+        <!-- Basic Information -->
+        <div class="form-row-2-1-1">
+          <div class="form-group">
+            <label for="title" class="form-label">Contract / Retainer Title *</label>
+            <input type="text" id="title" name="title" class="form-input" required maxlength="255" value="<%= schedule.title %>" placeholder="e.g. Website Maintenance & Cloud Hosting SLA">
+          </div>
+          <div class="form-group">
+            <label for="clientId" class="form-label">Client *</label>
+            <select id="clientId" name="clientId" class="form-select" required>
+              <option value="">-- Select Client --</option>
+              <% if (clients && clients.length > 0) { %>
+                <% clients.forEach(function(c) { %>
+                  <option value="<%= c.id %>" <%= schedule.clientId === c.id ? 'selected' : '' %>><%= c.name %><%= c.is_active === false ? ' (Inactive)' : '' %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="projectId" class="form-label">Linked Project (Optional)</label>
+            <select id="projectId" name="projectId" class="form-select">
+              <option value="">None / General Retainer</option>
+              <% if (projects && projects.length > 0) { %>
+                <% projects.forEach(function(p) { %>
+                  <option value="<%= p.id %>" <%= schedule.projectId === p.id ? 'selected' : '' %>><%= p.name %> (<%= p.code %>)</option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+        </div>
+
+        <!-- Cadence & Financial Schedule Box -->
+        <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); padding: 18px 20px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="uil uil-repeat text-primary" style="font-size: 1.25rem;"></i>
+              <strong style="font-size: 0.95rem;">Recurring Cadence, Dates &amp; Billing</strong>
+            </div>
+            <button type="button" id="btnRecalculateDueDate" class="btn btn-xs btn-outline-primary" title="Recalculate Next Invoice Due Date from Start Date and Cadence">
+              <i class="uil uil-sync"></i>
+              <span>Recalculate Next Due Date</span>
+            </button>
+          </div>
+
+          <div class="form-row-3" style="margin-bottom: 14px;">
+            <div class="form-group">
+              <label for="status" class="form-label">Contract Status *</label>
+              <select id="status" name="status" class="form-select" required>
+                <option value="ACTIVE" <%= schedule.status === 'ACTIVE' ? 'selected' : '' %>>Active (Automated Billing On)</option>
+                <option value="PAUSED" <%= schedule.status === 'PAUSED' ? 'selected' : '' %>>Paused</option>
+                <option value="COMPLETED" <%= schedule.status === 'COMPLETED' ? 'selected' : '' %>>Completed</option>
+                <option value="CANCELLED" <%= schedule.status === 'CANCELLED' ? 'selected' : '' %>>Cancelled</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="frequency" class="form-label">Billing Cadence *</label>
+              <select id="frequency" name="frequency" class="form-select" required>
+                <option value="MONTHLY" <%= schedule.frequency === 'MONTHLY' ? 'selected' : '' %>>Monthly (Every 1 Month)</option>
+                <option value="QUARTERLY" <%= schedule.frequency === 'QUARTERLY' ? 'selected' : '' %>>Quarterly (Every 3 Months)</option>
+                <option value="BIANNUAL" <%= schedule.frequency === 'BIANNUAL' ? 'selected' : '' %>>Biannually (Every 6 Months)</option>
+                <option value="ANNUAL" <%= schedule.frequency === 'ANNUAL' ? 'selected' : '' %>>Annually (Every 12 Months)</option>
+                <option value="CUSTOM" <%= schedule.frequency === 'CUSTOM' ? 'selected' : '' %>>Custom Months Interval...</option>
+                <option value="WEEKLY" <%= schedule.frequency === 'WEEKLY' ? 'selected' : '' %>>Weekly (Every 7 Days)</option>
+                <option value="BIWEEKLY" <%= schedule.frequency === 'BIWEEKLY' ? 'selected' : '' %>>Bi-Weekly (Every 14 Days)</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="customIntervalGroup" style="<%= schedule.frequency === 'CUSTOM' ? '' : 'display: none;' %>">
+              <label for="intervalMonths" class="form-label">Custom Interval (Months) *</label>
+              <input type="number" id="intervalMonths" name="intervalMonths" class="form-input" min="1" max="120" value="<%= schedule.intervalMonths || 1 %>">
+            </div>
+          </div>
+
+          <div class="form-row-3" style="margin-bottom: 14px;">
+            <div class="form-group">
+              <label for="chargeAmount" class="form-label">Retainer Amount (KES) *</label>
+              <input type="number" id="chargeAmount" name="chargeAmount" class="form-input" step="any" min="0" required value="<%= schedule.chargeAmount %>">
+            </div>
+
+            <div class="form-group">
+              <label for="taxRate" class="form-label">Tax / VAT (%)</label>
+              <input type="number" id="taxRate" name="taxRate" class="form-input" step="any" min="0" max="100" value="<%= schedule.taxRate %>">
+            </div>
+
+            <div class="form-group">
+              <label for="notifyDaysBefore" class="form-label">Payment Due Window (Days)</label>
+              <input type="number" id="notifyDaysBefore" name="notifyDaysBefore" class="form-input" min="0" max="365" value="<%= schedule.notifyDaysBefore %>">
+              <small class="text-xs text-muted">Days given to settle auto-generated invoices</small>
+            </div>
+          </div>
+
+          <div class="form-row-3">
+            <%
+              const startDateStr = schedule.startDate ? new Date(schedule.startDate).toISOString().split('T')[0] : '';
+              const nextDueStr = schedule.nextDueDate ? new Date(schedule.nextDueDate).toISOString().split('T')[0] : '';
+              const endDateStr = schedule.endDate ? new Date(schedule.endDate).toISOString().split('T')[0] : '';
+            %>
+            <div class="form-group">
+              <label for="startDate" class="form-label">Billing Start Date *</label>
+              <input type="date" id="startDate" name="startDate" class="form-input flatpickr-date" required value="<%= startDateStr %>">
+            </div>
+
+            <div class="form-group">
+              <label for="nextDueDate" class="form-label">Next Invoice Due Date *</label>
+              <input type="date" id="nextDueDate" name="nextDueDate" class="form-input flatpickr-date" required value="<%= nextDueStr %>">
+            </div>
+
+            <div class="form-group">
+              <label for="endDate" class="form-label">Contract End Date (Optional)</label>
+              <input type="date" id="endDate" name="endDate" class="form-input flatpickr-date" value="<%= endDateStr %>">
+              <small class="text-xs text-muted">Leave blank for ongoing contract</small>
+            </div>
+          </div>
+
+          <!-- Per-Invoice Live Summary -->
+          <div class="invoice-live-summary mt-4">
+            <div class="live-summary-row">
+              <span>Retainer Subtotal per Cycle:</span>
+              <strong id="editContractSubtotal"><%= formatKES(schedule.chargeAmount) %></strong>
+            </div>
+            <div class="live-summary-row">
+              <span>Tax / VAT per Cycle:</span>
+              <strong id="editContractTax"><%= formatKES(schedule.chargeAmount * ((schedule.taxRate || 0) / 100)) %></strong>
+            </div>
+            <div class="live-summary-row live-summary-grand">
+              <span>Total Billed per Invoice:</span>
+              <strong class="text-primary-color" id="editContractTotal"><%= formatKES(schedule.chargeAmount * (1 + (schedule.taxRate || 0) / 100)) %></strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- SLA Scope & Notes -->
+        <div class="form-group">
+          <label for="notes" class="form-label">SLA Scope / Deliverables</label>
+          <textarea id="notes" name="notes" class="form-input" rows="3" placeholder="e.g. 24/7 Server uptime monitoring, monthly security patch, 5hrs minor changes"><%= schedule.notes || '' %></textarea>
+        </div>
+
+        <!-- Automation Toggles -->
+        <div class="form-stack" style="gap: 10px;">
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;">
+            <input type="checkbox" name="autoInvoice" <%= schedule.autoInvoice ? 'checked' : '' %> style="width: 17px; height: 17px; accent-color: var(--primary);">
+            <span>Enable automated recurring invoice generation when due date arrives</span>
+          </label>
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;">
+            <input type="checkbox" name="autoSendEmail" <%= schedule.autoSendEmail ? 'checked' : '' %> style="width: 17px; height: 17px; accent-color: var(--primary);">
+            <span>Automatically email generated invoice with PDF &amp; online payment link to client</span>
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <a href="/maintenance" class="btn btn-secondary" id="btn-cancel-edit">Cancel</a>
+          <button type="submit" class="btn btn-primary" id="btn-save-maintenance">
+            <i class="uil uil-check"></i>
+            <span>Save Changes</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="/js/maintenance-edit.js?v=1.0"></script>

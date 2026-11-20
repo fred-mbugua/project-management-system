@@ -15,6 +15,8 @@ router.use(requireAuth, resolveTenant);
 router.get('/', requireModuleAccess('maintenance', 'view'), maintenanceController.index);
 router.post('/new', requireModuleAccess('maintenance', 'manage'), maintenanceController.create);
 router.post('/run-billing', requireModuleAccess('maintenance', 'manage'), maintenanceController.triggerAutoBilling);
+router.get('/:id/edit', requireModuleAccess('maintenance', 'manage'), maintenanceController.showEdit);
+router.post('/:id/edit', requireModuleAccess('maintenance', 'manage'), maintenanceController.update);
 router.get('/:id/invoices', requireModuleAccess('maintenance', 'view'), maintenanceController.getContractInvoices);
 router.post('/:id/generate-now', requireModuleAccess('maintenance', 'manage'), maintenanceController.generateInvoiceNow);
 router.post('/:id/toggle-status', requireModuleAccess('maintenance', 'manage'), maintenanceController.toggleStatus);

@@ -4,7 +4,15 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../config/database';
-import { MaintenanceFrequency, MaintenanceStatus } from '../models/types';
+import {
+  MaintenanceFrequency,
+  MaintenanceStatus,
+  TaxType,
+  UserRole,
+  AuditAction,
+} from '../models/types';
+import { MaintenanceModel, MaintenanceContractDetail } from '../models/maintenance.model';
+import ActionLogService from '../services/actionLog.service';
 import { extractPaginationParams, calculatePagination } from '../utils/pagination';
 import { formatKES } from '../utils/taxCalculator';
 import { recurringBillingService } from '../services/recurringBilling.service';
@@ -13,7 +21,73 @@ import logger from '../utils/logger';
 
 const maintLogger = logger.child('MaintenanceController');
 
+const VALID_FREQUENCIES = new Set<string>(Object.values(MaintenanceFrequency));
+const VALID_STATUSES = new Set<string>(Object.values(MaintenanceStatus));
+
+const FREQUENCY_DEFAULT_MONTHS: Record<string, number> = {
+  [MaintenanceFrequency.MONTHLY]: 1,
+  [MaintenanceFrequency.QUARTERLY]: 3,
+  [MaintenanceFrequency.BIANNUAL]: 6,
+  [MaintenanceFrequency.ANNUAL]: 12,
+  [MaintenanceFrequency.WEEKLY]: 1,
+  [MaintenanceFrequency.BIWEEKLY]: 1,
+};
+
+function parseDateValue(raw: unknown): Date | null {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+  const parsed = new Date(String(raw).trim());
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export class MaintenanceController {
+  private async verifyScheduleAccess(
+    req: Request,
+    id: string
+  ): Promise<{ schedule: MaintenanceContractDetail | null; isSuper: boolean; denied: boolean }> {
+    const isSuper = req.user?.role === UserRole.SUPER_ADMIN;
+    const tenantId = req.tenantId;
+
+    if (!tenantId && !isSuper) {
+      return { schedule: null, isSuper, denied: true };
+    }
+
+    const schedule = await MaintenanceModel.findByIdAndTenant(
+      id,
+      isSuper ? null : (tenantId || null)
+    );
+    if (!schedule) {
+      return { schedule: null, isSuper, denied: false };
+    }
+
+    if (req.user && isAssignedProjectsOnly(req.user)) {
+      if (!schedule.projectId) {
+        return { schedule: null, isSuper, denied: true };
+      }
+      const pCheck = await query(
+        `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+         UNION
+         SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2
+         LIMIT 1`,
+        [schedule.projectId, req.user.id]
+      );
+      if ((pCheck.rowCount || 0) === 0) {
+        return { schedule: null, isSuper, denied: true };
+      }
+    }
+
+    return { schedule, isSuper, denied: false };
+  }
+
+  private async isProjectAssignedToUser(projectId: string, userId: string): Promise<boolean> {
+    const pCheck = await query(
+      `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+       UNION
+       SELECT 1 FROM tasks WHERE project_id = $1 AND assigned_to_id = $2
+       LIMIT 1`,
+      [projectId, userId]
+    );
+    return (pCheck.rowCount || 0) > 0;
+  }
   index = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const isSuper = req.user?.role === 'SUPER_ADMIN';
@@ -66,7 +140,7 @@ export class MaintenanceController {
         values.push(`${params.endDate}T23:59:59Z`);
       }
 
-      if (params.status) {
+      if (params.status && VALID_STATUSES.has(params.status)) {
         conditions.push(`m.status = $${paramIdx++}`);
         values.push(params.status);
       }
@@ -417,20 +491,350 @@ export class MaintenanceController {
   };
 
   /**
-   * Toggle contract status between ACTIVE and PAUSED
+   * Render edit maintenance contract form
    */
-  toggleStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  showEdit = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = String(req.params.id);
-      const tenantId = req.tenantId;
+      const access = await this.verifyScheduleAccess(req, id);
+
+      if (access.denied && !req.tenantId && !access.isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      if (!access.schedule) {
+        req.flash(
+          'error',
+          access.denied
+            ? 'You do not have permission to edit this maintenance contract.'
+            : 'Maintenance contract not found.'
+        );
+        res.redirect('/maintenance');
+        return;
+      }
+
+      const schedule = access.schedule;
+      const isScoped = req.user ? isAssignedProjectsOnly(req.user) : false;
+
+      const projectsQuery = isScoped && req.user
+        ? query(
+            `SELECT id, name, code, status FROM projects
+             WHERE tenant_id = $1 AND (status != 'CANCELLED' OR id = $2) AND (
+               EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = projects.id AND pm.user_id = $3)
+               OR EXISTS (SELECT 1 FROM tasks t WHERE t.project_id = projects.id AND t.assigned_to_id = $3)
+             )
+             ORDER BY name ASC`,
+            [schedule.tenantId, schedule.projectId || null, req.user.id]
+          )
+        : query(
+            `SELECT id, name, code, status FROM projects
+             WHERE tenant_id = $1 AND (status != 'CANCELLED' OR id = $2)
+             ORDER BY name ASC`,
+            [schedule.tenantId, schedule.projectId || null]
+          );
+
+      const [clientsRes, projectsRes] = await Promise.all([
+        query(
+          `SELECT id, name, is_active FROM clients
+           WHERE tenant_id = $1 AND (is_active = TRUE OR id = $2)
+           ORDER BY name ASC`,
+          [schedule.tenantId, schedule.clientId]
+        ),
+        projectsQuery,
+      ]);
+
+      res.render('pages/maintenance/edit', {
+        title: `Edit ${schedule.title}`,
+        schedule,
+        clients: clientsRes.rows,
+        projects: projectsRes.rows,
+        frequencies: Object.values(MaintenanceFrequency),
+        statuses: Object.values(MaintenanceStatus),
+        formatKES,
+      });
+    } catch (error) {
+      maintLogger.error('Failed to load edit maintenance contract page', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Update maintenance contract details, cadence, and billing settings
+   */
+  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const access = await this.verifyScheduleAccess(req, id);
+
+      if (access.denied && !req.tenantId && !access.isSuper) {
+        res.redirect('/auth/login');
+        return;
+      }
+
+      if (!access.schedule) {
+        req.flash(
+          'error',
+          access.denied
+            ? 'You do not have permission to update this maintenance contract.'
+            : 'Maintenance contract not found.'
+        );
+        res.redirect('/maintenance');
+        return;
+      }
+
+      const existing = access.schedule;
+      const {
+        title,
+        clientId,
+        projectId,
+        frequency,
+        intervalMonths,
+        status,
+        chargeAmount,
+        taxRate,
+        startDate,
+        nextDueDate,
+        endDate,
+        notifyDaysBefore,
+        autoInvoice,
+        autoSendEmail,
+        notes,
+      } = req.body;
+
+      const trimmedTitle = typeof title === 'string' ? title.trim() : '';
+      if (!trimmedTitle || trimmedTitle.length > 255) {
+        req.flash('error', 'Contract title is required and must be 255 characters or less.');
+        res.redirect(`/maintenance/${id}/edit`);
+        return;
+      }
+
+      const cleanClientId = typeof clientId === 'string' ? clientId.trim() : '';
+      if (!cleanClientId) {
+        req.flash('error', 'Please select a client.');
+        res.redirect(`/maintenance/${id}/edit`);
+        return;
+      }
+
+      const clientCheck = await query(
+        `SELECT id FROM clients WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+        [cleanClientId, existing.tenantId]
+      );
+      if ((clientCheck.rowCount || 0) === 0) {
+        req.flash('error', 'Selected client does not belong to this organization.');
+        res.redirect(`/maintenance/${id}/edit`);
+        return;
+      }
+
+      const cleanProjectId = typeof projectId === 'string' && projectId.trim() !== '' ? projectId.trim() : null;
+      if (cleanProjectId) {
+        const projCheck = await query(
+          `SELECT id FROM projects WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+          [cleanProjectId, existing.tenantId]
+        );
+        if ((projCheck.rowCount || 0) === 0) {
+          req.flash('error', 'Selected project does not belong to this organization.');
+          res.redirect(`/maintenance/${id}/edit`);
+          return;
+        }
+        if (req.user && isAssignedProjectsOnly(req.user)) {
+          if (!(await this.isProjectAssignedToUser(cleanProjectId, req.user.id))) {
+            req.flash('error', 'You can only link maintenance contracts to projects assigned to you.');
+            res.redirect(`/maintenance/${id}/edit`);
+            return;
+          }
+        }
+      } else if (req.user && isAssignedProjectsOnly(req.user)) {
+        req.flash('error', 'A linked assigned project is required for your account scope.');
+        res.redirect(`/maintenance/${id}/edit`);
+        return;
+      }
+
+      if (!VALID_FREQUENCIES.has(frequency)) {
+        req.flash('error', 'Invalid billing cadence selected.');
+        res.redirect(`/maintenance/${id}/edit`);
+        return;
+      }
+      const normalizedFrequency = frequency as MaintenanceFrequency;
+
+      const normalizedStatus = VALID_STATUSES.has(status)
+        ? (status as MaintenanceStatus)
+        : existing.status;
+
+      let parsedInterval = FREQUENCY_DEFAULT_MONTHS[normalizedFrequency] ?? 1;
+      if (normalizedFrequency === MaintenanceFrequency.CUSTOM) {
+        const rawInt = parseInt(String(intervalMonths || ''), 10);
+        if (!Number.isFinite(rawInt) || rawInt < 1 || rawInt > 120) {
+          req.flash('error', 'Custom interval months must be a whole number between 1 and 120.');
+          res.redirect(`/maintenance/${id}/edit`);
+          return;
+        }
+        parsedInterval = rawInt;
+      }
+
+      const parsedCharge = Number(chargeAmount);
+      if (chargeAmount === undefined || chargeAmount === null || String(chargeAmount).trim() === '' || !Number.isFinite(parsedCharge) || parsedCharge < 0) {
+        req.flash('error', 'Retainer amount must be a valid non-negative number.');
+        res.redirect(`/maintenance/${id}/edit`);
+        return;
+      }
+
+      const parsedTaxRate =
+        taxRate === undefined || taxRate === null || String(taxRate).trim() === ''
+          ? 0
+          : Number(taxRate);
+      if (!Number.isFinite(parsedTaxRate) || parsedTaxRate < 0 || parsedTaxRate > 100) {
+        req.flash('error', 'Tax / VAT rate must be between 0% and 100%.');
+        res.redirect(`/maintenance/${id}/edit`);
+        return;
+      }
+
+      const parsedTaxType =
+        parsedTaxRate === 0
+          ? (existing.taxType === TaxType.EXEMPT ? TaxType.EXEMPT : TaxType.ZERO_RATED)
+          : parsedTaxRate === 16
+          ? TaxType.VAT_16
+          : TaxType.CUSTOM;
+
+      const startDt = parseDateValue(startDate);
+      const nextDueDt = parseDateValue(nextDueDate);
+      if (!startDt || !nextDueDt) {
+        req.flash('error', 'Valid Billing Start Date and Next Invoice Due Date are required.');
+        res.redirect(`/maintenance/${id}/edit`);
+        return;
+      }
+
+      let endDt: Date | null = null;
+      if (endDate !== undefined && endDate !== null && String(endDate).trim() !== '') {
+        endDt = parseDateValue(endDate);
+        if (!endDt) {
+          req.flash('error', 'Please enter a valid Contract End Date.');
+          res.redirect(`/maintenance/${id}/edit`);
+          return;
+        }
+        if (endDt < startDt) {
+          req.flash('error', 'Contract End Date cannot be earlier than Billing Start Date.');
+          res.redirect(`/maintenance/${id}/edit`);
+          return;
+        }
+      }
+
+      const parsedNotifyDays =
+        notifyDaysBefore === undefined || notifyDaysBefore === null || String(notifyDaysBefore).trim() === ''
+          ? existing.notifyDaysBefore
+          : parseInt(String(notifyDaysBefore), 10);
+      if (!Number.isFinite(parsedNotifyDays) || parsedNotifyDays < 0 || parsedNotifyDays > 365) {
+        req.flash('error', 'Invoice lead days must be between 0 and 365.');
+        res.redirect(`/maintenance/${id}/edit`);
+        return;
+      }
+
+      const willAutoInvoice = autoInvoice === 'on' || autoInvoice === true || autoInvoice === 'true';
+      const willAutoEmail = autoSendEmail === 'on' || autoSendEmail === true || autoSendEmail === 'true';
+      const cleanNotes = typeof notes === 'string' && notes.trim() !== '' ? notes.trim() : null;
+
+      const updated = await MaintenanceModel.update(
+        id,
+        access.isSuper ? null : existing.tenantId,
+        {
+          clientId: cleanClientId,
+          projectId: cleanProjectId,
+          title: trimmedTitle,
+          frequency: normalizedFrequency,
+          intervalMonths: parsedInterval,
+          status: normalizedStatus,
+          chargeAmount: parsedCharge,
+          taxType: parsedTaxType,
+          taxRate: parsedTaxRate,
+          startDate: startDt,
+          nextDueDate: nextDueDt,
+          endDate: endDt,
+          autoInvoice: willAutoInvoice,
+          autoSendEmail: willAutoEmail,
+          notifyDaysBefore: parsedNotifyDays,
+          notes: cleanNotes,
+        }
+      );
+
+      if (!updated) {
+        req.flash('error', 'Maintenance contract could not be updated.');
+        res.redirect('/maintenance');
+        return;
+      }
+
+      await ActionLogService.record(req, {
+        action: AuditAction.UPDATE,
+        entityType: 'MAINTENANCE_SCHEDULE',
+        entityId: id,
+        description: `Updated maintenance contract "${updated.title}"`,
+        metadata: {
+          before: {
+            title: existing.title,
+            clientId: existing.clientId,
+            projectId: existing.projectId,
+            frequency: existing.frequency,
+            intervalMonths: existing.intervalMonths,
+            status: existing.status,
+            chargeAmount: existing.chargeAmount,
+            taxRate: existing.taxRate,
+            nextDueDate: existing.nextDueDate,
+          },
+          after: {
+            title: updated.title,
+            clientId: updated.clientId,
+            projectId: updated.projectId,
+            frequency: updated.frequency,
+            intervalMonths: updated.intervalMonths,
+            status: updated.status,
+            chargeAmount: updated.chargeAmount,
+            taxRate: updated.taxRate,
+            nextDueDate: updated.nextDueDate,
+          },
+        },
+      });
+
+      req.flash('success', `Maintenance contract "${updated.title}" updated successfully.`);
+      res.redirect('/maintenance');
+    } catch (error) {
+      maintLogger.error('Failed to update maintenance contract', { error: String(error) });
+      next(error);
+    }
+  };
+
+  /**
+   * Toggle contract status between ACTIVE and PAUSED
+   */
+  toggleStatus = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const access = await this.verifyScheduleAccess(req, id);
+      if (!access.schedule) {
+        req.flash('error', access.denied ? 'Permission denied.' : 'Contract not found.');
+        res.redirect('/maintenance');
+        return;
+      }
+
+      const nextStatus = access.schedule.status === MaintenanceStatus.ACTIVE
+        ? MaintenanceStatus.PAUSED
+        : MaintenanceStatus.ACTIVE;
+
       await query(
         `UPDATE maintenance_schedules 
-         SET status = CASE WHEN status = 'ACTIVE' THEN 'PAUSED' ELSE 'ACTIVE' END,
+         SET status = $1::maintenance_status,
              updated_at = NOW()
-         WHERE id = $1 AND ($2::text IS NULL OR tenant_id = $2)`,
-        [id, tenantId || null]
+         WHERE id = $2 AND tenant_id = $3`,
+        [nextStatus, id, access.schedule.tenantId]
       );
-      req.flash('success', 'Contract status updated.');
+
+      await ActionLogService.record(req, {
+        action: AuditAction.UPDATE,
+        entityType: 'MAINTENANCE_SCHEDULE',
+        entityId: id,
+        description: `Changed contract "${access.schedule.title}" status from ${access.schedule.status} to ${nextStatus}`,
+        metadata: { previousStatus: access.schedule.status, newStatus: nextStatus },
+      });
+
+      req.flash('success', `Contract status updated to ${nextStatus}.`);
       res.redirect('/maintenance');
     } catch (error) {
       req.flash('error', 'Failed to update contract status.');
@@ -441,13 +845,32 @@ export class MaintenanceController {
   /**
    * Delete schedule
    */
-  deleteSchedule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  deleteSchedule = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
       const id = String(req.params.id);
-      const tenantId = req.tenantId;
+      const access = await this.verifyScheduleAccess(req, id);
+      if (!access.schedule) {
+        req.flash('error', access.denied ? 'Permission denied.' : 'Contract not found.');
+        res.redirect('/maintenance');
+        return;
+      }
+
+      await ActionLogService.record(req, {
+        action: AuditAction.DELETE,
+        entityType: 'MAINTENANCE_SCHEDULE',
+        entityId: id,
+        description: `Deleted maintenance contract "${access.schedule.title}"`,
+        metadata: {
+          title: access.schedule.title,
+          clientId: access.schedule.clientId,
+          chargeAmount: access.schedule.chargeAmount,
+          frequency: access.schedule.frequency,
+        },
+      });
+
       await query(
-        `DELETE FROM maintenance_schedules WHERE id = $1 AND ($2::text IS NULL OR tenant_id = $2)`,
-        [id, tenantId || null]
+        `DELETE FROM maintenance_schedules WHERE id = $1 AND tenant_id = $2`,
+        [id, access.schedule.tenantId]
       );
       req.flash('success', 'Maintenance contract deleted.');
       res.redirect('/maintenance');

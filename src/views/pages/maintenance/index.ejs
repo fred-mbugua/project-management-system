@@ -267,7 +267,7 @@
           <option value="">All Statuses</option>
           <option value="ACTIVE" <%= (typeof filters !== 'undefined' && filters.status === 'ACTIVE') ? 'selected' : '' %>>Active</option>
           <option value="PAUSED" <%= (typeof filters !== 'undefined' && filters.status === 'PAUSED') ? 'selected' : '' %>>Paused</option>
-          <option value="EXPIRED" <%= (typeof filters !== 'undefined' && filters.status === 'EXPIRED') ? 'selected' : '' %>>Expired</option>
+          <option value="COMPLETED" <%= (typeof filters !== 'undefined' && filters.status === 'COMPLETED') ? 'selected' : '' %>>Completed</option>
           <option value="CANCELLED" <%= (typeof filters !== 'undefined' && filters.status === 'CANCELLED') ? 'selected' : '' %>>Cancelled</option>
         </select>
       </div>
@@ -329,7 +329,13 @@
               %>
                 <tr id="contract-row-<%= s.id %>">
                   <td>
-                    <strong><%= s.title %></strong>
+                    <% if (typeof hasModuleAccess === 'function' && hasModuleAccess('maintenance', 'manage')) { %>
+                      <a href="/maintenance/<%= s.id %>/edit" class="font-semibold text-primary" title="Edit contract <%= s.title %>">
+                        <strong><%= s.title %></strong>
+                      </a>
+                    <% } else { %>
+                      <strong><%= s.title %></strong>
+                    <% } %>
                     <% if (s.project_name) { %>
                       <div class="text-xs text-muted">Project: <%= s.project_name %> (<%= s.project_code %>)</div>
                     <% } %>
@@ -399,28 +405,40 @@
                   <td>
                     <% if (s.status === 'ACTIVE') { %>
                       <span class="badge badge-success"><span class="badge-dot"></span>Active</span>
+                    <% } else if (s.status === 'PAUSED') { %>
+                      <span class="badge badge-warning"><span class="badge-dot"></span>Paused</span>
+                    <% } else if (s.status === 'COMPLETED') { %>
+                      <span class="badge badge-info"><span class="badge-dot"></span>Completed</span>
+                    <% } else if (s.status === 'CANCELLED') { %>
+                      <span class="badge badge-danger"><span class="badge-dot"></span>Cancelled</span>
                     <% } else { %>
                       <span class="badge badge-subtle"><%= s.status %></span>
                     <% } %>
                   </td>
                   <td style="text-align: right;">
                     <div style="display: inline-flex; gap: 6px; align-items: center;">
-                      <form action="/maintenance/<%= s.id %>/generate-now" method="POST" style="margin: 0;" onsubmit="return confirm('Generate and dispatch invoice for <%= s.title %> right now?')">
-                        <button type="submit" class="btn btn-xs btn-primary" title="Generate invoice & email client now">
-                          <i class="uil uil-file-plus-alt"></i>
-                          <span>Invoice Now</span>
-                        </button>
-                      </form>
-                      <form action="/maintenance/<%= s.id %>/toggle-status" method="POST" style="margin: 0;">
-                        <button type="submit" class="btn btn-xs btn-secondary" title="<%= s.status === 'ACTIVE' ? 'Pause Auto-Invoicing' : 'Resume Auto-Invoicing' %>">
-                          <i class="uil <%= s.status === 'ACTIVE' ? 'uil-pause' : 'uil-play' %>"></i>
-                        </button>
-                      </form>
-                      <form action="/maintenance/<%= s.id %>/delete" method="POST" style="margin: 0;" onsubmit="return confirm('Are you sure you want to delete this maintenance contract schedule?')">
-                        <button type="submit" class="btn btn-xs btn-danger" title="Delete Contract">
-                          <i class="uil uil-trash-alt"></i>
-                        </button>
-                      </form>
+                      <% if (typeof hasModuleAccess === 'function' && hasModuleAccess('maintenance', 'manage')) { %>
+                        <a href="/maintenance/<%= s.id %>/edit" class="btn btn-xs btn-secondary" title="Edit Contract">
+                          <i class="uil uil-edit"></i>
+                          <span>Edit</span>
+                        </a>
+                        <form action="/maintenance/<%= s.id %>/generate-now" method="POST" style="margin: 0;" onsubmit="return confirm('Generate and dispatch invoice for <%= s.title %> right now?')">
+                          <button type="submit" class="btn btn-xs btn-primary" title="Generate invoice & email client now">
+                            <i class="uil uil-file-plus-alt"></i>
+                            <span>Invoice Now</span>
+                          </button>
+                        </form>
+                        <form action="/maintenance/<%= s.id %>/toggle-status" method="POST" style="margin: 0;">
+                          <button type="submit" class="btn btn-xs btn-secondary" title="<%= s.status === 'ACTIVE' ? 'Pause Auto-Invoicing' : 'Resume Auto-Invoicing' %>">
+                            <i class="uil <%= s.status === 'ACTIVE' ? 'uil-pause' : 'uil-play' %>"></i>
+                          </button>
+                        </form>
+                        <form action="/maintenance/<%= s.id %>/delete" method="POST" style="margin: 0;" onsubmit="return confirm('Are you sure you want to delete this maintenance contract schedule?')">
+                          <button type="submit" class="btn btn-xs btn-danger" title="Delete Contract">
+                            <i class="uil uil-trash-alt"></i>
+                          </button>
+                        </form>
+                      <% } %>
                     </div>
                   </td>
                 </tr>
